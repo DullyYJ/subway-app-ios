@@ -1,0 +1,72 @@
+name: iOS build (simulator)
+
+# 맥이 없어도 iOS 코드를 시험한다: 클라우드 맥에서 XcodeGen → 빌드 → 단위 시험 → 시뮬레이터 실행 화면 캡처.
+# 결과(로그 · 스크린샷)는 Actions 의 Artifacts 에서 받는다. 서명 없이 시뮬레이터용으로만 빌드한다(실기기 · TestFlight 는 Apple 개발자 계정이 필요하다).
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: 글꼴 만들기 (안드로이드와 같은 Noto Sans KR)
+        run: |
+          pip3 install --quiet --break-system-packages fonttools || pip3 install --quiet fonttools
+          python3 scripts/make_fonts.py
+      - name: XcodeGen 설치 · 프로젝트 생성
+        run: |
+          brew install xcodegen
+          xcodegen
+      - name: 시뮬레이터 고르기
+        run: |
+          xcodebuild -version
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          c=[x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]
+          print(c[-1]['udid'] if c else '')")
+          echo "UDID=$UDID" >> $GITHUB_ENV
+          echo "시뮬레이터: $UDID"
+      - name: 빌드 + 단위 시험
+        run: |
+          set -o pipefail
+          xcodebuild test -project Gildongmu.xcodeproj -scheme Gildongmu \
+            -destination "id=$UDID" -derivedDataPath build \
+            -resultBundlePath build/result.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | tail -60
+      - name: 실행 화면 캡처
+        if: always()
+        run: |
+          APP=$(find build/Build/Products -name 'Gildongmu.app' -maxdepth 3 | head -1)
+          echo "앱: $APP"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios
+          sleep 15
+          xcrun simctl io "$UDID" screenshot screenshot-1.png
+          xcrun simctl ui "$UDID" appearance dark
+          sleep 4
+          xcrun simctl io "$UDID" screenshot screenshot-2-dark.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-result
+          path: |
+            build.log
+            screenshot-*.png
+            build/result.xcresult
+      - name: 결과를 ios-ci-out 브랜치에 올리기 (Artifacts 를 못 받는 환경에서 화면을 확인하려고)
+        if: always()
+        run: |
+          mkdir -p /tmp/out && cp screenshot-*.png /tmp/out/ 2>/dev/null || true
+          tail -300 build.log > /tmp/out/build-tail.log || true
+          cd /tmp/out && git init -q && git checkout -q -b ios-ci-out
+          git config user.name ci && git config user.email ci@users.noreply.github.com
+          git add -A && git commit -qm "ios CI 결과 ${{ github.sha }}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" ios-ci-out

@@ -1,0 +1,7 @@
+*.xcodeproj
+Resources/Info.plist
+Resources/Fonts/*.ttf
+xcuserdata/
+DerivedData/
+build/
+.DS_Store
