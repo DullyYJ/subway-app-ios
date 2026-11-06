@@ -39,6 +39,10 @@ struct NodeView: View {
         case "tabbar": TabBarNode(node: node, pal: pal)
         case "marq": MarqueeNode(node: node, pal: pal)
         case "place", "news", "sug": listLine
+        case "grid": CardGridNode(node: node, pal: pal)
+        case "post": PostNode(node: node, pal: pal)
+        case "cmt": CmtNode(node: node, pal: pal)
+        case "btnrow": BtnRowNode(node: node, pal: pal)
         case "select": SelectNode(node: node, pal: pal)
         case "field": FieldNode(node: node, pal: pal)
         default: EmptyView()

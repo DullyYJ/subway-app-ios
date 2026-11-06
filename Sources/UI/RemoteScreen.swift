@@ -16,6 +16,7 @@ final class ScreenLoader: ObservableObject {
 struct ScreenBody: View {
     let screen: Screen
     let pal: Palette
+    @StateObject private var open = PostOpen()
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
@@ -24,6 +25,7 @@ struct ScreenBody: View {
             }.padding(.bottom, 24)
         }
         .background(pal.color(screen.bg) ?? pal.color("bg") ?? Color(.systemBackground))
+        .environmentObject(open)
     }
 }
 
