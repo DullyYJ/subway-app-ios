@@ -18,8 +18,8 @@ struct ShdNode: View {
                 Button { if let a = node.act { host.handle(a) } } label: {
                     ZStack {
                         Circle().fill(Color(red: 120 / 255, green: 120 / 255, blue: 128 / 255).opacity(0.16)).frame(width: 28, height: 28)
-                        Path { p in p.move(to: CGPoint(x: -4.2, y: -4.2)); p.addLine(to: CGPoint(x: 4.2, y: 4.2)); p.move(to: CGPoint(x: 4.2, y: -4.2)); p.addLine(to: CGPoint(x: -4.2, y: 4.2)) }
-                            .stroke(text, style: StrokeStyle(lineWidth: 1.7, lineCap: .round)).frame(width: 0, height: 0)
+                        Path { p in p.move(to: CGPoint(x: 9.8, y: 9.8)); p.addLine(to: CGPoint(x: 18.2, y: 18.2)); p.move(to: CGPoint(x: 18.2, y: 9.8)); p.addLine(to: CGPoint(x: 9.8, y: 18.2)) }
+                            .stroke(text, style: StrokeStyle(lineWidth: 1.7, lineCap: .round)).frame(width: 28, height: 28)
                     }.frame(width: 28, height: 28)
                 }.buttonStyle(.plain)
             }
@@ -87,8 +87,8 @@ struct TdrowNode: View {
                                     ZStack {
                                         Circle().fill(c5(pal, "card2", "card2")).frame(width: 19, height: 19)
                                         Circle().strokeBorder(border, lineWidth: 1).frame(width: 19, height: 19)
-                                        Path { p in p.move(to: CGPoint(x: -3.6, y: -1.6)); p.addLine(to: CGPoint(x: 3.6, y: -1.6)); p.addLine(to: CGPoint(x: 0, y: 2.2)); p.closeSubpath() }
-                                            .fill(sub).frame(width: 0, height: 0)
+                                        Path { p in p.move(to: CGPoint(x: 5.9, y: 7.9)); p.addLine(to: CGPoint(x: 13.1, y: 7.9)); p.addLine(to: CGPoint(x: 9.5, y: 11.7)); p.closeSubpath() }
+                                            .fill(sub).frame(width: 19, height: 19)
                                     }.rotationEffect(.degrees(open ? 180 : 0)).animation(.easeOut(duration: 0.2), value: open)
                                 }
                             }
