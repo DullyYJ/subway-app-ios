@@ -45,13 +45,14 @@ final class HomeModel: ObservableObject {
     private var hcKey = "", hcData: Data? = nil
     private func hcKeyNow() -> String {
         let fix = LocationStore.shared.last.map { String(format: "%.3f,%.3f", $0.coordinate.latitude, $0.coordinate.longitude) } ?? "-"
-        return "\(resTab):\(hasRoute ? seqRoute : -1):\(nowMs() / 60000):\(aiNextAt):\(RideLoop.shared.sceneJson.hashValue):\(fix)"
+        return "\(resTab):\(hasRoute ? seqRoute : -1):\(nowMs() / 60000):\(aiNextAt):\(RideLoop.shared.sceneJson.hashValue):\(RideLoop.shared.hasShare ? 1 : 0):\(fix)"
     }
     private func hcardsBody() -> String {
         let e = env()
         var b = "{\"cap\":\(Servers.cap),\"f\":{\"now\":\(e.ms),\"tz\":\(-e.tzo),\"th\":\"dark\""
         let sc = RideLoop.shared.sceneJson
         if sc.count > 2 { b += ",\"rd\":\(sc)" }
+        if RideLoop.shared.hasShare { b += ",\"sh\":1" }
         if let l = LocationStore.shared.last { b += ",\"gps\":[\(l.coordinate.latitude),\(l.coordinate.longitude)]" } else { b += ",\"gps\":null" }
         b += ",\"r\":\(resultFacts() ?? "null")"
         b += ",\"ai\":{\"nextAt\":\(aiNextAt),\"busy\":false,\"rnd\":\(aiRnd)},\"tk\":{\"m\":[],\"fold\":0,\"tzo\":\(e.tzo)}}}"
@@ -313,7 +314,8 @@ final class HomeModel: ObservableObject {
     func call(_ v: String, host: Host) {
         if v == "ai.refresh" { aiNextAt = nowMs() + 5 * 60 * 1000; aiRnd = Double.random(in: 0..<1); hcKey = ""; reloadSoon(); return }
         if v == "tk.open" { host.tab = "community"; return }
-        if v == "tk.send" || v == "share.loc" { host.say("이 기능은 다음 단계에서 연결돼요"); return }
+        if v == "share.loc" { ShareLoc.present(host: host); return }
+        if v == "tk.send" { host.say("이 기능은 다음 단계에서 연결돼요"); return }
         if v.hasPrefix("rh.") { result(v, host: host); return }
         if v.hasPrefix("rd.") { detailAct(v, host: host); return }
         if v.hasPrefix("sg."), v.count > 5 {

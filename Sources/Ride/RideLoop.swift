@@ -15,6 +15,9 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     @Published private(set) var running = false
     @Published private(set) var last = OvState()
+    /// 엔진 overlay.share(내 위치 공유 재료) — 탑승 중이고 재료가 있을 때만. 홈 카드의 [내 위치 공유] 버튼과 공유 그림이 쓴다.
+    @Published private(set) var share: [String: Any]? = nil
+    var hasShare: Bool { share != nil }
     @Published var note = ""
     /// 결과 카드에 실어 보낼 탑승 사실(안드로이드 RideCore.rideJson / lvJson). 엔진이 준 값을 그대로 옮겨 담을 뿐이다.
     @Published private(set) var rideJson = ""
@@ -56,7 +59,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         mgr.stopUpdatingLocation()
         running = false
         rideJson = ""; lvJson = ""
-        LiveRide.shared.end()
+        LiveRide.shared.end(); share = nil
     }
 
     /// 탑승 중 캐릭터 장면 재료 { here, boarded, key, nodes[{name,isOrigin,isSub,isBus,lineName}] } — 상태에서 이름·종류만 옮겨 담는다(어떤 장면을 보일지는 엔진이 정한다). 없으면 "".
@@ -146,6 +149,11 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
 
+    private static func shareFrom(_ o: Any?) -> [String: Any]? {
+        guard let m = o as? [String: Any], let t = m["text"] as? String, !t.isEmpty, let st = m["stations"] as? [[String: Any]], !st.isEmpty else { return nil }
+        return m
+    }
+
     /// 응답을 읽어 그린다. 돌려주는 값은 다음 호출까지 쉬는 초. 읽지 못하면 nil(state 는 그대로 — 다음 호출에 다시 보낸다).
     @discardableResult
     func apply(_ data: Data) -> Double? {
@@ -155,6 +163,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         fixes.removeAll { (($0.first as? Int64) ?? 0) <= lastSentTs }          // 보낸 위치는 지운다(그 뒤 들어온 것은 남긴다)
         readFacts(m); rebuild()
         last = OvState.from(m["overlay"])
+        share = Self.shareFrom((m["overlay"] as? [String: Any])?["share"])
         LiveRide.shared.apply(last)
         if let a = m["alert"] as? [String: Any] { notify(a) }
         if (m["done"] as? Bool) == true { stop(); return nil }
