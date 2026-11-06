@@ -50,6 +50,7 @@ struct NodeView: View {
         case "inbar": InbarNode(node: node, pal: pal)
         case "btog": BtogNode(node: node, pal: pal)
         case "bcard": BcardNode(node: node, pal: pal)
+        case "tmap": TmapNode(node: node, pal: pal)
         case "swap": SwapNode(node: node, pal: pal)
         case "trow": TrowNode(node: node, pal: pal)
         case "rhd": RhdNode(node: node, pal: pal)

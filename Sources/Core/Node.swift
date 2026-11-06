@@ -36,6 +36,7 @@ struct Action {
     let on: Bool?
     let id: String?                    // 엔진이 행동에 실어 준 대상 고유 id(글 번호 등) — 순번 대신 이것으로 가리킨다
     static func tog(_ v: String) -> Action { Action(a: "tog", v: v, url: nil, key: nil, on: nil, id: nil) }
+    static func call(_ v: String) -> Action { Action(a: "call", v: v, url: nil, key: nil, on: nil, id: nil) }
     static func set(_ key: String, _ on: Bool) -> Action { Action(a: "set", v: nil, url: nil, key: key, on: on, id: nil) }
     private init(a: String, v: String?, url: String?, key: String?, on: Bool?, id: String?) { self.a = a; self.v = v; self.url = url; self.key = key; self.on = on; self.id = id }
     init?(_ m: [String: Any]?) {
