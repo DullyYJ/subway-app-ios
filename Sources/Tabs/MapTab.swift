@@ -17,6 +17,30 @@ final class MapModel: ObservableObject {
     var flt: String { let f = ud.string(forKey: "map_flt") ?? "ALL"; return !f.isEmpty && f.count < 12 ? f : "ALL" }
     private var busView: String { ud.string(forKey: "map_busvw") == "fav" ? "fav" : "near" }
 
+    // 지하철 노선도 그림(앱에 들어 있는 데이터) · 역 팝업(엔진이 그린다)
+    @Published var metro: MetroData? = nil
+    @Published var stnScreen: Screen? = nil
+    @Published var showStn = false
+    func loadMetro() async {
+        if metro != nil { return }
+        guard let url = Bundle.main.url(forResource: "metro_native", withExtension: "bin") else { return }
+        let m = await Task.detached(priority: .userInitiated) { () -> MetroData? in
+            guard let d = try? Data(contentsOf: url) else { return nil }
+            return MetroData.load(gz: d)
+        }.value
+        metro = m
+    }
+    func tapStation(_ name: String) {
+        let n = name.filter { !$0.isWhitespace }
+        guard !n.isEmpty else { return }
+        showStn = true; stnScreen = nil
+        let body = "{\"cap\":\(Servers.cap),\"f\":{\"part\":\"stn\",\"stn\":\(Json.q(n)),\"sl\":\"\",\"reg\":\(Json.q(reg)),\"th\":\"dark\"}}"
+        Task {
+            if let d = try? await Net.request("POST", Servers.base + "/screen/map", body: body, timeout: 10), let s = try? Screen.parse(d) { stnScreen = s }
+            else { showStn = false }
+        }
+    }
+
     private var busRes: [String: String] = [:]
     private var busSel = -1
     private var seq = 0
@@ -106,7 +130,8 @@ final class MapModel: ObservableObject {
             LocationStore.shared.start(); busRes = [:]; busSel = -1; Task { await load() }
         } else if v.hasPrefix("mp.pc.") || v.hasPrefix("mp.pm."), let i = Int(v.dropFirst(6)) {
             busSel = i; Task { await load() }
-        } else { host.say("이 기능은 다음 단계에서 연결돼요") }
+        } else if v == "mp.close" { showStn = false }
+        else { host.say("이 기능은 다음 단계에서 연결돼요") }
     }
 }
 
@@ -120,14 +145,25 @@ struct MapTab: View {
             ZStack {
                 if let s = m.body { ScreenBody(screen: s, pal: pal) }
                 else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
-                if m.view == "metro" {
-                    Text("노선도 그림은 다음 단계에서 연결돼요").font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray)
+                if m.view == "metro", let md = m.metro {
+                    MetroMapView(data: md, filter: md.filterIndex(m.flt)) { m.tapStation($0) }
+                }
+                if m.showStn {
+                    ZStack(alignment: .bottom) {
+                        Color.black.opacity(0.5).ignoresSafeArea().onTapGesture { m.showStn = false }
+                        Group {
+                            if let s = m.stnScreen { ScreenBody(screen: s, pal: pal) } else { ProgressView().frame(height: 120) }
+                        }
+                        .frame(maxWidth: 520).frame(maxHeight: 520).fixedSize(horizontal: false, vertical: true)
+                        .background(pal.color("card") ?? .black)
+                        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
+                    }
                 }
                 if let e = m.error, m.body == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
             }
         }
         .background(pal.color("bg") ?? Color(.systemBackground))
-        .task { LocationStore.shared.start(); await m.load() }
+        .task { LocationStore.shared.start(); await m.loadMetro(); await m.load() }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "map" else { return }
             if x.a == "cat" { m.cat(x.v) } else if x.a == "call" { m.call(x.v, host: host) }

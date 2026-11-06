@@ -20,6 +20,8 @@ targets:
       - path: Shared
       - path: Resources/Fonts
         optional: true
+      - path: Resources/metro_native.bin
+        buildPhase: resources
     dependencies:
       - target: GildongmuLive
         embed: true
