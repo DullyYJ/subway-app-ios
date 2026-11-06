@@ -3,7 +3,7 @@ name: Gildongmu
 options:
   bundleIdPrefix: com.dullyyj
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "16.2"
   createIntermediateGroups: true
 settings:
   base:
@@ -17,8 +17,12 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      - path: Shared
       - path: Resources/Fonts
         optional: true
+    dependencies:
+      - target: GildongmuLive
+        embed: true
     info:
       path: Resources/Info.plist
       properties:
@@ -27,11 +31,36 @@ targets:
         UIAppFonts: [NotoSansKR-Regular.ttf, NotoSansKR-Bold.ttf]
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSLocationWhenInUseUsageDescription: 내 주변 정류장·지하철역과 경로 안내에 현재 위치를 사용해요.
+        NSLocationAlwaysAndWhenInUseUsageDescription: 다른 앱을 쓰는 동안에도 경로 안내(도착·이동중)를 이어 가려고 위치를 사용해요.
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
+        UIBackgroundModes: [location]
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dullyyj.subway.ios
         TARGETED_DEVICE_FAMILY: "1"
+  GildongmuLive:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+      - path: Shared
+      - path: Sources/Core/Typo.swift
+      - path: Resources/Fonts
+        optional: true
+    info:
+      path: Resources/Widget-Info.plist
+      properties:
+        CFBundleDisplayName: 길동무 실시간 현황
+        UIAppFonts: [NotoSansKR-Regular.ttf, NotoSansKR-Bold.ttf]
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dullyyj.subway.ios.live
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
   GildongmuTests:
     type: bundle.unit-test
     platform: iOS

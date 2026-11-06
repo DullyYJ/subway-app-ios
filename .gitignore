@@ -1,5 +1,6 @@
 *.xcodeproj
 Resources/Info.plist
+Resources/Widget-Info.plist
 Resources/Fonts/*.ttf
 xcuserdata/
 DerivedData/

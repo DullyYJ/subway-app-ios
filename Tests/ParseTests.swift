@@ -34,4 +34,22 @@ final class ParseTests: XCTestCase {
         XCTAssertEqual(Typo.wrap("가\n나", maxW: 100, size: 12, bold: false), ["가", "나"])
         XCTAssertEqual(Typo.wrap("가나다 라마바 사아자 차카타", maxW: 40, size: 12, bold: false, maxLines: 2).count, 2)
     }
+
+    /// 엔진 overlay → 모델 → 다이내믹 아일랜드 값 (안드로이드 OvCore 와 같은 읽기 규칙).
+    func testOverlayToLiveActivity() {
+        let ov = OvState.from(DemoOverlay.json("moving"))
+        XCTAssertTrue(ov.active); XCTAssertEqual(ov.cells.count, 7); XCTAssertEqual(ov.cur, 2)
+        XCTAssertEqual(ov.stateRgb, OvState.cMove)
+        let st = RideActivityAttributes.ContentState(ov)
+        XCTAssertEqual(st.label, "이동중"); XCTAssertEqual(st.cells.count, 5); XCTAssertEqual(st.cells[st.cur].n, "을지로입구")
+        XCTAssertEqual(RideActivityAttributes.ContentState(OvState.from(DemoOverlay.json("arrived"))).label, "도착")
+        XCTAssertEqual(RideActivityAttributes.ContentState(OvState.from(DemoOverlay.json("wait"))).label, "대기")
+        XCTAssertEqual(RideActivityAttributes.ContentState(OvState.from(DemoOverlay.json("alert1"))).alert, 1)
+        XCTAssertFalse(OvState.from(["active": true]).active)                  // line1 이 없으면 꺼짐
+        XCTAssertEqual(OvState.color("#f00", 0), 0xFFFF0000); XCTAssertEqual(OvState.color("#80ff0000", 0), 0x80FF0000)
+    }
+    func testStepBodyShape() {
+        let b = RideLoopBody.make(nowMs: 1000, fixes: [[Int64(900), 37.5, 127.0, NSNull()]], state: "{\"x\":1}")
+        XCTAssertTrue(b.contains("\"nowMs\":1000")); XCTAssertTrue(b.contains("\"state\":{\"x\":1}")); XCTAssertTrue(b.contains("null"))
+    }
 }

@@ -28,10 +28,15 @@ jobs:
         run: |
           xcodebuild -version
           UDID=$(xcrun simctl list devices available -j | python3 -c "
-          import json,sys
+          import json,sys,re
           d=json.load(sys.stdin)['devices']
           c=[x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]
-          print(c[-1]['udid'] if c else '')")
+          # 다이내믹 아일랜드가 있는 기종(14 Pro 이상 · 15 · 16 · 17, 'e' 제외)을 먼저 고른다
+          di=[x for x in c if re.match(r'iPhone (1[4-9]|2\d)( Pro)?( Max)?$', x['name']) and x['name'] not in ('iPhone 14','iPhone 14 Plus')]
+          pro=[x for x in di if 'Pro' in x['name'] and 'Max' not in x['name']]
+          pick=(pro or di or c)
+          print(pick[-1]['udid'] if pick else '')")
+          xcrun simctl list devices available | grep "$UDID" || true
           echo "UDID=$UDID" >> $GITHUB_ENV
           echo "시뮬레이터: $UDID"
       - name: 빌드 + 단위 시험
@@ -53,6 +58,17 @@ jobs:
           xcrun simctl ui "$UDID" appearance dark
           sleep 4
           xcrun simctl io "$UDID" screenshot screenshot-2-dark.png
+          # 다이내믹 아일랜드: 견본 overlay 로 실시간 현황을 띄우고 다른 앱(사파리)으로 넘어가 섬 모양을 찍는다
+          for K in moving wait alert2 alert1 arrived; do
+            xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+            xcrun simctl uninstall "$UDID" com.dullyyj.subway.ios || true
+            xcrun simctl install "$UDID" "$APP"
+            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -demoRide $K
+            sleep 6
+            xcrun simctl launch "$UDID" com.apple.mobilesafari || true
+            sleep 4
+            xcrun simctl io "$UDID" screenshot screenshot-island-$K.png
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
