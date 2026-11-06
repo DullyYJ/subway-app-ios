@@ -36,6 +36,7 @@ final class Host: ObservableObject {
         case "call":
             if let v = a.v, v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("bd.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
+            else if let v = a.v, v.hasPrefix("rt.") || v.hasPrefix("sg.") || v.hasPrefix("bt.") { actPublisher.send(TabAction(tab: "home", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else { call(a.v ?? "") }
         default:
             say("‘\(a.a)’ 행동은 아직 연결되지 않았어요 (v=\(a.v ?? "-"))")

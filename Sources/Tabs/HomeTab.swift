@@ -22,6 +22,54 @@ final class HomeModel: ObservableObject {
             + "\"base\":{\"ms\":null,\"tzo\":\(tzo),\"today\":[\(c.year ?? 2026),\((c.month ?? 1) - 1),\(c.day ?? 1)],\"now\":\(ms)}},\"d\":{}}"
     }
 
+    private var pending: Task<Void, Never>? = nil
+    func reloadSoon(_ ms: UInt64 = 250) {
+        pending?.cancel()
+        pending = Task { try? await Task.sleep(nanoseconds: ms * 1_000_000); if !Task.isCancelled { await load() } }
+    }
+
+    /// 입력칸 글자가 바뀜(타자) — 직접 친 글자는 아직 '고른 장소'가 아니다.
+    func typed(_ key: String, _ v: String) {
+        if key == "start" { if v == start { return }; start = v; startSet = false }
+        else if key == "dest" { if v == dest { return }; dest = v; destSet = false }
+        else { return }
+        active = key
+        reloadSoon()
+    }
+
+    /// 화면에서 행동 v 를 가진 후보 줄(sug)의 이름
+    private func sugName(_ v: String) -> String? {
+        func walk(_ ns: [Node]) -> String? {
+            for n in ns {
+                if n.t == "sug", n.act?.v == v { return n.str("name") }
+                if let r = walk(n.kids) { return r }
+            }
+            return nil
+        }
+        guard let s = screen else { return nil }
+        return walk(s.body)
+    }
+
+    func call(_ v: String, host: Host) {
+        if v == "rt.swap" {
+            let t = start; start = dest; dest = t
+            let f = startSet; startSet = destSet; destSet = f
+            active = ""; reloadSoon(0)
+        } else if v == "rt.gps" {
+            if LocationStore.shared.last == nil { LocationStore.shared.start(); host.say("위치 권한을 허용하면 내 위치를 쓸 수 있어요"); return }
+            start = "내 위치"; startSet = true; active = ""; reloadSoon(0)
+        } else if v.hasPrefix("sg.") {
+            guard let name = sugName(v) else { return }
+            let key = v.split(separator: ".").dropFirst().first.map(String.init) ?? ""
+            if key == "start" { start = name; startSet = true } else if key == "dest" { dest = name; destSet = true }
+            active = ""; reloadSoon(0)
+        } else if v == "rt.go" || v == "rt.enter" {
+            host.say("경로 탐색은 다음 단계에서 연결돼요")
+        } else if v == "bt.pick" || v == "bt.now" {
+            host.say("기준시각 고르기는 다음 단계에서 연결돼요")
+        }
+    }
+
     func load() async {
         do { screen = try await Net.screen("/screen/home", body: body()); error = nil }
         catch { self.error = error.localizedDescription }
@@ -39,6 +87,10 @@ struct HomeTab: View {
             if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
         }
         .task { LocationStore.shared.start(); await m.load() }
+        .onReceive(host.actPublisher) { x in
+            guard x.tab == "home" else { return }
+            if x.a == "input" { m.typed(x.key, x.v) } else if x.a == "call" { m.call(x.v, host: host) }
+        }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
     }
 }

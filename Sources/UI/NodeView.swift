@@ -47,6 +47,9 @@ struct NodeView: View {
         case "btnrow": BtnRowNode(node: node, pal: pal)
         case "select": SelectNode(node: node, pal: pal)
         case "field": FieldNode(node: node, pal: pal)
+        case "inbar": InbarNode(node: node, pal: pal)
+        case "swap": SwapNode(node: node, pal: pal)
+        case "trow": TrowNode(node: node, pal: pal)
         default: EmptyView()
         }
     }
