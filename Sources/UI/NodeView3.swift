@@ -80,7 +80,7 @@ struct PillNode: View {
 }
 
 // MARK: tags — 눌리지 않는 알약 줄(K_TAGS): 칸이 모자라면 다음 줄로 흘러 쓴다 · 기본 높이 24 · 간격 6 · 글 11 · 좌우 여백 10 · 바탕/테두리/글자는 엔진이 정한다
-struct FlowLayout: Layout {
+struct TagFlowLayout: Layout {
     var gap: CGFloat
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let w = proposal.width ?? 320
@@ -108,7 +108,7 @@ struct TagsNode: View {
     var body: some View {
         let gap = CGFloat(node.num("gap", 6)), h = CGFloat(node.num("h", 24)), size = CGFloat(node.num("size", 11)), px = CGFloat(node.num("px", 10))
         HStack(spacing: 0) {
-            FlowLayout(gap: gap) {
+            TagFlowLayout(gap: gap) {
                 ForEach(Array(node.items.prefix(12).enumerated()), id: \.offset) { _, c in
                     let lab = c["s"] as? String ?? ""
                     if !lab.isEmpty {
