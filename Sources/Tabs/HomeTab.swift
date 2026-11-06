@@ -86,7 +86,8 @@ final class HomeModel: ObservableObject {
     func closeDetail() { showDetail = false }
     func loadDetail() async {
         guard let f = resultFacts() else { return }
-        let body = "{\"cap\":\(Servers.cap),\"r\":\(f),\"view\":\"detail\",\"open\":[\(detOpen.sorted().map(String.init).joined(separator: ","))]}"
+        // view · open 은 r 안에 들어간다(안드로이드 HomeCore.detailRequest 와 같다)
+        let body = "{\"cap\":\(Servers.cap),\"r\":\(f.dropLast()),\"view\":\"detail\",\"open\":[\(detOpen.sorted().map(String.init).joined(separator: ","))]}}"
         if let d = try? await Net.request("POST", Servers.base + "/screen/result", body: body, timeout: 16), let s = try? Screen.parse(d) { detail = s }
     }
     private func detailAct(_ v: String, host: Host) {
