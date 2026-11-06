@@ -58,6 +58,10 @@ struct NodeView: View {
         case "shd": ShdNode(node: node, pal: pal)
         case "tdrow": TdrowNode(node: node, pal: pal)
         case "msg": MsgNode(node: node, pal: pal)
+        case "lth": LthNode(node: node, pal: pal)
+        case "ltr": LtrNode(node: node, pal: pal)
+        case "pill": PillNode(node: node, pal: pal)
+        case "tags": TagsNode(node: node, pal: pal)
         default: EmptyView().onAppear { UnknownKinds.note(node.t, (try? JSONSerialization.data(withJSONObject: node.d)).flatMap { String(data: $0, encoding: .utf8) } ?? "") }
         }
     }
