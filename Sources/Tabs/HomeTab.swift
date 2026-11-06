@@ -8,6 +8,9 @@ final class HomeModel: ObservableObject {
     @Published var error: String? = nil
     var start = "", dest = "", active = ""
     var startSet = false, destSet = false
+    init() {   // 화면 확인용 실행 인자: -homeDest 명동 → 도착지 칸에 글자를 넣은 상태로 시작
+        if let d = UserDefaults.standard.string(forKey: "homeDest"), !d.isEmpty { dest = d; active = "dest" }
+    }
 
     private func body() -> String {
         let now = Date()
