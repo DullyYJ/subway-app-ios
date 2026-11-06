@@ -15,6 +15,14 @@ struct HLoc {
 @MainActor
 final class HomeModel: ObservableObject {
     static let shared = HomeModel()
+    /// 설정의 알림 스위치(np_arrive · np_transfer · np_arrive_reco, "0" 이 끔)를 엔진이 아는 알림 종류 이름들로 펼친 '끈 목록'(안드로이드 RideCore.offKinds).
+    static func offKinds() -> [String] {
+        let ud = UserDefaults.standard; var o: [String] = []
+        if ud.string(forKey: "np_arrive") == "0" { o += ["near_arrive2", "near_arrive", "arrive"] }
+        if ud.string(forKey: "np_transfer") == "0" { o += ["transfer2", "transfer"] }
+        if ud.string(forKey: "np_arrive_reco") == "0" { o.append("arrive_reco") }
+        return o
+    }
     /// 지금 찾은 경로가 지나는 노선들(결과 화면 info.sec) — 소통방이 '내가 탈 노선'을 앞에 놓는 재료.
     @Published private(set) var routeSec: [String] = []
     let fav = FavModel()
@@ -456,6 +464,8 @@ final class HomeModel: ObservableObject {
     // MARK: 경로 확정 · 탑승 안내 (안드로이드 ShellActivity.startRide / rideCommit)
     private func startBody(_ facts: String, pickMs: Int64 = 0, pickNo: String = "") -> String {
         var f = facts
+        let off = HomeModel.offKinds()
+        if !off.isEmpty, f.hasSuffix("}") { f = String(f.dropLast()) + ",\"allowed\":{" + off.map { "\(Json.q($0)):false" }.joined(separator: ",") + "}}" }
         if pickMs > 0 { f = String(f.dropLast()) + ",\"pick\":{\"ms\":\(pickMs)" + (pickNo.isEmpty ? "" : ",\"no\":\(Json.q(pickNo))") + "}}" }
         return "{\"cap\":\(Servers.cap),\"r\":\(f)}"
     }
