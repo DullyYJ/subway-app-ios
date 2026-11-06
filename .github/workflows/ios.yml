@@ -74,6 +74,16 @@ jobs:
           xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab map -map_mode subway
           sleep 22
           xcrun simctl io "$UDID" screenshot screenshot-tab-map-subway.png
+          for CM in set board; do
+            xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab community -ccMode $CM
+            sleep 22
+            xcrun simctl io "$UDID" screenshot screenshot-tab-community-$CM.png
+          done
+          xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab community -ccMode news -newsDetail 1
+          sleep 26
+          xcrun simctl io "$UDID" screenshot screenshot-tab-community-newsdetail.png
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
           xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab home -homeDest 명동
           sleep 22

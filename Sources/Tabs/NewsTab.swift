@@ -69,7 +69,10 @@ final class NewsModel: ObservableObject {
         let body = "{\"cap\":\(Servers.cap),\"f\":{\"cat\":\(Json.q(cat))},\"n\":\(listJson())}"
         do { screen = try await Net.screen("/screen/news", body: body); error = nil }
         catch { if screen == nil { self.error = "소식을 받지 못했어요" } }
+        if !autoDone, CommandLine.arguments.contains("-newsDetail"), let r = rows.first, let h = hostRef { autoDone = true; open(id: r.link.isEmpty ? r.title : r.link, title: r.title, host: h) }
     }
+    private var autoDone = false
+    weak var hostRef: Host?
     func setCat(_ c: String) { guard !c.isEmpty, c.count < 20 else { return }; UserDefaults.standard.set(c, forKey: "news_cat"); Task { await load(fetch: false) } }
 
     /// 기사 고유 id(링크, 없으면 제목)로 상세를 연다 — 목록이 바뀐 뒤에 눌러도 같은 기사.
@@ -104,7 +107,7 @@ struct NewsView: View {
             if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
             if let d = m.detail { NewsDetailSheet(d: d, pal: pal) { m.detail = nil } }
         }
-        .task { await m.load() }
+        .task { m.hostRef = host; await m.load() }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "community" else { return }
             if x.a == "cat" { m.setCat(x.v) }
