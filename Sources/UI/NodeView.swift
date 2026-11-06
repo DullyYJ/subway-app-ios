@@ -374,6 +374,7 @@ struct FieldNode: View {
     let node: Node; let pal: Palette
     @State private var text: String
     @FocusState private var focused: Bool
+    @EnvironmentObject var host: Host
     init(node: Node, pal: Palette) { self.node = node; self.pal = pal; _text = State(initialValue: node.str("value") ?? "") }
     var body: some View {
         let r = CGFloat(node.num("r", 9))
@@ -386,7 +387,15 @@ struct FieldNode: View {
             .padding(.horizontal, 13).frame(height: CGFloat(node.num("h", 44)))
             .background(shape.fill(pal.color(node.str("fill")) ?? pal.color("bg") ?? .white))
             .overlay(shape.strokeBorder(focused ? (pal.color("gold") ?? .yellow) : (pal.color(node.str("line")) ?? pal.color("border2") ?? .gray), lineWidth: focused ? 1.5 : 1))
-            .onChange(of: text) { v in UserDefaults.standard.set(v, forKey: "field." + (node.str("key") ?? "")) }
+            .onChange(of: text) { v in
+                let k = node.str("key") ?? ""
+                UserDefaults.standard.set(v, forKey: "field." + k)
+                host.actPublisher.send(Host.TabAction(tab: "home", a: "field", v: v, id: "edit", key: k))
+            }
+            .onChange(of: focused) { f in
+                let k = node.str("key") ?? ""
+                host.actPublisher.send(Host.TabAction(tab: "home", a: "field", v: text, id: f ? "focus" : "blur", key: k))
+            }
     }
 }
 

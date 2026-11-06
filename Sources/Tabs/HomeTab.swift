@@ -15,6 +15,7 @@ struct HLoc {
 @MainActor
 final class HomeModel: ObservableObject {
     static let shared = HomeModel()
+    let fav = FavModel()
     @Published var screen: Screen? = nil
     @Published var error: String? = nil
     static let START = 0, DEST = 1
@@ -291,6 +292,12 @@ final class HomeModel: ObservableObject {
     var bothSet: Bool { loc[0]?.ok == true && loc[1]?.ok == true }
     var isRouting: Bool { routing }
     var isRiding: Bool { riding }
+    func favCur() -> (String, String, String, String) {
+        let a = hasRoute ? resA : text[0], b = hasRoute ? resB : text[1]
+        let l0 = loc[0], l1 = loc[1]
+        return (a, b, l0 != nil && l0!.type == "subway" && l0!.name == a ? l0!.line : "", l1 != nil && l1!.type == "subway" && l1!.name == b ? l1!.line : "")
+    }
+    func clearRoute() { routeRaw = ""; reloadSoon() }
     private var snap: (loc: [HLoc?], text: [String])? = nil
     func pickSnap() { snap = (loc, text) }
     func pickRestore(_ startName: String) {
@@ -388,6 +395,7 @@ final class HomeModel: ObservableObject {
         else if v == "rh.close" { routeRaw = ""; reloadSoon() }
         else if v == "rh.detail" { openDetail() }
         else if v == "rh.confirm" { confirm(host: host) }
+        else if v == "rh.fav" { fav.hostRef = host; fav.show(cur: favCur()) }
         else if v == "rh.stop" { stopRide(host: host) }
         else if v == "rh.slot" { slot(host: host) }
         else { host.say("이 기능은 다음 단계에서 연결돼요") }
@@ -495,12 +503,19 @@ struct HomeTab: View {
             if m.showDetail { DetailSheet(m: m, pal: pal) }
             if m.showTimePick { TimePickCard(m: m, pal: pal) { m.commitBase(host: host) } }
             if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0, host: host) } }
+            FavLayer(fav: m.fav, pal: pal)
         }
         .task { LocationStore.shared.start(); await m.load(); await m.startDemo(host: host) }
         .task { while !Task.isCancelled { try? await Task.sleep(nanoseconds: 30_000_000_000); m.tick() } }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "home" else { return }
-            if x.a == "input" { m.typed(x.key, x.v) } else if x.a == "call" { if x.v.hasPrefix("dl.") { m.dlgAct(x.v, host: host) } else { m.call(x.v, host: host) } }
+            if x.a == "input" { m.typed(x.key, x.v) }
+            else if x.a == "field" { m.fav.fieldEvent(key: x.key, value: x.v, kind: x.id, host: host) }
+            else if x.a == "call" {
+                if x.v.hasPrefix("dl.") { m.dlgAct(x.v, host: host) }
+                else if x.v.hasPrefix("fv.") { m.fav.act(x.v, host: host, home: m) }
+                else { m.call(x.v, host: host) }
+            }
         }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
     }
@@ -588,4 +603,10 @@ struct TimePickCard: View {
             .padding(.horizontal, 16)
         }
     }
+}
+
+struct FavLayer: View {
+    @ObservedObject var fav: FavModel
+    let pal: Palette
+    var body: some View { if fav.open { FavSheet(fav: fav, pal: pal) } }
 }
