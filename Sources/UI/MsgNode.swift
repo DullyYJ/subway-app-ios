@@ -7,12 +7,12 @@ struct FracWidth: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard let s = subviews.first else { return .zero }
         let w = (proposal.width ?? 320) * frac
-        return s.sizeThatFits(ProposedViewSize(width: w, height: nil))
+        let sz = s.sizeThatFits(ProposedViewSize(width: w, height: nil))
+        return CGSize(width: min(sz.width, w), height: sz.height)
     }
     func placeSubviews(in b: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard let s = subviews.first else { return }
-        let sz = s.sizeThatFits(ProposedViewSize(width: b.width * frac, height: nil))
-        s.place(at: b.origin, proposal: ProposedViewSize(width: sz.width, height: sz.height))
+        s.place(at: b.origin, proposal: ProposedViewSize(width: b.width, height: b.height))
     }
 }
 
