@@ -10,4 +10,9 @@ enum UnknownKinds {
         let line = k + "\t" + String(sample.prefix(300)) + "\n"
         if let h = try? FileHandle(forWritingTo: f) { h.seekToEndOfFile(); h.write(Data(line.utf8)); try? h.close() } else { try? line.write(to: f, atomically: true, encoding: .utf8) }
     }
+    /// 확인용: 받은 화면 원문을 Documents 에 남긴다(CI 가 가져가 안드로이드와 견준다).
+    static func dump(_ name: String, _ d: Data) {
+        guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        try? d.write(to: dir.appendingPathComponent(name))
+    }
 }

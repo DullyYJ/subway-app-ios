@@ -221,6 +221,8 @@ final class HomeModel: ObservableObject {
         async let cd: Data? = cb == nil ? nil : (try? await Net.request("POST", Servers.base + "/screen/hcards", body: cb, timeout: 15))
         let (h, r, c) = await (hd, rd, cd)
         if my != seq { return }
+        if let h = h { UnknownKinds.dump("home-screen.json", h) }
+        if let c = c { UnknownKinds.dump("home-hcards.json", c) }
         if cb != nil, let c = c, Json.isObject(c) { hcKey = ck; hcData = c }
         guard let h = h else { if screen == nil { error = "홈 화면을 받지 못했어요" }; return }
         var sec: [String] = []
