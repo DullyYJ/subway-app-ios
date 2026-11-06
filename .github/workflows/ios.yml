@@ -103,13 +103,19 @@ jobs:
             xcrun simctl uninstall "$U" com.dullyyj.subway.ios 2>/dev/null || true
             xcrun simctl install "$U" "$APP"
             xcrun simctl ui "$U" appearance dark
+            xcrun simctl privacy "$U" grant location-always com.dullyyj.subway.ios || true
+            xcrun simctl location "$U" set 37.5547,126.9707 || true
             xcrun simctl io "$U" recordVideo --codec=h264 --force "video-$N.mp4" &
             RP=$!
             sleep 3
             xcrun simctl launch "$U" com.dullyyj.subway.ios -demoRide journey
-            sleep 7
+            sleep 2
             xcrun simctl launch "$U" com.apple.mobilesafari || true
-            sleep 8
+            sleep 4
+            if [ "$N" = noisland ]; then   # 섬이 없는 폰은 잠금화면에만 보인다 — 시뮬레이터 잠금(⌘L)을 시도
+              osascript -e 'tell application "Simulator" to activate' -e 'tell application "System Events" to keystroke "l" using {command down}' || true
+            fi
+            sleep 12
             kill -INT $RP; wait $RP || true
           }
           rec "$UDID" island

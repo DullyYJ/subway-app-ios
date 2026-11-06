@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import CoreLocation
 
 @main
 struct GildongmuApp: App {
@@ -11,9 +12,10 @@ struct GildongmuApp: App {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 if kind == "journey" {
-                    // 이동 중 → 4초 뒤 도착. 앱이 앞에 있는 채로 갱신해 도착 순간 섬이 저절로 펼쳐지는지 본다
+                    // 이동 중 → 8초 뒤 도착. 앱이 뒤로 가 있어도 갱신이 나가도록 위치 백그라운드(시험용)로 살려 둔다
+                    DemoKeepAlive.shared.start()
                     LiveRide.shared.apply(OvState.from(DemoOverlay.json("moving")))
-                    try? await Task.sleep(nanoseconds: 4_000_000_000)
+                    try? await Task.sleep(nanoseconds: 8_000_000_000)
                     LiveRide.shared.apply(OvState.from(DemoOverlay.json("arrived")))
                 } else {
                     LiveRide.shared.apply(OvState.from(DemoOverlay.json(kind)))
@@ -23,5 +25,18 @@ struct GildongmuApp: App {
     }
     var body: some Scene {
         WindowGroup { RootView() }
+    }
+}
+
+/// 시험 전용: 앱이 뒤로 가도 멈추지 않게 위치 갱신을 켜 둔다(`-demoRide journey` 에서만 쓴다).
+final class DemoKeepAlive: NSObject, CLLocationManagerDelegate {
+    static let shared = DemoKeepAlive()
+    private let m = CLLocationManager()
+    func start() {
+        m.delegate = self
+        m.requestAlwaysAuthorization()
+        m.allowsBackgroundLocationUpdates = true
+        m.pausesLocationUpdatesAutomatically = false
+        m.startUpdatingLocation()
     }
 }
