@@ -13,7 +13,7 @@ final class Host: ObservableObject {
     func clearField(_ k: String) { UserDefaults.standard.removeObject(forKey: "field." + k); fieldClear[k, default: 0] += 1 }
     @Published var sheet: SheetRoute? = nil
     /// 분류 칩(cat) · 글 펼침(tog) 같은 탭 안의 행동: 켜진 탭이 받아 자기 화면을 다시 그린다.
-    struct TabAction { let tab: String; let a: String; let v: String; let id: String; let key: String }
+    struct TabAction { let tab: String; let a: String; let v: String; let id: String; let key: String; var t: String = ""; var on: Bool = false }
     let actPublisher = PassthroughSubject<TabAction, Never>()
 
     struct SheetRoute: Identifiable { let id = UUID(); let path: String; let body: String?; let title: String }
@@ -35,9 +35,13 @@ final class Host: ObservableObject {
         case "cat", "tog":
             actPublisher.send(TabAction(tab: tab, a: a.a, v: a.v ?? "", id: a.id ?? "", key: a.key ?? ""))
         case "set":
-            if let k = a.key { UserDefaults.standard.set(a.on ?? false, forKey: "set." + k) }
+            if tab == "community" { actPublisher.send(TabAction(tab: "community", a: "set", v: "", id: "", key: a.key ?? "", on: a.on ?? false)) }
+            else if let k = a.key { UserDefaults.standard.set(a.on ?? false, forKey: "set." + k) }
+        case "sel", "web":
+            actPublisher.send(TabAction(tab: "community", a: a.a, v: a.v ?? a.url ?? "", id: "", key: a.key ?? ""))
         case "call":
-            if let v = a.v, v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
+            if let v = a.v, v.hasPrefix("cc.") || v.hasPrefix("nw.") || v == "saveId" || v == "clearId" || v.hasPrefix("pol.") || v.hasPrefix("pg.") || v == "errlog" { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
+            else if let v = a.v, v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("bd.") || v.hasPrefix("wr.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("mp.") || v.hasPrefix("br.") || v.hasPrefix("mr.") { actPublisher.send(TabAction(tab: "map", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("rt.") || v.hasPrefix("sg.") || v.hasPrefix("bt.") || v.hasPrefix("rh.") || v.hasPrefix("rd.") || v.hasPrefix("dl.") || v.hasPrefix("ai.") || v.hasPrefix("tk.") || v.hasPrefix("share.") || v.hasPrefix("fv.") { actPublisher.send(TabAction(tab: "home", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }

@@ -34,14 +34,15 @@ struct Action {
     let url: String?
     let key: String?
     let on: Bool?
+    let t: String?                     // 눌린 줄의 제목(뉴스 기사 — 목록이 바뀌어도 같은 기사를 찾는 데 쓴다)
     let id: String?                    // 엔진이 행동에 실어 준 대상 고유 id(글 번호 등) — 순번 대신 이것으로 가리킨다
-    static func tog(_ v: String) -> Action { Action(a: "tog", v: v, url: nil, key: nil, on: nil, id: nil) }
-    static func call(_ v: String) -> Action { Action(a: "call", v: v, url: nil, key: nil, on: nil, id: nil) }
-    static func set(_ key: String, _ on: Bool) -> Action { Action(a: "set", v: nil, url: nil, key: key, on: on, id: nil) }
-    private init(a: String, v: String?, url: String?, key: String?, on: Bool?, id: String?) { self.a = a; self.v = v; self.url = url; self.key = key; self.on = on; self.id = id }
+    static func tog(_ v: String) -> Action { Action(a: "tog", v: v, url: nil, key: nil, on: nil, id: nil, t: nil) }
+    static func call(_ v: String) -> Action { Action(a: "call", v: v, url: nil, key: nil, on: nil, id: nil, t: nil) }
+    static func set(_ key: String, _ on: Bool) -> Action { Action(a: "set", v: nil, url: nil, key: key, on: on, id: nil, t: nil) }
+    private init(a: String, v: String?, url: String?, key: String?, on: Bool?, id: String?, t: String?) { self.a = a; self.v = v; self.url = url; self.key = key; self.on = on; self.id = id; self.t = t }
     init?(_ m: [String: Any]?) {
         guard let m = m, let a = m["a"] as? String else { return nil }
-        self.a = a; v = m["v"] as? String; url = m["url"] as? String; key = m["key"] as? String; on = (m["on"] as? NSNumber)?.boolValue; id = m["id"] as? String
+        self.a = a; v = m["v"] as? String; url = m["url"] as? String; key = m["key"] as? String; on = (m["on"] as? NSNumber)?.boolValue; id = m["id"] as? String; t = m["t"] as? String
     }
 }
 

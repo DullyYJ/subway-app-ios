@@ -3,7 +3,8 @@ import SwiftUI
 struct RootView: View {
     @StateObject private var host = Host()
     @Environment(\.colorScheme) private var scheme
-    private var pal: Palette { scheme == .dark ? .dark : .light }
+    @AppStorage("theme") private var theme = ""
+    private var pal: Palette { theme == "dark" ? .dark : theme == "pastel" ? .light : (scheme == .dark ? .dark : .light) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,6 +24,7 @@ struct RootView: View {
         }
         .background(pal.color("bg") ?? Color(.systemBackground))
         .environmentObject(host)
+        .preferredColorScheme(theme == "dark" ? .dark : theme == "pastel" ? .light : nil)
     }
 }
 
@@ -49,7 +51,7 @@ struct TabContent: View {
     let pal: Palette
     var body: some View {
         switch tab {
-        case "community": BoardTab(pal: pal)
+        case "community": CommunityTab(pal: pal)
         case "shop": ShopTab(pal: pal)
         case "food": FoodTab(pal: pal)
         case "home": HomeTab(pal: pal)
