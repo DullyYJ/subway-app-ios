@@ -116,13 +116,7 @@ jobs:
               sleep 3
               G=$(osascript -e 'tell application "System Events" to tell process "Simulator" to get {position, size} of window 1' 2>&1 || true)
               echo "시뮬레이터 창: $G"
-              python3 - "$G" <<'PY' > /tmp/clk.txt || true
-          import sys,re
-          n=[float(x) for x in re.findall(r'-?\d+(?:\.\d+)?', sys.argv[1])]
-          if len(n)>=4:
-              x,y,w,h=n[:4]; top=28; ch=h-top
-              print(int(x+w*0.69), int(y+top+ch*0.80))
-PY
+              python3 scripts/click_pos.py "$G" > /tmp/clk.txt || true
               cat /tmp/clk.txt || true
               if [ -s /tmp/clk.txt ]; then read CX CY < /tmp/clk.txt; osascript -e "tell application \"System Events\" to click at {$CX, $CY}" || true; fi
               sleep 2
