@@ -52,6 +52,8 @@ struct NodeView: View {
         case "trow": TrowNode(node: node, pal: pal)
         case "rhd": RhdNode(node: node, pal: pal)
         case "trk": TrkNode(node: node, pal: pal)
+        case "shd": ShdNode(node: node, pal: pal)
+        case "tdrow": TdrowNode(node: node, pal: pal)
         default: EmptyView()
         }
     }

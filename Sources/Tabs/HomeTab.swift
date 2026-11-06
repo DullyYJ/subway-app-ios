@@ -42,7 +42,9 @@ final class HomeModel: ObservableObject {
             demoRoute = true
         }
     }
-    func startDemo(host: Host) async { if demoRoute { demoRoute = false; await goRoute(host: host) } }
+    func startDemo(host: Host) async {
+        if demoRoute { demoRoute = false; await goRoute(host: host); if UserDefaults.standard.string(forKey: "homeDetail") == "1" { openDetail() } }
+    }
 
     // MARK: 요청
     private func nowMs() -> Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
@@ -63,14 +65,36 @@ final class HomeModel: ObservableObject {
             + "\"startSet\":\(loc[0] != nil),\"destSet\":\(loc[1] != nil),\"gps\":\(gps),\"rs\":\(routing),"
             + "\"base\":{\"ms\":null,\"tzo\":\(e.tzo),\"today\":[\(e.y),\(e.m),\(e.d)],\"now\":\(e.ms)}},\"d\":\(d)}"
     }
-    private func resultBody() -> String? {
+    private func resultFacts() -> String? {
         guard hasRoute else { return nil }
         let e = env()
         var f = "{\"data\":\(routeRaw),\"tab\":\(Json.q(resTab)),\"a\":\(Json.q(resA)),\"b\":\(Json.q(resB)),\"bt\":null,\"rb\":\(resRb)"
         if let d = loc[1], d.ok { f += ",\"dl\":{\"la\":\(d.lat),\"lo\":\(d.lng),\"n\":\(Json.q(d.name))}" }
         if let s = loc[0], s.ok { f += ",\"me\":[\(s.lat),\(s.lng)]" }
         f += ",\"now\":\(e.ms),\"tz\":\(-e.tzo),\"th\":\"dark\",\"fav\":1}"
+        return f
+    }
+    private func resultBody() -> String? {
+        guard let f = resultFacts() else { return nil }
         return "{\"cap\":\(Servers.cap),\"r\":\(f)}"
+    }
+    // 세부경로 시트(안드로이드 openDetailSheet): 같은 사실에 view:detail 과 펼친 구간 번호를 실어 묻는다
+    @Published var showDetail = false
+    @Published var detail: Screen? = nil
+    private var detOpen = Set<Int>()
+    func openDetail() { detOpen = []; detail = nil; showDetail = true; Task { await loadDetail() } }
+    func closeDetail() { showDetail = false }
+    func loadDetail() async {
+        guard let f = resultFacts() else { return }
+        let body = "{\"cap\":\(Servers.cap),\"r\":\(f),\"view\":\"detail\",\"open\":[\(detOpen.sorted().map(String.init).joined(separator: ","))]}"
+        if let d = try? await Net.request("POST", Servers.base + "/screen/result", body: body, timeout: 16), let s = try? Screen.parse(d) { detail = s }
+    }
+    private func detailAct(_ v: String, host: Host) {
+        if v == "rd.close" { closeDetail() }
+        else if v.hasPrefix("rd.tg."), let i = Int(v.dropFirst(6)), i >= 0, i < 40 {
+            if detOpen.contains(i) { detOpen.remove(i) } else { detOpen.insert(i) }
+            Task { await loadDetail() }
+        } else { host.say("이 기능은 다음 단계에서 연결돼요") }
     }
 
     private func str(_ o: Any?) -> String {
@@ -200,6 +224,7 @@ final class HomeModel: ObservableObject {
     // MARK: 눌림
     func call(_ v: String, host: Host) {
         if v.hasPrefix("rh.") { result(v, host: host); return }
+        if v.hasPrefix("rd.") { detailAct(v, host: host); return }
         if v.hasPrefix("sg."), v.count > 5 {
             let a = Array(v)
             guard a[4] == ".", let idx = Int(String(a[5...])) else { return }
@@ -271,6 +296,7 @@ final class HomeModel: ObservableObject {
     private func result(_ v: String, host: Host) {
         if v.hasPrefix("rh.tab.") { resTab = String(v.dropFirst(7)); reloadSoon() }
         else if v == "rh.close" { routeRaw = ""; reloadSoon() }
+        else if v == "rh.detail" { openDetail() }
         else { host.say("이 기능은 다음 단계에서 연결돼요") }
     }
 }
@@ -284,6 +310,7 @@ struct HomeTab: View {
             if let s = m.screen { ScreenBody(screen: s, pal: pal) }
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
             if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
+            if m.showDetail { DetailSheet(m: m, pal: pal) }
         }
         .task { LocationStore.shared.start(); await m.load(); await m.startDemo(host: host) }
         .onReceive(host.actPublisher) { x in
@@ -291,5 +318,25 @@ struct HomeTab: View {
             if x.a == "input" { m.typed(x.key, x.v) } else if x.a == "call" { m.call(x.v, host: host) }
         }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
+    }
+}
+
+/// 세부경로 시트: 바깥은 0.82 어둡게(누르면 닫힘) · 카드색 바탕 · 위쪽 모서리 20 · 위에서 10 띄움 · 폭 최대 520. (웹 transitDetail)
+struct DetailSheet: View {
+    @ObservedObject var m: HomeModel
+    let pal: Palette
+    var body: some View {
+        ZStack(alignment: .top) {
+            Color.black.opacity(0.82).ignoresSafeArea().onTapGesture { m.closeDetail() }
+            Group {
+                if let s = m.detail { ScreenBody(screen: s, pal: pal) }
+                else { ZStack { (pal.color("card") ?? .black); Text("경로를 불러오는 중...").font(Typo.font(13)).foregroundColor(pal.color("sub") ?? .gray) } }
+            }
+            .frame(maxWidth: 520).frame(maxHeight: .infinity)
+            .background(pal.color("card") ?? .black)
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
+            .padding(.top, 10)
+        }
+        .transition(.move(edge: .bottom))
     }
 }
