@@ -52,6 +52,8 @@ jobs:
           echo "앱: $APP"
           xcrun simctl boot "$UDID" || true
           xcrun simctl install "$UDID" "$APP"
+          xcrun simctl privacy "$UDID" grant location com.dullyyj.subway.ios || true
+          xcrun simctl location "$UDID" set 37.5547,126.9707 || true
           xcrun simctl launch "$UDID" com.dullyyj.subway.ios
           sleep 15
           xcrun simctl io "$UDID" screenshot screenshot-1.png
@@ -63,6 +65,7 @@ jobs:
           xcrun simctl location "$UDID" set 37.5547,126.9707 || true
           for T in home community shop food; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+            xcrun simctl privacy "$UDID" grant location com.dullyyj.subway.ios || true
             xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab $T
             sleep 22
             xcrun simctl io "$UDID" screenshot screenshot-tab-$T.png
