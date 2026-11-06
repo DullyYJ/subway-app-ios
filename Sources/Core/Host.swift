@@ -16,6 +16,11 @@ final class Host: ObservableObject {
     struct SheetRoute: Identifiable { let id = UUID(); let path: String; let body: String?; let title: String }
 
     /// 안드로이드 ShellCore.TABS 순서가 아니라 서버가 tabs 화면에서 정한다. 여기서는 이름만 안다.
+    init() {   // 시험용: `-tab shop` 으로 켜면 그 탭부터 보인다
+        let a = CommandLine.arguments
+        if let i = a.firstIndex(of: "-tab"), i + 1 < a.count, Host.tabNames.contains(a[i + 1]) { tab = a[i + 1] }
+    }
+
     static let tabNames = ["community", "map", "home", "shop", "food"]
 
     func handle(_ a: Action) {

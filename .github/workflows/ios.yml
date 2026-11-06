@@ -58,6 +58,14 @@ jobs:
           xcrun simctl ui "$UDID" appearance dark
           sleep 4
           xcrun simctl io "$UDID" screenshot screenshot-2-dark.png
+          # 탭 화면: 커뮤니티 · 쇼핑 (서버에서 받아 그린 모습)
+          for T in community shop; do
+            xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab $T
+            sleep 12
+            xcrun simctl io "$UDID" screenshot screenshot-tab-$T.png
+          done
+          xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
           # 다이내믹 아일랜드: 견본 overlay 로 실시간 현황을 띄우고 다른 앱(사파리)으로 넘어가 섬 모양을 찍는다
           for K in moving wait alert2 alert1 arrived; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
@@ -83,8 +91,8 @@ jobs:
           xcrun simctl launch "$UDID" com.apple.mobilesafari || true
           sleep 3
           xcrun simctl io "$UDID" screenshot screenshot-journey-6-after.png
-      - name: 영상 녹화 (다이내믹 아일랜드 있는 폰 · 없는 폰)
-        if: always()
+      - name: 영상 녹화 (다이내믹 아일랜드 있는 폰 · 없는 폰) — 직접 실행(workflow_dispatch)할 때만
+        if: always() && github.event_name == 'workflow_dispatch'
         run: |
           APP=$(find build/Build/Products -name 'Gildongmu.app' -maxdepth 3 | head -1)
           NOISL=$(xcrun simctl list devices available -j | python3 -c "
