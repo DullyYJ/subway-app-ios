@@ -35,7 +35,7 @@ struct CommunityTab: View {
                 switch m.mode {
                 case "board": BoardTab(pal: pal)
                 case "set": SettingsView(pal: pal)
-                case "chat": ChatPending(pal: pal)
+                case "chat": ChatView(pal: pal)
                 default: NewsView(pal: pal)
                 }
             }
@@ -45,17 +45,6 @@ struct CommunityTab: View {
         .onReceive(host.actPublisher) { x in
             guard x.tab == "community", x.a == "call", x.v.hasPrefix("cc.") else { return }
             m.setMode(String(x.v.dropFirst(3)))
-        }
-    }
-}
-
-/// 소통방은 다음 단계 — 그 사이 안내만.
-struct ChatPending: View {
-    let pal: Palette
-    var body: some View {
-        ZStack {
-            (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea()
-            Text("소통방은 곧 열려요").font(Typo.font(14)).foregroundColor(pal.color("sub") ?? .gray)
         }
     }
 }

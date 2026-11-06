@@ -74,7 +74,7 @@ jobs:
           xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab map -map_mode subway
           sleep 22
           xcrun simctl io "$UDID" screenshot screenshot-tab-map-subway.png
-          for CM in set board; do
+          for CM in set board chat; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
             xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab community -ccMode $CM
             sleep 22
