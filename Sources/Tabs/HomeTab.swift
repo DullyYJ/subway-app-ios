@@ -14,6 +14,7 @@ struct HLoc {
 
 @MainActor
 final class HomeModel: ObservableObject {
+    static let shared = HomeModel()
     @Published var screen: Screen? = nil
     @Published var error: String? = nil
     static let START = 0, DEST = 1
@@ -278,6 +279,29 @@ final class HomeModel: ObservableObject {
         return true
     }
 
+    // MARK: 노선도 탭에서 정한 출발·도착(안드로이드 HomeCore.setStation / setBusStop)
+    func setPlace(_ f: Int, type: String, name: String, line: String, lat: Double, lng: Double) {
+        var l = HLoc(); l.type = type; l.name = name; l.line = line; l.lat = lat; l.lng = lng
+        loc[f] = l; text[f] = name; candQ[f] = name; fetchedQ[f] = name; busRaw[f] = []; placeRaw[f] = []; pkU = []
+        if f == HomeModel.START { loc[1] = nil; text[1] = ""; candQ[1] = ""; fetchedQ[1] = ""; busRaw[1] = []; placeRaw[1] = [] }
+        if active == f { active = -1 }
+        last = f
+        reloadSoon()
+    }
+    var bothSet: Bool { loc[0]?.ok == true && loc[1]?.ok == true }
+    var isRouting: Bool { routing }
+    var isRiding: Bool { riding }
+    private var snap: (loc: [HLoc?], text: [String])? = nil
+    func pickSnap() { snap = (loc, text) }
+    func pickRestore(_ startName: String) {
+        guard let sn = snap else { return }
+        snap = nil
+        guard let l = loc[0], l.type == "bus", l.name == startName else { return }
+        loc = sn.loc; text = sn.text; candQ = [text[0], text[1]]; fetchedQ = candQ; reloadSoon()
+    }
+    func pickDone() { snap = nil }
+    func searchRoute(host: Host) { Task { await goRoute(host: host) } }
+
     // MARK: 눌림
     func call(_ v: String, host: Host) {
         if v == "ai.refresh" { aiNextAt = nowMs() + 5 * 60 * 1000; aiRnd = Double.random(in: 0..<1); hcKey = ""; reloadSoon(); return }
@@ -461,7 +485,7 @@ final class HomeModel: ObservableObject {
 
 struct HomeTab: View {
     let pal: Palette
-    @StateObject private var m = HomeModel()
+    @StateObject private var m = HomeModel.shared
     @EnvironmentObject var host: Host
     var body: some View {
         ZStack {

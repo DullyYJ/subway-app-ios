@@ -30,19 +30,110 @@ final class MapModel: ObservableObject {
         }.value
         metro = m
     }
-    func tapStation(_ name: String) {
+    func tapStation(_ name: String, line: String = "") {
         let n = name.filter { !$0.isWhitespace }
         guard !n.isEmpty else { return }
-        showStn = true; stnScreen = nil
-        let body = "{\"cap\":\(Servers.cap),\"f\":{\"part\":\"stn\",\"stn\":\(Json.q(n)),\"sl\":\"\",\"reg\":\(Json.q(reg)),\"th\":\"dark\"}}"
+        showStn = true; stnScreen = nil; stnLine = line; pickName = ""
+        let body = "{\"cap\":\(Servers.cap),\"f\":{\"part\":\"stn\",\"stn\":\(Json.q(n)),\"sl\":\(Json.q(line)),\"reg\":\(Json.q(reg)),\"th\":\"dark\"}}"
         Task {
-            if let d = try? await Net.request("POST", Servers.base + "/screen/map", body: body, timeout: 10), let s = try? Screen.parse(d) { stnScreen = s }
-            else { showStn = false }
+            if let d = try? await Net.request("POST", Servers.base + "/screen/map", body: body, timeout: 10), let s = try? Screen.parse(d) {
+                readStn(d); stnScreen = s
+            } else { showStn = false }
         }
+    }
+    private func readStn(_ d: Data) {
+        pickName = ""; pickLine = ""; pickLa = 0; pickLo = 0
+        guard let o = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any], let i = o["info"] as? [String: Any] else { return }
+        if let m = i["msg"] as? [String: Any] { msgS = m["s"] as? String ?? ""; msgE = m["e"] as? String ?? ""; msgE2 = m["e2"] as? String ?? "" }
+        if let p = i["pick"] as? [String: Any] {
+            pickName = p["name"] as? String ?? ""; pickLine = p["line"] as? String ?? ""
+            pickLa = (p["la"] as? NSNumber)?.doubleValue ?? 0; pickLo = (p["lo"] as? NSNumber)?.doubleValue ?? 0
+        }
+    }
+    static func fill(_ t: String, _ n: String) -> String { t.replacingOccurrences(of: "{n}", with: n) }
+    /// 역 팝업 단추(출발 · 도착 · 시간표)
+    func sheetAct(_ v: String, host: Host) {
+        let home = HomeModel.shared
+        if v == "mp.close" { showStn = false; return }
+        if v == "mp.start" || v == "mp.dest" {
+            guard !pickName.isEmpty else { return }
+            showStn = false
+            if home.isRiding { host.say("탑승 안내 중에는 바꿀 수 없어요"); return }
+            if v == "mp.start" {
+                home.setPlace(HomeModel.START, type: "subway", name: pickName, line: pickLine, lat: pickLa, lng: pickLo)
+                let t = MapModel.fill(msgS, pickName); if !t.isEmpty { host.say(t) }
+            } else {
+                home.setPlace(HomeModel.DEST, type: "subway", name: pickName, line: pickLine, lat: pickLa, lng: pickLo)
+                if home.bothSet {
+                    let t = MapModel.fill(msgE, pickName); if !t.isEmpty { host.say(t) }
+                    host.tab = "home"
+                    Task { try? await Task.sleep(nanoseconds: 400_000_000); home.searchRoute(host: host) }
+                } else { let t = MapModel.fill(msgE2, pickName); if !t.isEmpty { host.say(t) } }
+            }
+            return
+        }
+        host.say("시간표는 다음 단계에서 연결돼요")
     }
 
     private var busRes: [String: String] = [:]
     private var busSel = -1
+
+    // 화면에서 읽은 것(info): 정류장 · 노선 · 즐겨찾기 규칙 · 지방 노선 목록
+    var stops: [[String: Any]] = []
+    var rts: [Int: [[String]]] = [:]
+    var favMax = 12, aliasMax = 10
+    var favTxAdd = "", favTxRm = "", favTxFull = ""
+    var regionStns: [(String, String)] = []
+    var msgS = "", msgE = "", msgE2 = ""
+    var pickName = "", pickLine = "", pickLa = 0.0, pickLo = 0.0
+    var stnLine = ""
+    @Published var aliasEdit: AliasEdit? = nil
+    @Published var routeOpen = false
+    let route = BusRoute()
+    var pkBusName = "", pkBusId = ""
+    struct AliasEdit: Identifiable { let id = UUID(); let key: String; let name: String; let cur: String }
+
+    var favRaw: String { let s = ud.string(forKey: "map_busfav") ?? "[]"; return s.hasPrefix("[") ? s : "[]" }
+    var alRaw: String { let s = ud.string(forKey: "map_busal") ?? "{}"; return s.hasPrefix("{") ? s : "{}" }
+    private var favList: [[String: Any]] { ((try? JSONSerialization.jsonObject(with: Data(favRaw.utf8))) as? [[String: Any]]) ?? [] }
+    private var aliasMap: [String: String] { ((try? JSONSerialization.jsonObject(with: Data(alRaw.utf8))) as? [String: String]) ?? [:] }
+
+    func readInfo(_ d: Data) {
+        guard let o = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any], let i = o["info"] as? [String: Any] else { return }
+        if let rs = i["rs"] as? [[Any]] { regionStns = rs.compactMap { $0.count == 2 ? (String(describing: $0[0]), String(describing: $0[1])) : nil } } else { regionStns = [] }
+        stops = Array((i["stops"] as? [[String: Any]] ?? []).prefix(40))
+        if let fp = i["favp"] as? [String: Any] {
+            favMax = (fp["max"] as? NSNumber)?.intValue ?? favMax; aliasMax = (fp["al"] as? NSNumber)?.intValue ?? aliasMax
+            favTxAdd = fp["add"] as? String ?? ""; favTxRm = fp["rm"] as? String ?? ""; favTxFull = fp["full"] as? String ?? ""
+        }
+        rts = [:]
+        if let r = i["rts"] as? [String: Any] {
+            for (k, v) in r { if let ik = Int(k), let arr = v as? [[Any]] { rts[ik] = arr.prefix(40).compactMap { $0.count >= 3 ? $0.prefix(3).map { String(describing: $0) } : nil } } }
+        }
+    }
+    private func toggleFav(_ i: Int, host: Host) -> Bool {
+        guard i >= 0, i < stops.count, let id = stops[i]["id"] as? String, !id.isEmpty else { return false }
+        var fl = favList
+        if let at = fl.firstIndex(where: { ($0["id"] as? String) == id }) { fl.remove(at: at); if !favTxRm.isEmpty { host.say(favTxRm) } }
+        else {
+            if fl.count >= favMax { if !favTxFull.isEmpty { host.say(favTxFull) }; return false }
+            fl.append(stops[i]); if !favTxAdd.isEmpty { host.say(favTxAdd) }
+        }
+        if let d = try? JSONSerialization.data(withJSONObject: fl), let s = String(data: d, encoding: .utf8) { ud.set(s, forKey: "map_busfav") }
+        return true
+    }
+    func setAlias(_ key: String, _ text: String) {
+        guard !key.isEmpty else { return }
+        var m = aliasMap
+        let t = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(aliasMax))
+        if t.isEmpty { m.removeValue(forKey: key) } else { m[key] = t }
+        if let d = try? JSONSerialization.data(withJSONObject: m), let s = String(data: d, encoding: .utf8) { ud.set(s, forKey: "map_busal") }
+        Task { await load() }
+    }
+    func aliasFor(_ i: Int) -> AliasEdit? {
+        guard i >= 0, i < stops.count, let id = stops[i]["id"] as? String, !id.isEmpty else { return nil }
+        return AliasEdit(key: id, name: stops[i]["nm"] as? String ?? "", cur: aliasMap[id] ?? "")
+    }
     private var seq = 0
     var gps: (Double, Double)? { LocationStore.shared.last.map { ($0.coordinate.latitude, $0.coordinate.longitude) } }
 
@@ -57,7 +148,7 @@ final class MapModel: ObservableObject {
         var f = facts("b")
         if mode == "bus" {
             f.removeLast()
-            f += ",\"bus\":{\"vw\":\(Json.q(busView)),\"sel\":\(busSel),\"sv\":1,\"svb\":300,\"fav\":[],\"nx\":{},\"al\":{},\"ord\":[]"
+            f += ",\"bus\":{\"vw\":\(Json.q(busView)),\"sel\":\(busSel),\"sv\":1,\"svb\":300,\"fav\":\(favRaw),\"nx\":{},\"al\":\(alRaw),\"ord\":[]"
             if let g = gps { f += ",\"lat\":\(g.0),\"lng\":\(g.1)" }
             f += ",\"res\":{" + busRes.map { "\(Json.q($0.key)):\(Json.q($0.value))" }.joined(separator: ",") + "}}}"
         }
@@ -91,6 +182,7 @@ final class MapModel: ObservableObject {
         if my != seq { return }
         guard let d = last, let s = try? Screen.parse(d) else { if body == nil { error = "노선도를 받지 못했어요" }; return }
         body = s; error = nil
+        readInfo(d)
         view = ((((try? JSONSerialization.jsonObject(with: d)) as? [String: Any])?["info"] as? [String: Any])?["view"] as? String) ?? ""
     }
 
@@ -106,6 +198,10 @@ final class MapModel: ObservableObject {
 
     /// 공공 API 주소를 버스 전용 프록시(/tago)로 받는다. 안 되면 route-v2 의 /bus-tago 로 한 번 더. 허용 호스트가 아니면 빈 글.
     nonisolated static func busGet(_ raw: String) async -> String {
+        if raw.hasPrefix(Servers.news + "/bus-stops?"), raw.count < 200, raw.range(of: "^[A-Za-z0-9:/._?=&%-]+$", options: .regularExpression) != nil {
+            if let d = try? await Net.request("GET", raw, timeout: 9), let s = String(data: d, encoding: .utf8), s.count > 2 { return s }
+            return ""
+        }
         guard raw.range(of: "^https?://(apis\\.data\\.go\\.kr|ws\\.bus\\.go\\.kr)/", options: .regularExpression) != nil,
               let enc = raw.addingPercentEncoding(withAllowedCharacters: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))) else { return "" }
         for base in [Servers.bus + "/tago?url=", Servers.base + "/bus-tago?url="] {
@@ -130,8 +226,17 @@ final class MapModel: ObservableObject {
             LocationStore.shared.start(); busRes = [:]; busSel = -1; Task { await load() }
         } else if v.hasPrefix("mp.pc.") || v.hasPrefix("mp.pm."), let i = Int(v.dropFirst(6)) {
             busSel = i; Task { await load() }
-        } else if v == "mp.close" { showStn = false }
-        else { host.say("이 기능은 다음 단계에서 연결돼요") }
+        } else if v.hasPrefix("mp.fv."), let i = Int(v.dropFirst(6)) {
+            if toggleFav(i, host: host) { Task { await load() } }
+        } else if v.hasPrefix("mp.al."), let i = Int(v.dropFirst(6)) {
+            aliasEdit = aliasFor(i)
+        } else if v.hasPrefix("br.") {
+            if routeOpen { brAct(v, host: host) } else { openRoute(v) }
+        } else if v.hasPrefix("mr."), let i = Int(v.dropFirst(3)), i >= 0, i < regionStns.count {
+            tapStation(regionStns[i].0, line: regionStns[i].1)
+        } else if v == "mp.close" || v == "mp.start" || v == "mp.dest" || v == "mp.tt" || v.hasPrefix("mt.") {
+            sheetAct(v, host: host)
+        } else { host.say("이 기능은 다음 단계에서 연결돼요") }
     }
 }
 
@@ -158,6 +263,10 @@ struct MapTab: View {
                         .background(pal.color("card") ?? .black)
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
                     }
+                }
+                if m.routeOpen { RouteSheet(route: m.route, pal: pal) { m.closeRoute() } }
+                if let ae = m.aliasEdit {
+                    AliasCard(edit: ae, pal: pal, maxLen: m.aliasMax, onSave: { m.setAlias(ae.key, $0); m.aliasEdit = nil }, onClose: { m.aliasEdit = nil })
                 }
                 if let e = m.error, m.body == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
             }
