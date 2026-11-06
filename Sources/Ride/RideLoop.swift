@@ -59,6 +59,24 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         LiveRide.shared.end()
     }
 
+    /// 탑승 중 캐릭터 장면 재료 { here, boarded, key, nodes[{name,isOrigin,isSub,isBus,lineName}] } — 상태에서 이름·종류만 옮겨 담는다(어떤 장면을 보일지는 엔진이 정한다). 없으면 "".
+    var sceneJson: String {
+        guard running, let st = (try? JSONSerialization.jsonObject(with: Data(stateJson.utf8))) as? [String: Any],
+              let eta = st["eta"] as? [String: Any], let nodes = eta["nodes"] as? [[String: Any]] else { return "" }
+        var out: [[String: Any]] = []
+        for n in nodes.prefix(80) {
+            var r: [String: Any] = ["name": String(((n["name"] as? String) ?? "").prefix(24)), "lineName": String(((n["lineName"] as? String) ?? "").prefix(16))]
+            if (n["isOrigin"] as? Bool) == true { r["isOrigin"] = true }
+            if (n["isSub"] as? Bool) == true { r["isSub"] = true }
+            if (n["isBus"] as? Bool) == true { r["isBus"] = true }
+            out.append(r)
+        }
+        if out.count < 2 { return "" }
+        let boarded = st["wait"] == nil && (eta["boarded"] as? Bool) != false
+        let res: [String: Any] = ["here": max(0, cur), "boarded": boarded, "key": String(((st["tripSig"] as? String) ?? "").prefix(40)), "nodes": out]
+        return js(res)
+    }
+
     /// 경로 카드 오른쪽 칸([탑승] · [환승])을 눌렀다 — 다음 걸음에 act 로 엔진에 알린다(안드로이드 pendingAct).
     func press() { pendingAct = "press" }
     var rowSlot: String { ((try? JSONSerialization.jsonObject(with: Data(rowJson.utf8))) as? [String: Any])?["slot"] as? String ?? "" }

@@ -35,6 +35,25 @@ final class HomeModel: ObservableObject {
     private var rideSeq = -1, confirming = false
     private var bag = Set<AnyCancellable>()
     private var riding: Bool { RideLoop.shared.running && rideSeq == seqRoute && RideLoop.shared.rideJson.count > 2 }
+    // 홈 카드 묶음(AI 승무원 · 혼잡도 · 실시간 대화): 엔진 /screen/hcards 가 정한 카드를 홈 본문 맨 아래에 붙인다
+    private var aiNextAt: Int64 = 0, aiRnd = Double.random(in: 0..<1)
+    private var hcKey = "", hcData: Data? = nil
+    private func hcKeyNow() -> String {
+        let fix = LocationStore.shared.last.map { String(format: "%.3f,%.3f", $0.coordinate.latitude, $0.coordinate.longitude) } ?? "-"
+        return "\(resTab):\(hasRoute ? seqRoute : -1):\(nowMs() / 60000):\(aiNextAt):\(RideLoop.shared.sceneJson.hashValue):\(fix)"
+    }
+    private func hcardsBody() -> String {
+        let e = env()
+        var b = "{\"cap\":\(Servers.cap),\"f\":{\"now\":\(e.ms),\"tz\":\(-e.tzo),\"th\":\"dark\""
+        let sc = RideLoop.shared.sceneJson
+        if sc.count > 2 { b += ",\"rd\":\(sc)" }
+        if let l = LocationStore.shared.last { b += ",\"gps\":[\(l.coordinate.latitude),\(l.coordinate.longitude)]" } else { b += ",\"gps\":null" }
+        b += ",\"r\":\(resultFacts() ?? "null")"
+        b += ",\"ai\":{\"nextAt\":\(aiNextAt),\"busy\":false,\"rnd\":\(aiRnd)},\"tk\":{\"m\":[],\"fold\":0,\"tzo\":\(e.tzo)}}}"
+        return b
+    }
+    /// 1분마다 홈을 다시 그린다(카드 열쇠에 분이 들어 있다).
+    func tick() { if hcKey != hcKeyNow() { reloadSoon() } }
     @Published var dlg: Screen? = nil
     private var pickCtx: (facts: String, ms: [Int64], no: [String], startTxt: String, seq: Int)? = nil
     private var pending: Task<Void, Never>? = nil
@@ -123,24 +142,30 @@ final class HomeModel: ObservableObject {
     // MARK: 화면 받기
     func load() async {
         seq += 1; let my = seq
+        if aiNextAt == 0 { aiNextAt = nowMs() + 5 * 60 * 1000 }
         let hb = homeBody(), rb = resultBody()
+        let ck = hcKeyNow(), cb: String? = ck == hcKey ? nil : hcardsBody()
         async let hd: Data? = try? await Net.request("POST", Servers.base + "/screen/home", body: hb, timeout: 10)
         async let rd: Data? = rb == nil ? nil : (try? await Net.request("POST", Servers.base + "/screen/result", body: rb, timeout: 16))
-        let (h, r) = await (hd, rd)
+        async let cd: Data? = cb == nil ? nil : (try? await Net.request("POST", Servers.base + "/screen/hcards", body: cb, timeout: 15))
+        let (h, r, c) = await (hd, rd, cd)
         if my != seq { return }
+        if cb != nil, let c = c, Json.isObject(c) { hcKey = ck; hcData = c }
         guard let h = h else { if screen == nil { error = "홈 화면을 받지 못했어요" }; return }
-        if let s = merged(h, r) { screen = s; error = nil; readInfo(h) }
+        if let s = merged(h, [r, hcData]) { screen = s; error = nil; readInfo(h) }
         else { error = "홈 화면을 읽지 못했어요" }
     }
 
     /// 홈 화면 아래에 결과 화면의 본문을 이어 붙인다(안드로이드 ShellCore.mergeBodies).
-    private func merged(_ h: Data, _ r: Data?) -> Screen? {
-        guard let r = r, var ho = (try? JSONSerialization.jsonObject(with: h)) as? [String: Any],
-              let ro = (try? JSONSerialization.jsonObject(with: r)) as? [String: Any],
-              (ro["ok"] as? Bool) != false,
-              let hbody = ho["body"] as? [[String: Any]], let rbody = ro["body"] as? [[String: Any]] else { return try? Screen.parse(h) }
-        ho["body"] = hbody + rbody
-        if ho["sw"] == nil, let sw = ro["sw"] { ho["sw"] = sw }
+    private func merged(_ h: Data, _ rs: [Data?]) -> Screen? {
+        guard var ho = (try? JSONSerialization.jsonObject(with: h)) as? [String: Any], var body = ho["body"] as? [[String: Any]] else { return try? Screen.parse(h) }
+        for r in rs {
+            guard let r = r, let ro = (try? JSONSerialization.jsonObject(with: r)) as? [String: Any], (ro["ok"] as? Bool) != false,
+                  let rbody = ro["body"] as? [[String: Any]] else { continue }
+            body += rbody
+            if ho["sw"] == nil, let sw = ro["sw"] { ho["sw"] = sw }
+        }
+        ho["body"] = body
         guard let d = try? JSONSerialization.data(withJSONObject: ho) else { return try? Screen.parse(h) }
         return try? Screen.parse(d)
     }
@@ -235,6 +260,9 @@ final class HomeModel: ObservableObject {
 
     // MARK: 눌림
     func call(_ v: String, host: Host) {
+        if v == "ai.refresh" { aiNextAt = nowMs() + 5 * 60 * 1000; aiRnd = Double.random(in: 0..<1); hcKey = ""; reloadSoon(); return }
+        if v == "tk.open" { host.tab = "community"; return }
+        if v == "tk.send" || v == "share.loc" { host.say("이 기능은 다음 단계에서 연결돼요"); return }
         if v.hasPrefix("rh.") { result(v, host: host); return }
         if v.hasPrefix("rd.") { detailAct(v, host: host); return }
         if v.hasPrefix("sg."), v.count > 5 {
@@ -411,6 +439,7 @@ struct HomeTab: View {
             if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0, host: host) } }
         }
         .task { LocationStore.shared.start(); await m.load(); await m.startDemo(host: host) }
+        .task { while !Task.isCancelled { try? await Task.sleep(nanoseconds: 30_000_000_000); m.tick() } }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "home" else { return }
             if x.a == "input" { m.typed(x.key, x.v) } else if x.a == "call" { if x.v.hasPrefix("dl.") { m.dlgAct(x.v, host: host) } else { m.call(x.v, host: host) } }
