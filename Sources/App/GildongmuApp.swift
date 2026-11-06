@@ -34,7 +34,6 @@ final class DemoKeepAlive: NSObject, CLLocationManagerDelegate {
     private let m = CLLocationManager()
     func start() {
         m.delegate = self
-        m.requestAlwaysAuthorization()
         m.allowsBackgroundLocationUpdates = true
         m.pausesLocationUpdatesAutomatically = false
         m.startUpdatingLocation()
