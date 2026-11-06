@@ -83,6 +83,38 @@ jobs:
           xcrun simctl launch "$UDID" com.apple.mobilesafari || true
           sleep 3
           xcrun simctl io "$UDID" screenshot screenshot-journey-6-after.png
+      - name: 영상 녹화 (다이내믹 아일랜드 있는 폰 · 없는 폰)
+        if: always()
+        run: |
+          APP=$(find build/Build/Products -name 'Gildongmu.app' -maxdepth 3 | head -1)
+          NOISL=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys,re
+          d=json.load(sys.stdin)['devices']
+          c=[x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]
+          for pat in (r'iPhone 16e$', r'iPhone SE', r'iPhone 14$', r'iPhone 13'):
+              m=[x for x in c if re.match(pat, x['name'])]
+              if m: print(m[-1]['udid']); break")
+          echo "섬 없는 폰: $NOISL"
+          rec() {  # $1 udid  $2 이름
+            U=$1; N=$2
+            xcrun simctl boot "$U" 2>/dev/null || true
+            xcrun simctl bootstatus "$U" -b >/dev/null 2>&1 || true
+            xcrun simctl terminate "$U" com.dullyyj.subway.ios 2>/dev/null || true
+            xcrun simctl uninstall "$U" com.dullyyj.subway.ios 2>/dev/null || true
+            xcrun simctl install "$U" "$APP"
+            xcrun simctl ui "$U" appearance dark
+            xcrun simctl io "$U" recordVideo --codec=h264 --force "video-$N.mp4" &
+            RP=$!
+            sleep 3
+            xcrun simctl launch "$U" com.dullyyj.subway.ios -demoRide journey
+            sleep 7
+            xcrun simctl launch "$U" com.apple.mobilesafari || true
+            sleep 8
+            kill -INT $RP; wait $RP || true
+          }
+          rec "$UDID" island
+          if [ -n "$NOISL" ]; then rec "$NOISL" noisland; fi
+          ls -la video-*.mp4 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -90,11 +122,12 @@ jobs:
           path: |
             build.log
             screenshot-*.png
+            video-*.mp4
             build/result.xcresult
       - name: 결과를 ios-ci-out 브랜치에 올리기 (Artifacts 를 못 받는 환경에서 화면을 확인하려고)
         if: always()
         run: |
-          mkdir -p /tmp/out && cp screenshot-*.png /tmp/out/ 2>/dev/null || true
+          mkdir -p /tmp/out && cp screenshot-*.png video-*.mp4 /tmp/out/ 2>/dev/null || true
           tail -300 build.log > /tmp/out/build-tail.log || true
           cd /tmp/out && git init -q && git checkout -q -b ios-ci-out
           git config user.name ci && git config user.email ci@users.noreply.github.com
