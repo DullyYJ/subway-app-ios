@@ -8,6 +8,9 @@ final class Host: ObservableObject {
     @Published var tab: String = UserDefaults.standard.string(forKey: "tab") ?? "home" { didSet { UserDefaults.standard.set(tab, forKey: "tab") } }
     @Published var toast: String? = nil
     @Published var reloadTick = 0
+    @Published var fieldClear: [String: Int] = [:]
+    /// 입력칸 글을 비운다(보낸 뒤) — 칸 화면에도 알려 글자를 지운다.
+    func clearField(_ k: String) { UserDefaults.standard.removeObject(forKey: "field." + k); fieldClear[k, default: 0] += 1 }
     @Published var sheet: SheetRoute? = nil
     /// 분류 칩(cat) · 글 펼침(tog) 같은 탭 안의 행동: 켜진 탭이 받아 자기 화면을 다시 그린다.
     struct TabAction { let tab: String; let a: String; let v: String; let id: String; let key: String }
@@ -35,7 +38,7 @@ final class Host: ObservableObject {
             if let k = a.key { UserDefaults.standard.set(a.on ?? false, forKey: "set." + k) }
         case "call":
             if let v = a.v, v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
-            else if let v = a.v, v.hasPrefix("bd.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
+            else if let v = a.v, v.hasPrefix("bd.") || v.hasPrefix("wr.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("mp.") || v.hasPrefix("br.") || v.hasPrefix("mr.") { actPublisher.send(TabAction(tab: "map", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("rt.") || v.hasPrefix("sg.") || v.hasPrefix("bt.") || v.hasPrefix("rh.") || v.hasPrefix("rd.") || v.hasPrefix("dl.") || v.hasPrefix("ai.") || v.hasPrefix("tk.") || v.hasPrefix("share.") || v.hasPrefix("fv.") { actPublisher.send(TabAction(tab: "home", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else { call(a.v ?? "") }

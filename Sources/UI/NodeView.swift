@@ -375,27 +375,47 @@ struct FieldNode: View {
     @State private var text: String
     @FocusState private var focused: Bool
     @EnvironmentObject var host: Host
-    init(node: Node, pal: Palette) { self.node = node; self.pal = pal; _text = State(initialValue: node.str("value") ?? "") }
+    init(node: Node, pal: Palette) {
+        self.node = node; self.pal = pal
+        let k = node.str("key") ?? ""
+        // 칸을 다시 그려도(화면이 새로 와도) 쓰던 글을 지키고, 엔진이 value 를 주면 그걸 쓴다
+        let v = node.str("value") ?? ""
+        _text = State(initialValue: !v.isEmpty ? v : (UserDefaults.standard.string(forKey: "field." + k) ?? ""))
+    }
     var body: some View {
         let r = CGFloat(node.num("r", 9))
         let sc = pal.color(node.str("sc")) ?? pal.color("sub") ?? .gray
         let shape = RoundedRectangle(cornerRadius: r)
-        return TextField("", text: $text, prompt: Text(node.str("hint") ?? "").foregroundColor(sc.opacity(0.8)))
-            .font(Typo.font(CGFloat(node.num("size", 14))))
-            .foregroundColor(pal.color(node.str("tc")) ?? pal.color("text") ?? .primary)
-            .focused($focused)
-            .padding(.horizontal, 13).frame(height: CGFloat(node.num("h", 44)))
-            .background(shape.fill(pal.color(node.str("fill")) ?? pal.color("bg") ?? .white))
-            .overlay(shape.strokeBorder(focused ? (pal.color("gold") ?? .yellow) : (pal.color(node.str("line")) ?? pal.color("border2") ?? .gray), lineWidth: focused ? 1.5 : 1))
-            .onChange(of: text) { v in
-                let k = node.str("key") ?? ""
-                UserDefaults.standard.set(v, forKey: "field." + k)
-                host.actPublisher.send(Host.TabAction(tab: "home", a: "field", v: v, id: "edit", key: k))
+        let multi = node.bool("multi")
+        let maxlen = Int(node.num("maxlen", 60))
+        let key = node.str("key") ?? ""
+        let h = CGFloat(node.num("h", 44))
+        return Group {
+            if multi {
+                TextField("", text: $text, prompt: Text(node.str("hint") ?? "").foregroundColor(sc.opacity(0.8)), axis: .vertical)
+                    .lineLimit(1...12)
+                    .padding(.horizontal, 13).padding(.vertical, 12)
+                    .frame(minHeight: h, alignment: .topLeading)
+            } else {
+                TextField("", text: $text, prompt: Text(node.str("hint") ?? "").foregroundColor(sc.opacity(0.8)))
+                    .padding(.horizontal, 13).frame(height: h)
             }
-            .onChange(of: focused) { f in
-                let k = node.str("key") ?? ""
-                host.actPublisher.send(Host.TabAction(tab: "home", a: "field", v: text, id: f ? "focus" : "blur", key: k))
-            }
+        }
+        .font(Typo.font(CGFloat(node.num("size", 14))))
+        .foregroundColor(pal.color(node.str("tc")) ?? pal.color("text") ?? .primary)
+        .focused($focused)
+        .background(shape.fill(pal.color(node.str("fill")) ?? pal.color("bg") ?? .white))
+        .overlay(shape.strokeBorder(focused ? (pal.color("gold") ?? .yellow) : (pal.color(node.str("line")) ?? pal.color("border2") ?? .gray), lineWidth: focused ? 1.5 : 1))
+        .onChange(of: text) { v in
+            var v = v
+            if v.count > maxlen { v = String(v.prefix(maxlen)); text = v }
+            UserDefaults.standard.set(v, forKey: "field." + key)
+            host.actPublisher.send(Host.TabAction(tab: "home", a: "field", v: v, id: "edit", key: key))
+        }
+        .onChange(of: focused) { f in
+            host.actPublisher.send(Host.TabAction(tab: "home", a: "field", v: text, id: f ? "focus" : "blur", key: key))
+        }
+        .onChange(of: host.fieldClear[key] ?? 0) { _ in text = "" }
     }
 }
 

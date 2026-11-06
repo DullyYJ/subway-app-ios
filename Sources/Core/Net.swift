@@ -20,6 +20,15 @@ enum Net {
         return d
     }
 
+    /// 상태 코드를 그대로 돌려주는 POST(4xx 의 이유 글을 읽어야 할 때). 연결이 안 되면 (0, 빈 데이터).
+    static func post(_ url: String, _ body: String, timeout: TimeInterval = 9) async -> (Int, Data) {
+        guard let u = URL(string: url), u.scheme == "https" else { return (0, Data()) }
+        var r = URLRequest(url: u, timeoutInterval: timeout)
+        r.httpMethod = "POST"; r.httpBody = body.data(using: .utf8); r.setValue("application/json", forHTTPHeaderField: "content-type")
+        guard let (d, resp) = try? await URLSession.shared.data(for: r) else { return (0, Data()) }
+        return ((resp as? HTTPURLResponse)?.statusCode ?? 0, d)
+    }
+
     static func screen(_ path: String, method: String = "POST", body: String? = nil) async throws -> Screen {
         let d = try await request(method, Servers.base + path, body: method == "POST" ? (body ?? "{\"cap\":\(Servers.cap)}") : nil)
         return try Screen.parse(d)
