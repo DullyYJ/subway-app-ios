@@ -14,43 +14,81 @@ struct InbarNode: View {
     @FocusState private var focused: Bool
     init(node: Node, pal: Palette) { self.node = node; self.pal = pal; _text = State(initialValue: node.str("value") ?? "") }
 
+    /// 색 키: 아예 없으면 기본 역할 · 빈 글이면 칠하지 않는다(안드로이드 roleOrCss(m, key, def)).
+    private func role(_ k: String, _ def: String) -> Color? {
+        guard let v = node.d[k] as? String else { return pal.color(def) }
+        return v.isEmpty ? nil : pal.color(v)
+    }
+
     var body: some View {
-        let h = CGFloat(node.num("h", 40)), size = CGFloat(node.num("size", 13))
+        let h = CGFloat(node.num("h", 40)), size = CGFloat(node.num("size", 13)), r = CGFloat(node.num("r", 9))
         let bsz = node.num("bsize", 0) > 0 ? CGFloat(node.num("bsize", 0)) : size
         let bh = node.num("bh", 0) > 0 ? min(CGFloat(node.num("bh", 0)), h) : h
+        let inh = node.num("inh", 0) > 0 ? min(CGFloat(node.num("inh", 0)), h) : h
         let bpx = node.num("bpx", 0) > 0 ? CGFloat(node.num("bpx", 0)) : 14
-        let dim = node.bool("dim"), spin = node.bool("spin") && dim
+        let dim = node.bool("dim")
+        let spinDef = dim && (node.act?.v == "rt.gps")
+        let spin = node.d["spin"] == nil ? spinDef : node.bool("spin")
         let ac = nc(pal, node.str("onc"), "gold"), ck = nc(pal, node.str("ckf"), "#121214")
         let tc = nc(pal, node.str("tc"), "text"), sc = nc(pal, node.str("sc"), "sub")
-        let ifh = node.num("ifh", 0) > 0 ? CGFloat(node.num("ifh", 0)) : size + 2
         let key = node.str("key") ?? ""
         let hasDot = !(node.str("dot") ?? "").isEmpty
+        let noBtn = node.bool("nobtn")
+        let label = node.str("btn") ?? ""
+        let textX: CGFloat = hasDot ? 34 : 14
+        let btnR = r > 0 ? r : 9
+        let ifh = node.num("ifh", 0) > 0 ? CGFloat(node.num("ifh", 0)) : size + 2
+        let strip = (node.str("ifill") ?? "").isEmpty ? nil : pal.color(node.str("ifill") ?? "")
+        let fill = role("fill", "card"), line = role("line", "border2")
         return HStack(spacing: 0) {
-            if hasDot {
-                Circle().fill(nc(pal, node.str("dot"), "gold")).frame(width: 10, height: 10).padding(.leading, 14 + 0).padding(.trailing, 10)
-            } else { Color.clear.frame(width: 14, height: 1) }
-            TextField("", text: $text, prompt: Text(node.str("hint") ?? "").foregroundColor(sc.opacity(0.8)))
-                .font(Typo.font(size, bold: node.bool("bold")))
-                .foregroundColor(tc)
-                .focused($focused)
-                .submitLabel(.search)
-                .onSubmit { if let a = Action(node.d["eact"] as? [String: Any]) { host.handle(a) } }
-                .frame(height: ifh)
-                .background(node.str("ifill") != nil && !(node.str("ifill") ?? "").isEmpty ? RoundedRectangle(cornerRadius: CGFloat(node.num("ifr", 0))).fill(nc(pal, node.str("ifill"), "card2")) : nil)
-                .padding(.trailing, 10)
-            Button { if !dim, let a = node.act { focused = false; host.handle(a) } } label: {
-                HStack(spacing: 6) {
-                    if spin { ProgressView().scaleEffect(0.6).tint(ck.opacity(0.75)).frame(width: 10, height: 10) }
-                    Text(node.str("btn") ?? "").font(Typo.font(bsz, bold: true)).foregroundColor(ck.opacity(dim ? 0.6 : 1)).lineLimit(1)
+            ZStack(alignment: .leading) {
+                if let f = fill { RoundedRectangle(cornerRadius: r).fill(f) }
+                if let l = line { RoundedRectangle(cornerRadius: max(0, r - 0.5)).inset(by: 0.5).stroke(focused ? (pal.color("gold") ?? l) : l, lineWidth: focused ? 1.5 : 1) }
+                if let st = strip {
+                    RoundedRectangle(cornerRadius: CGFloat(node.num("ifr", 0))).fill(st).frame(height: ifh)
+                        .padding(.leading, textX).padding(.trailing, noBtn ? 0 : 2)
                 }
-                .padding(.horizontal, bpx).frame(height: bh)
-                .background(RoundedRectangle(cornerRadius: 9).fill(ac.opacity(dim ? 0.5 : 1)))
-            }.buttonStyle(.plain).fixedSize()
+                if hasDot { Circle().fill(nc(pal, node.str("dot"), "gold")).frame(width: 10, height: 10).padding(.leading, 14) }
+                TextField("", text: $text, prompt: Text(node.str("hint") ?? "").foregroundColor(sc.opacity(0.8)))
+                    .font(Typo.font(size, bold: node.bool("bold")))
+                    .foregroundColor(tc)
+                    .focused($focused)
+                    .submitLabel(.search)
+                    .onSubmit { if let a = Action(node.d["eact"] as? [String: Any]) { host.handle(a) } }
+                    .padding(.leading, textX).padding(.trailing, 8)
+                    .frame(height: inh)
+            }
+            .frame(height: inh)
+            if !noBtn {
+                Color.clear.frame(width: 8, height: 1)
+                Button { if !dim, let a = node.act { focused = false; host.handle(a) } } label: {
+                    HStack(spacing: 6) {
+                        if spin && dim { InbarSpin(color: ck.opacity(0.75)) }
+                        Text(label).font(Typo.font(bsz, bold: true)).foregroundColor(ck.opacity(dim ? 0.6 : 1)).lineLimit(1).fixedSize()
+                    }
+                    .frame(width: Typo.width(label, bsz, true) + bpx * 2, height: bh)
+                    .background(RoundedRectangle(cornerRadius: btnR).fill(ac.opacity(dim ? 0.5 : 1)))
+                }.buttonStyle(.plain)
+                .frame(width: Typo.width(label, bsz, true) + bpx * 2, height: bh)
+            }
         }
         .frame(height: h)
         .onChange(of: text) { v in host.actPublisher.send(Host.TabAction(tab: host.tab, a: "input", v: v, id: "", key: key)) }
         .onChange(of: node.str("value") ?? "") { v in if !focused && v != text { text = v } }
         .onChange(of: host.reloadTick) { _ in }
+    }
+}
+
+/// 단추 글자 왼쪽에서 도는 작은 호(반지름 5 · 굵기 2 · 250도 · 0.9초에 한 바퀴) — 안드로이드 drawInbar 스피너.
+struct InbarSpin: View {
+    let color: Color
+    @State private var on = false
+    var body: some View {
+        Circle().trim(from: 0, to: 250.0 / 360.0)
+            .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .frame(width: 10, height: 10)
+            .rotationEffect(.degrees(on ? 360 : 0))
+            .onAppear { withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) { on = true } }
     }
 }
 
