@@ -38,7 +38,9 @@ struct NodeView: View {
         case "bar": barNode
         case "tabbar": TabBarNode(node: node, pal: pal)
         case "marq": MarqueeNode(node: node, pal: pal)
-        case "place", "news", "sug": listLine
+        case "place": PlaceNode(node: node, pal: pal)
+        case "news": NewsNode(node: node, pal: pal)
+        case "sug": SugNode(node: node, pal: pal)
         case "grid": CardGridNode(node: node, pal: pal)
         case "post": PostNode(node: node, pal: pal)
         case "cmt": CmtNode(node: node, pal: pal)

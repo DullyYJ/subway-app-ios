@@ -164,3 +164,92 @@ struct BtnRowNode: View {
         }.buttonStyle(PressStyle(radius: r))
     }
 }
+
+// MARK: 장소 카드(place) — 순위 동그라미 24 · 이름 15 굵게 · 업종/주소 12(최대 2줄) · 한 줄(별점 · 딱지 · 거리 · 길찾기) / 안쪽 14 · 모서리 16
+struct PlaceNode: View {
+    let node: Node; let pal: Palette
+    @EnvironmentObject var host: Host
+    var body: some View {
+        let rank = node.str("rank") ?? "", pub = node.bool("pub")
+        let stars = node.str("stars") ?? "", badge = node.str("badge") ?? "", dist = node.str("dist") ?? "", go = node.str("go") ?? ""
+        let sub = node.str("sub") ?? ""
+        Button { if let a = node.act { host.handle(a) } } label: {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    Circle().fill(pub ? Color(argb: 0x33808088) : nodeColor(pal, "gold", "gold"))
+                    Text(rank).font(Typo.font(11, bold: true)).foregroundColor(Color(argb: 0xFF121214))
+                }.frame(width: 24, height: 24)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(node.str("name") ?? "").font(Typo.font(15, bold: true)).foregroundColor(nodeColor(pal, "text", "text")).lineLimit(1)
+                        .frame(height: 15 * 1.4, alignment: .leading)
+                    if !sub.isEmpty { LinedText(s: sub, size: 12, bold: false, lh: 1.4, color: nodeColor(pal, "sub", "sub"), maxLines: 2).padding(.bottom, 2) }
+                    HStack(spacing: 8) {
+                        if !stars.isEmpty { Text(stars).font(Typo.font(13, bold: true)).foregroundColor(Color(argb: 0xFFFFD60A)) }
+                        if !badge.isEmpty { pill(badge, Color(argb: 0x29787880)) }
+                        if !dist.isEmpty { pill(dist, nodeColor(pal, "bg", "bg")) }
+                        if !go.isEmpty { Text(go).font(Typo.font(11, bold: true)).foregroundColor(Color(argb: 0xFF03C75A)).lineLimit(1) }
+                    }.frame(height: 20)
+                }
+            }
+            .padding(15)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 16).fill(nodeColor(pal, "card", "card")))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(nodeColor(pal, "border", "border"), lineWidth: 1))
+        }.buttonStyle(PressStyle(radius: 16))
+    }
+    private func pill(_ t: String, _ bg: Color) -> some View {
+        Text(t).font(Typo.font(11)).foregroundColor(nodeColor(pal, "sub", "sub")).padding(.horizontal, 8).frame(height: 20)
+            .background(Capsule().fill(bg)).lineLimit(1)
+    }
+}
+
+// MARK: 뉴스 줄(news) — 왼쪽 금색 막대 3 · 제목 14 굵게(최대 4줄) · 작은 글 11 · 오른쪽 › · 아래 가는 선
+struct NewsNode: View {
+    let node: Node; let pal: Palette
+    @EnvironmentObject var host: Host
+    var body: some View {
+        let sub = node.str("sub") ?? ""
+        Button { if let a = node.act { host.handle(a) } } label: {
+            HStack(alignment: .top, spacing: 10) {
+                RoundedRectangle(cornerRadius: 1.5).fill(nodeColor(pal, "gold", "gold")).frame(width: 3).padding(.top, 2)
+                VStack(alignment: .leading, spacing: 4) {
+                    LinedText(s: node.str("title") ?? "", size: 14, bold: true, lh: 1.45, color: nodeColor(pal, "text", "text"), maxLines: 4)
+                    if !sub.isEmpty { Text(sub).font(Typo.font(11)).foregroundColor(nodeColor(pal, "sub", "sub")).lineLimit(1).frame(height: 15, alignment: .leading) }
+                }
+                Spacer(minLength: 0)
+                Text("›").font(Typo.font(13)).foregroundColor(nodeColor(pal, "sub", "sub")).padding(.top, 3)
+            }
+            .padding(.horizontal, 4).padding(.vertical, 13)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .bottom) { Rectangle().fill(nodeColor(pal, "border", "border")).frame(height: 1) }
+            .contentShape(Rectangle())
+        }.buttonStyle(PressStyle(radius: 8))
+    }
+}
+
+// MARK: 자동완성 한 줄(sug) — 높이 44 · 종류 딱지 · 이름 14 굵게 · 작은 글 11 · (오른쪽 작은 단추) · 마지막이 아니면 아래 선
+struct SugNode: View {
+    let node: Node; let pal: Palette
+    @EnvironmentObject var host: Host
+    var body: some View {
+        let badge = node.str("badge") ?? "", sub = node.str("sub") ?? "", btn = node.str("btn") ?? ""
+        let bc = pal.color(node.str("bc")) ?? nodeColor(pal, "sub", "sub")
+        Button { if let a = node.act { host.handle(a) } } label: {
+            HStack(spacing: 6) {
+                if !badge.isEmpty { Text(badge).font(Typo.font(11, bold: true)).foregroundColor(bc).padding(.horizontal, 6).frame(height: 18).background(RoundedRectangle(cornerRadius: 5).fill(bc.opacity(0.16))) }
+                Text(node.str("name") ?? "").font(Typo.font(14, bold: true)).foregroundColor(nodeColor(pal, "text", "text")).lineLimit(1)
+                if !sub.isEmpty { Text(sub).font(Typo.font(11)).foregroundColor(nodeColor(pal, "sub", "sub")).lineLimit(1) }
+                Spacer(minLength: 0)
+                if !btn.isEmpty {
+                    Button { if let a = Action(node.d["bact"] as? [String: Any]) { host.handle(a) } } label: {
+                        Text(btn).font(Typo.font(11, bold: true)).foregroundColor(nodeColor(pal, "sub", "sub")).padding(.horizontal, 9).frame(height: 26)
+                            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(nodeColor(pal, "border2", "border"), lineWidth: 1))
+                    }.buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14).frame(maxWidth: .infinity).frame(height: 44)
+            .overlay(alignment: .bottom) { if !node.bool("last") { Rectangle().fill(nodeColor(pal, "border2", "border")).frame(height: 1).padding(.horizontal, 14) } }
+            .contentShape(Rectangle())
+        }.buttonStyle(PressStyle(radius: 0))
+    }
+}
