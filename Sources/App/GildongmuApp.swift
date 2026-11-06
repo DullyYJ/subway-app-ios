@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct GildongmuApp: App {
@@ -9,7 +10,18 @@ struct GildongmuApp: App {
             let kind = a[i + 1]
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                LiveRide.shared.apply(OvState.from(DemoOverlay.json(kind)))
+                if kind == "journey" {
+                    // 이동 중 → 잠시 뒤 도착: 앱이 뒤로 가 있어도 갱신이 나가도록 잠깐 백그라운드 작업을 잡는다
+                    var bg = UIBackgroundTaskIdentifier.invalid
+                    bg = UIApplication.shared.beginBackgroundTask { UIApplication.shared.endBackgroundTask(bg) }
+                    LiveRide.shared.apply(OvState.from(DemoOverlay.json("moving")))
+                    try? await Task.sleep(nanoseconds: 7_000_000_000)
+                    LiveRide.shared.apply(OvState.from(DemoOverlay.json("arrived")))
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    UIApplication.shared.endBackgroundTask(bg)
+                } else {
+                    LiveRide.shared.apply(OvState.from(DemoOverlay.json(kind)))
+                }
             }
         }
     }

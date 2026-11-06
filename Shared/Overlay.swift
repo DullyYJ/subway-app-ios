@@ -92,6 +92,8 @@ struct OvState {
         if !cells.isEmpty, cur < cells.count, !cells[cur].n.isEmpty { return cells[cur].n }
         return line1
     }
+    /// 지금 있는 역 이름(엔진이 칸에 준 현위치 칸 이름, 없으면 목적지) — 도착 때 함께 보인다.
+    var station: String { cells.indices.contains(cur) && !cells[cur].n.isEmpty ? cells[cur].n : destName }
     var waiting: Bool { !rsEnd && (rsSt == "wait" || rsSt == "board") }
     var arrived: Bool { rsSt == "board" && rsEnd && !rsBt.isEmpty }
     /// 현재 칸 점 · 알약 점 색(안드로이드 stateRgb).

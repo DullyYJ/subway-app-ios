@@ -42,7 +42,10 @@ final class ParseTests: XCTestCase {
         XCTAssertEqual(ov.stateRgb, OvState.cMove)
         let st = RideActivityAttributes.ContentState(ov)
         XCTAssertEqual(st.label, "이동중"); XCTAssertEqual(st.cells.count, 5); XCTAssertEqual(st.cells[st.cur].n, "을지로입구")
-        XCTAssertEqual(RideActivityAttributes.ContentState(OvState.from(DemoOverlay.json("arrived"))).label, "도착")
+        let ar = RideActivityAttributes.ContentState(OvState.from(DemoOverlay.json("arrived")))
+        XCTAssertEqual(ar.label, "도착"); XCTAssertEqual(ar.station, "명동"); XCTAssertEqual(ar.shortText, "명동 도착"); XCTAssertEqual(ar.alertTitle, "명동 도착")
+        XCTAssertNil(st.alertTitle)                                                  // 이동 중에는 펼치지 않는다
+        XCTAssertNotNil(RideActivityAttributes.ContentState(OvState.from(DemoOverlay.json("alert1"))).alertTitle)
         XCTAssertEqual(RideActivityAttributes.ContentState(OvState.from(DemoOverlay.json("wait"))).label, "대기")
         XCTAssertEqual(RideActivityAttributes.ContentState(OvState.from(DemoOverlay.json("alert1"))).alert, 1)
         XCTAssertFalse(OvState.from(["active": true]).active)                  // line1 이 없으면 꺼짐

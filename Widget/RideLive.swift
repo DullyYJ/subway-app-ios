@@ -13,6 +13,7 @@ struct RideLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RideActivityAttributes.self) { ctx in
             LockBanner(s: ctx.state, dest: ctx.attributes.dest)
+                .widgetURL(URL(string: "gildongmu://ride"))
                 .activityBackgroundTint(Color(argb: ctx.state.bg))
                 .activitySystemActionForegroundColor(Color(argb: ctx.state.fg))
         } dynamicIsland: { ctx in
@@ -23,23 +24,33 @@ struct RideLiveActivity: Widget {
                     if !s.banner.isEmpty { Text(s.banner).font(Typo.font(12, bold: true)).foregroundColor(alertColor(s.alert)).lineLimit(1) }
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    Text(s.line1).font(Typo.font(14, bold: true)).foregroundColor(.white).lineLimit(1)
+                    Text(s.arrived ? s.shortText : s.line1).font(Typo.font(s.arrived ? 17 : 14, bold: true)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.7)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 6) {
                         if !s.cells.isEmpty { CellStrip(s: s, onDark: true) }
-                        if !s.pillText.isEmpty { Text(s.pillText).font(Typo.font(12)).foregroundColor(Color(argb: 0xFFB0B0B8)).lineLimit(1) }
+                        if !s.line2.isEmpty { Text(s.line2).font(Typo.font(12)).foregroundColor(Color(argb: 0xFFB0B0B8)).lineLimit(1) }
+                        if !s.line3.isEmpty { Text(s.line3).font(Typo.font(12)).foregroundColor(Color(argb: 0xFFB0B0B8)).lineLimit(1) }
+                        if s.rowKind > 0 && !s.rowA.isEmpty {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(s.rowA).font(Typo.font(13, bold: true)).foregroundColor(s.rowKind == 2 ? alertColor(1) : .white).lineLimit(1)
+                                if !s.rowB.isEmpty { Text(s.rowB).font(Typo.font(11)).foregroundColor(Color(argb: 0xFFB0B0B8)).lineLimit(2) }
+                            }
+                            .padding(.horizontal, 10).padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.white.opacity(0.1)).cornerRadius(10)
+                        } else if !s.pillText.isEmpty { Text(s.pillText).font(Typo.font(12)).foregroundColor(Color(argb: 0xFFB0B0B8)).lineLimit(1) }
                     }
                 }
             } compactLeading: {
                 Dot(rgb: s.stateRgb, pulse: s.alert > 0)
             } compactTrailing: {
-                Text(s.alert > 0 && !s.banner.isEmpty ? s.banner : s.label)
-                    .font(Typo.font(12, bold: true)).foregroundColor(s.alert > 0 ? alertColor(s.alert) : .white).lineLimit(1)
+                Text(s.shortText)
+                    .font(Typo.font(12, bold: true)).foregroundColor(s.alert > 0 ? alertColor(s.alert) : .white).lineLimit(1).minimumScaleFactor(0.7)
             } minimal: {
                 Dot(rgb: s.stateRgb, pulse: s.alert > 0)
             }
             .keylineTint(Color(argb: s.stateRgb))
+            .widgetURL(URL(string: "gildongmu://ride"))
         }
     }
 }
@@ -94,13 +105,16 @@ private struct LockBanner: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Dot(rgb: s.stateRgb, pulse: s.alert > 0)
-                Text(s.label).font(Typo.font(13, bold: true)).foregroundColor(Color(argb: s.fg))
+                Text(s.arrived ? s.shortText : s.label).font(Typo.font(13, bold: true)).foregroundColor(Color(argb: s.fg))
                 Spacer()
                 if !s.banner.isEmpty { Text(s.banner).font(Typo.font(12, bold: true)).foregroundColor(alertColor(s.alert)) }
             }
             Text(s.line1).font(Typo.font(16, bold: true)).foregroundColor(Color(argb: s.fg)).lineLimit(1)
             if !s.line2.isEmpty { Text(s.line2).font(Typo.font(13)).foregroundColor(Color(argb: s.sub)).lineLimit(1) }
             if !s.cells.isEmpty { CellStrip(s: s) }
+            if s.rowKind > 0 && !s.rowA.isEmpty {
+                Text(s.rowA + (s.rowB.isEmpty ? "" : " · " + s.rowB)).font(Typo.font(12, bold: true)).foregroundColor(s.rowKind == 2 ? alertColor(1) : Color(argb: s.fg)).lineLimit(2)
+            }
         }
         .padding(14)
     }
