@@ -186,12 +186,12 @@ jobs:
           curl -sS -m 25 -H "$H" -d '{"cap":29,"f":{"part":"b","mode":"subway","reg":"seoul","flt":"ALL","th":"dark","gps":[37.5547,126.9707]}}' $B/screen/map > probe-map-subway-body.json || true
           curl -sS -m 20 "https://board-writer.phg0643.workers.dev/talks?limit=30" > probe-talks-raw.json || true
           python3 - <<'PY' || true
-import json
-raw=json.load(open("probe-talks-raw.json"))
-g=[[t.get("nick",""),t.get("text",""),t.get("ts",0),0,t.get("line",""),str(t.get("id",""))] for t in raw.get("talks",[])]
-body={"cap":29,"f":{"sel":"all","sec":[],"my":[],"th":"dark","st":"ready","tzo":-540,"me":"","hid":[]},"d":{"g":g,"r":[],"off":None,"offOk":0,"offAt":0,"al":None}}
-json.dump(body,open("probe-chat-req.json","w"))
-PY
+          import json
+          raw=json.load(open("probe-talks-raw.json"))
+          g=[[t.get("nick",""),t.get("text",""),t.get("ts",0),0,t.get("line",""),str(t.get("id",""))] for t in raw.get("talks",[])]
+          body={"cap":29,"f":{"sel":"all","sec":[],"my":[],"th":"dark","st":"ready","tzo":-540,"me":"","hid":[]},"d":{"g":g,"r":[],"off":None,"offOk":0,"offAt":0,"al":None}}
+          json.dump(body,open("probe-chat-req.json","w"))
+          PY
           curl -sS -m 25 -H "$H" -d @probe-chat-req.json $B/screen/chat > probe-chat-all.json || true
           ls -la probe-*.json || true
       - uses: actions/upload-artifact@v4
