@@ -70,8 +70,9 @@ final class ChatModel: ObservableObject {
         pends.removeAll { Date().timeIntervalSince($0.ts) > 45 }
         let have = s == "all" ? !talk.isEmpty : room[s] != nil
         let tzo = -TimeZone.current.secondsFromGMT() / 60
-        var f: [String: Any] = ["sel": s, "sec": [String](), "my": jarr("my_lines"), "th": theme, "st": have ? "ready" : (failed ? "fail" : "loading"),
+        var f: [String: Any] = ["sel": s, "sec": HomeModel.shared.routeSec, "my": jarr("my_lines"), "th": theme, "st": have ? "ready" : (failed ? "fail" : "loading"),
                                 "tzo": tzo, "me": me, "hid": jarr("lrHidden")]
+        if RideLoop.shared.running, !HomeModel.shared.routeSec.isEmpty, let sc = Json.obj(Data(RideLoop.shared.sceneJson.utf8)) { f["ride"] = sc }
         let ps = pends.filter { $0.sel == s }.map { [$0.text, Int64($0.ts.timeIntervalSince1970 * 1000)] as [Any] }
         if !ps.isEmpty { f["pend"] = ps }
         let bl = blocked()
@@ -235,6 +236,7 @@ struct ChatView: View {
             if m.reportId != nil { ReportCard(pal: pal, onYes: { m.confirmReport(host: host) }, onNo: { m.reportId = nil }) }
         }
         .task { await m.liveLoop() }
+        .onReceive(HomeModel.shared.$routeSec.dropFirst()) { _ in Task { await m.render() } }
         .onReceive(host.actPublisher) { x in if x.tab == "community" { m.act(x, host: host) } }
     }
 }

@@ -15,6 +15,8 @@ struct HLoc {
 @MainActor
 final class HomeModel: ObservableObject {
     static let shared = HomeModel()
+    /// 지금 찾은 경로가 지나는 노선들(결과 화면 info.sec) — 소통방이 '내가 탈 노선'을 앞에 놓는 재료.
+    @Published private(set) var routeSec: [String] = []
     let fav = FavModel()
     @Published var screen: Screen? = nil
     @Published var error: String? = nil
@@ -213,6 +215,9 @@ final class HomeModel: ObservableObject {
         if my != seq { return }
         if cb != nil, let c = c, Json.isObject(c) { hcKey = ck; hcData = c }
         guard let h = h else { if screen == nil { error = "홈 화면을 받지 못했어요" }; return }
+        var sec: [String] = []
+        if let r = r, let ro = Json.obj(r) as? [String: Any], let l = (ro["info"] as? [String: Any])?["sec"] as? [Any] { sec = l.compactMap { $0 as? String } }
+        if sec != routeSec { routeSec = sec }
         if let s = merged(h, [r, hcData]) { screen = s; error = nil; readInfo(h) }
         else { error = "홈 화면을 읽지 못했어요" }
     }
@@ -507,6 +512,8 @@ final class HomeModel: ObservableObject {
         }
         rideSeq = my
         RideLoop.shared.start(stateJson: Json.text(st), text: (o["text"] as? String) ?? "")
+        let secs = routeSec
+        Task { await Rules.myLines(secs) }
         host.say("\(optName(resTab)) 경로로 확정했어요")
         if showDetail { closeDetail() }
         reloadSoon()
