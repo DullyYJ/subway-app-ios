@@ -61,7 +61,7 @@ jobs:
           # 탭 화면: 커뮤니티 · 쇼핑 (서버에서 받아 그린 모습)
           xcrun simctl privacy "$UDID" grant location com.dullyyj.subway.ios || true
           xcrun simctl location "$UDID" set 37.5547,126.9707 || true
-          for T in community shop food; do
+          for T in home community shop food; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
             xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab $T
             sleep 22
