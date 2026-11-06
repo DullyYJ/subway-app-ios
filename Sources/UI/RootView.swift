@@ -53,6 +53,7 @@ struct TabContent: View {
         case "shop": ShopTab(pal: pal)
         case "food": FoodTab(pal: pal)
         case "home": HomeTab(pal: pal)
+        case "map": MapTab(pal: pal)
         default: DevExplorer(pal: pal, title: tab + " (다음 단계에서 연결)", start: "/screen/settings?cap=8")
         }
     }
