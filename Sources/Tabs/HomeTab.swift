@@ -43,9 +43,47 @@ final class HomeModel: ObservableObject {
     // 홈 카드 묶음(AI 승무원 · 혼잡도 · 실시간 대화): 엔진 /screen/hcards 가 정한 카드를 홈 본문 맨 아래에 붙인다
     private var aiNextAt: Int64 = 0, aiRnd = Double.random(in: 0..<1)
     private var hcKey = "", hcData: Data? = nil
+
+    // 홈 카드의 [같은 길 이야기] — 전체방 최근 글(GET /talks)을 5초마다 받고, 글은 POST /react 로 보낸다(안드로이드 pollHomeTalks / sendHomeTalk)
+    private var talkRows: [[Any]] = [], talkIds = Set<String>(), sinceG: Int64 = 0
+    private var talkMark: String { "\(talkRows.count):\(sinceG)" }
+    func pollTalks() async {
+        let url = Servers.board + "/talks" + (sinceG > 0 ? "?since=\(sinceG)&limit=40" : "?limit=30")
+        guard let d = try? await Net.request("GET", url, timeout: 6), let o = Json.obj(d) as? [String: Any], (o["ok"] as? Bool) == true, let ts = o["talks"] as? [[String: Any]] else { return }
+        let before = talkMark
+        let me = UserDefaults.standard.string(forKey: "comm_id") ?? ""
+        for m in ts {
+            let id = (m["id"] as? String) ?? ((m["id"] as? NSNumber).map { String($0.int64Value) } ?? "")
+            if id.isEmpty || talkIds.contains(id) { continue }
+            let t = (m["ts"] as? NSNumber)?.int64Value ?? 0
+            if t > sinceG { sinceG = t }
+            let nick = String((m["nick"] as? String ?? "").prefix(40))
+            talkIds.insert(id)
+            talkRows.append([nick, String((m["text"] as? String ?? "").prefix(400)), Double(t), (!me.isEmpty && me == nick) ? 1.0 : 0.0, String((m["line"] as? String ?? "").prefix(20)), id])
+        }
+        if talkRows.count > 300 { talkRows.removeFirst(talkRows.count - 300) }
+        if before != talkMark { reloadSoon() }
+    }
+    func sendTalk(host: Host) {
+        let me = UserDefaults.standard.string(forKey: "comm_id") ?? ""
+        let t = String((UserDefaults.standard.string(forKey: "field.talk.in") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
+        if t.isEmpty { return }
+        if me.isEmpty { host.say("설정에서 커뮤니티 아이디를 등록하면 글과 제보를 남길 수 있어요"); return }
+        Task {
+            let bad = await Rules.check("chat", "", [t])
+            if !bad.isEmpty { host.say(bad); return }
+            host.clearField("talk.in")
+            let (st, data) = await Net.post(Servers.board + "/react", Json.text(["nick": me, "text": t]), timeout: 9)
+            let body = String(data: data, encoding: .utf8) ?? ""
+            let why = st == 200 && body.contains("\"stored\"") ? "" : (st == 0 ? "네트워크가 불안정해요" : (body.contains("filtered") ? "부적절한 표현이 있어 올리지 못했어요" : "잠시 후 다시 시도해 주세요(시간당 한도)"))
+            if !why.isEmpty { host.say(why) }
+            await pollTalks()
+            try? await Task.sleep(nanoseconds: 1_500_000_000); await pollTalks()
+        }
+    }
     private func hcKeyNow() -> String {
         let fix = LocationStore.shared.last.map { String(format: "%.3f,%.3f", $0.coordinate.latitude, $0.coordinate.longitude) } ?? "-"
-        return "\(resTab):\(hasRoute ? seqRoute : -1):\(nowMs() / 60000):\(aiNextAt):\(RideLoop.shared.sceneJson.hashValue):\(RideLoop.shared.hasShare ? 1 : 0):\(fix)"
+        return "\(resTab):\(hasRoute ? seqRoute : -1):\(nowMs() / 60000):\(aiNextAt):\(RideLoop.shared.sceneJson.hashValue):\(RideLoop.shared.hasShare ? 1 : 0):\(talkMark):\(fix)"
     }
     private func hcardsBody() -> String {
         let e = env()
@@ -55,7 +93,7 @@ final class HomeModel: ObservableObject {
         if RideLoop.shared.hasShare { b += ",\"sh\":1" }
         if let l = LocationStore.shared.last { b += ",\"gps\":[\(l.coordinate.latitude),\(l.coordinate.longitude)]" } else { b += ",\"gps\":null" }
         b += ",\"r\":\(resultFacts() ?? "null")"
-        b += ",\"ai\":{\"nextAt\":\(aiNextAt),\"busy\":false,\"rnd\":\(aiRnd)},\"tk\":{\"m\":[],\"fold\":0,\"tzo\":\(e.tzo)}}}"
+        b += ",\"ai\":{\"nextAt\":\(aiNextAt),\"busy\":false,\"rnd\":\(aiRnd)},\"tk\":{\"m\":\(Json.text(talkRows)),\"fold\":0,\"tzo\":\(e.tzo)}}}"
         return b
     }
     /// 1분마다 홈을 다시 그린다(카드 열쇠에 분이 들어 있다).
@@ -315,7 +353,7 @@ final class HomeModel: ObservableObject {
         if v == "ai.refresh" { aiNextAt = nowMs() + 5 * 60 * 1000; aiRnd = Double.random(in: 0..<1); hcKey = ""; reloadSoon(); return }
         if v == "tk.open" { host.tab = "community"; return }
         if v == "share.loc" { ShareLoc.present(host: host); return }
-        if v == "tk.send" { host.say("이 기능은 다음 단계에서 연결돼요"); return }
+        if v == "tk.send" { sendTalk(host: host); return }
         if v.hasPrefix("rh.") { result(v, host: host); return }
         if v.hasPrefix("rd.") { detailAct(v, host: host); return }
         if v.hasPrefix("sg."), v.count > 5 {
@@ -509,6 +547,7 @@ struct HomeTab: View {
         }
         .task { LocationStore.shared.start(); await m.load(); await m.startDemo(host: host) }
         .task { while !Task.isCancelled { try? await Task.sleep(nanoseconds: 30_000_000_000); m.tick() } }
+        .task { while !Task.isCancelled { await m.pollTalks(); try? await Task.sleep(nanoseconds: 5_000_000_000) } }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "home" else { return }
             if x.a == "input" { m.typed(x.key, x.v) }
