@@ -1,126 +1,140 @@
 import SwiftUI
 
-private func nc3(_ pal: Palette, _ s: String?, _ def: String) -> Color { pal.color(s) ?? pal.color(def) ?? .primary }
-private func ins(_ n: Node) -> EdgeInsets { let p = n.pad; return EdgeInsets(top: p.t, leading: p.l, bottom: p.b, trailing: p.r) }
+private func nc(_ pal: Palette, _ s: String?, _ def: String) -> Color {
+    if let s = s, !s.isEmpty, let c = pal.color(s) { return c }
+    return pal.color(def) ?? .primary
+}
 
-// MARK: lth — 홈 '실시간 대화' 머리줄(안드로이드 K_LTH): 높이 21 · 색 점 7 · 간격 6 · 굵은 제목 12 + 작은 꼬리 글(›). live 면 점이 숨 쉬듯 번졌다 잦아든다(1.8초 주기). 줄 전체가 눌린다.
-struct LthNode: View {
+// MARK: 홈 입력줄(inbar) — 안드로이드 ScreenCore 'inbar' · ScreenView.drawInbar 와 같다.
+// 왼쪽 점(지름 10) → 글자 칸(바탕 띠 ifill) → 오른쪽 단추(너비 = 글자 + bpx*2, 높이 bh, 모서리 9). dim 이면 단추가 흐리고 눌러도 아무 일 없다.
+struct InbarNode: View {
+    let node: Node; let pal: Palette
+    @EnvironmentObject var host: Host
+    @State private var text: String
+    @FocusState private var focused: Bool
+    init(node: Node, pal: Palette) { self.node = node; self.pal = pal; _text = State(initialValue: node.str("value") ?? "") }
+
+    /// 색 키: 아예 없으면 기본 역할 · 빈 글이면 칠하지 않는다(안드로이드 roleOrCss(m, key, def)).
+    private func role(_ k: String, _ def: String) -> Color? {
+        guard let v = node.d[k] as? String else { return pal.color(def) }
+        return v.isEmpty ? nil : pal.color(v)
+    }
+
+    var body: some View {
+        let h = CGFloat(node.num("h", 40)), size = CGFloat(node.num("size", 13)), r = CGFloat(node.num("r", 9))
+        let bsz = node.num("bsize", 0) > 0 ? CGFloat(node.num("bsize", 0)) : size
+        let bh = node.num("bh", 0) > 0 ? min(CGFloat(node.num("bh", 0)), h) : h
+        let inh = node.num("inh", 0) > 0 ? min(CGFloat(node.num("inh", 0)), h) : h
+        let bpx = node.num("bpx", 0) > 0 ? CGFloat(node.num("bpx", 0)) : 14
+        let dim = node.bool("dim")
+        let spinDef = dim && (node.act?.v == "rt.gps")
+        let spin = node.d["spin"] == nil ? spinDef : node.bool("spin")
+        let ac = nc(pal, node.str("onc"), "gold"), ck = nc(pal, node.str("ckf"), "#121214")
+        let tc = nc(pal, node.str("tc"), "text"), sc = nc(pal, node.str("sc"), "sub")
+        let key = node.str("key") ?? ""
+        let hasDot = !(node.str("dot") ?? "").isEmpty
+        let noBtn = node.bool("nobtn")
+        let label = node.str("btn") ?? ""
+        let textX: CGFloat = hasDot ? 34 : 14
+        let btnR = r > 0 ? r : 9
+        let ifh = node.num("ifh", 0) > 0 ? CGFloat(node.num("ifh", 0)) : size + 2
+        let strip = (node.str("ifill") ?? "").isEmpty ? nil : pal.color(node.str("ifill") ?? "")
+        let fill = role("fill", "card"), line = role("line", "border2")
+        return HStack(spacing: 0) {
+            ZStack(alignment: .leading) {
+                if let f = fill { RoundedRectangle(cornerRadius: r).fill(f) }
+                if let l = line { RoundedRectangle(cornerRadius: max(0, r - 0.5)).inset(by: 0.5).stroke(focused ? (pal.color("gold") ?? l) : l, lineWidth: focused ? 1.5 : 1) }
+                if let st = strip {
+                    RoundedRectangle(cornerRadius: CGFloat(node.num("ifr", 0))).fill(st).frame(height: ifh)
+                        .padding(.leading, textX).padding(.trailing, noBtn ? 0 : 2)
+                }
+                if hasDot { Circle().fill(nc(pal, node.str("dot"), "gold")).frame(width: 10, height: 10).padding(.leading, 14) }
+                TextField("", text: $text, prompt: Text(node.str("hint") ?? "").foregroundColor(sc.opacity(0.8)))
+                    .font(Typo.font(size, bold: node.bool("bold")))
+                    .foregroundColor(tc)
+                    .focused($focused)
+                    .submitLabel(.search)
+                    .onSubmit { if let a = Action(node.d["eact"] as? [String: Any]) { host.handle(a) } }
+                    .padding(.leading, textX).padding(.trailing, 8)
+                    .frame(height: inh)
+            }
+            .frame(height: inh)
+            if !noBtn {
+                Color.clear.frame(width: 8, height: 1)
+                Button { if !dim, let a = node.act { focused = false; host.handle(a) } } label: {
+                    HStack(spacing: 6) {
+                        if spin && dim { InbarSpin(color: ck.opacity(0.75)) }
+                        Text(label).font(Typo.font(bsz, bold: true)).foregroundColor(ck.opacity(dim ? 0.6 : 1)).lineLimit(1).fixedSize()
+                    }
+                    .frame(width: Typo.width(label, bsz, true) + bpx * 2, height: bh)
+                    .background(RoundedRectangle(cornerRadius: btnR).fill(ac.opacity(dim ? 0.5 : 1)))
+                }.buttonStyle(.plain)
+                .frame(width: Typo.width(label, bsz, true) + bpx * 2, height: bh)
+            }
+        }
+        .frame(height: h)
+        .onChange(of: text) { v in host.actPublisher.send(Host.TabAction(tab: host.tab, a: "input", v: v, id: "", key: key)) }
+        .onChange(of: node.str("value") ?? "") { v in if !focused && v != text { text = v } }
+        .onChange(of: host.reloadTick) { _ in }
+    }
+}
+
+/// 단추 글자 왼쪽에서 도는 작은 호(반지름 5 · 굵기 2 · 250도 · 0.9초에 한 바퀴) — 안드로이드 drawInbar 스피너.
+struct InbarSpin: View {
+    let color: Color
+    @State private var on = false
+    var body: some View {
+        Circle().trim(from: 0, to: 250.0 / 360.0)
+            .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .frame(width: 10, height: 10)
+            .rotationEffect(.degrees(on ? 360 : 0))
+            .onAppear { withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) { on = true } }
+    }
+}
+
+// MARK: 출발↔도착 바꾸기(swap) — 두 줄 경계에 얹히는 동그란 단추(높이를 차지하지 않는다)
+struct SwapNode: View {
     let node: Node; let pal: Palette
     @EnvironmentObject var host: Host
     var body: some View {
-        let dot = nc3(pal, node.str("dot"), "#ff3b30"), live = node.bool("live")
-        let title = node.str("s") ?? "", tail = node.str("tail") ?? ""
-        Button { if let a = node.act { host.handle(a) } } label: {
-            HStack(spacing: 6) {
+        let d = CGFloat(node.num("size", 34))
+        Color.clear.frame(height: 0).overlay {
+            Button { if let a = node.act { host.handle(a) } } label: {
                 ZStack {
-                    if live { LiveDot(color: dot) } else { Circle().fill(dot).frame(width: 7, height: 7) }
-                }.frame(width: 7, height: 7)
-                HStack(spacing: 4) {
-                    Text(title).font(Typo.font(12, bold: true)).foregroundColor(pal.color("text") ?? .white).lineLimit(1)
-                    if !tail.isEmpty { Text(tail).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray).lineLimit(1).layoutPriority(1) }
-                }
+                    Circle().fill(nc(pal, node.str("line"), "bg")).frame(width: d, height: d)
+                    Circle().fill(nc(pal, node.str("fill"), "#0a84ff")).frame(width: d - 5, height: d - 5)
+                    SVGIcon(d: node.str("icon") ?? "").fill(nc(pal, node.str("tc"), "white")).frame(width: d * 16 / 34, height: d * 16 / 34)
+                }.frame(width: d, height: d)
+            }.buttonStyle(.plain)
+        }.zIndex(5)
+    }
+}
+
+// MARK: 기준시각 줄(trow): 🕐 기준시각 · 시각 글 · 작은 안내 · 요일 알약 · 현재 단추
+struct TrowNode: View {
+    let node: Node; let pal: Palette
+    @EnvironmentObject var host: Host
+    var body: some View {
+        let sub = nc(pal, "sub", "sub")
+        let cur = node.bool("cur", true)
+        let pill = nc(pal, node.str("dc"), "#30d158")
+        return Button { if let a = node.act { host.handle(a) } } label: {
+            HStack(spacing: 8) {
+                if let lb = node.str("lb"), !lb.isEmpty { Text(lb).font(Typo.font(10)).foregroundColor(sub).lineLimit(1) }
+                Text(node.str("s") ?? "").font(Typo.font(12)).foregroundColor(cur ? sub : nc(pal, "text", "text")).lineLimit(1)
+                if let h = node.str("hint"), !h.isEmpty { Text(h).font(Typo.font(10)).foregroundColor(sub).lineLimit(1).padding(.leading, -4) }
                 Spacer(minLength: 0)
-            }
-            .frame(height: 21 - 4).padding(.bottom, 4)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PressStyle(radius: 6))
-        .padding(ins(node))
-    }
-}
-
-struct LiveDot: View {
-    let color: Color
-    var body: some View {
-        TimelineView(.animation) { tl in
-            let ms = tl.date.timeIntervalSinceReferenceDate * 1000
-            let ph = ms.truncatingRemainder(dividingBy: 1800) / 1800
-            let br = 0.5 - 0.5 * cos(ph * 2 * .pi)
-            let dr: CGFloat = 3.5
-            ZStack {
-                Circle().fill(color).opacity((1 - ph) * (1 - ph) * 0.55).frame(width: dr * 2 * (1.2 + 2.6 * ph), height: dr * 2 * (1.2 + 2.6 * ph))
-                Circle().fill(color).opacity(0.35 + 0.35 * br).frame(width: dr * 4.2, height: dr * 4.2).blur(radius: 1.5)
-                Circle().fill(color).opacity(0.62 + 0.38 * br).frame(width: dr * 2 * (0.92 + 0.12 * br), height: dr * 2 * (0.92 + 0.12 * br))
-            }
-        }
-        .frame(width: 7, height: 7).fixedSize()
-    }
-}
-
-// MARK: ltr — '실시간 대화' 한 줄(K_LTR): 높이 20 · 닉네임 11 굵게(최대 80, 기본 금색) · 간격 7 · 글 12 한 줄 말줄임 · 오른쪽 시각 9
-struct LtrNode: View {
-    let node: Node; let pal: Palette
-    var body: some View {
-        HStack(spacing: 7) {
-            if let nk = node.str("nick"), !nk.isEmpty {
-                Text(nk).font(Typo.font(11, bold: true)).foregroundColor(nc3(pal, node.str("nc"), "gold")).lineLimit(1).frame(maxWidth: 80, alignment: .leading).fixedSize(horizontal: true, vertical: false)
-            }
-            Text(node.str("s") ?? "").font(Typo.font(12)).foregroundColor(pal.color("text") ?? .white).lineLimit(1)
-            Spacer(minLength: 0)
-            if let t = node.str("time"), !t.isEmpty { Text(t).font(Typo.font(9)).foregroundColor(pal.color("sub") ?? .gray).lineLimit(1).fixedSize() }
-        }
-        .frame(height: 20)
-        .padding(ins(node))
-    }
-}
-
-// MARK: pill — 작은 알약 글자(K_PILL): 글 폭 + 좌우 여백(ph 11)만 차지하고 왼쪽에 붙는다 · 높이 = 글 높이(×1.35) + 위아래 여백(pv 4) · 모서리 r 9
-struct PillNode: View {
-    let node: Node; let pal: Palette
-    var body: some View {
-        let size = CGFloat(node.num("size", 11)), ph = CGFloat(node.num("ph", 11)), pv = CGFloat(node.num("pv", 4)), r = CGFloat(node.num("r", 9))
-        HStack(spacing: 0) {
-            Text(node.str("s") ?? "").font(Typo.font(size, bold: node.bool("bold", true))).foregroundColor(nc3(pal, node.str("tc"), "text")).lineLimit(1)
-                .frame(height: size * 1.35).padding(.horizontal, ph).padding(.vertical, pv)
-                .background(RoundedRectangle(cornerRadius: r).fill(nc3(pal, node.str("fill"), "card2")))
-            Spacer(minLength: 0)
-        }
-        .padding(ins(node))
-    }
-}
-
-// MARK: tags — 눌리지 않는 알약 줄(K_TAGS): 칸이 모자라면 다음 줄로 흘러 쓴다 · 기본 높이 24 · 간격 6 · 글 11 · 좌우 여백 10 · 바탕/테두리/글자는 엔진이 정한다
-struct TagFlowLayout: Layout {
-    var gap: CGFloat
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let w = proposal.width ?? 320
-        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0, maxX: CGFloat = 0
-        for s in subviews {
-            let sz = s.sizeThatFits(ProposedViewSize(width: w, height: nil))
-            if x > 0 && x + sz.width > w + 0.5 { x = 0; y += rowH + gap; rowH = 0 }
-            x += sz.width + gap; rowH = max(rowH, sz.height); maxX = max(maxX, x - gap)
-        }
-        return CGSize(width: maxX, height: y + rowH)
-    }
-    func placeSubviews(in b: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0
-        for s in subviews {
-            let sz = s.sizeThatFits(ProposedViewSize(width: b.width, height: nil))
-            if x > 0 && x + sz.width > b.width + 0.5 { x = 0; y += rowH + gap; rowH = 0 }
-            s.place(at: CGPoint(x: b.minX + x, y: b.minY + y), proposal: ProposedViewSize(width: sz.width, height: sz.height))
-            x += sz.width + gap; rowH = max(rowH, sz.height)
-        }
-    }
-}
-
-struct TagsNode: View {
-    let node: Node; let pal: Palette
-    var body: some View {
-        let gap = CGFloat(node.num("gap", 6)), h = CGFloat(node.num("h", 24)), size = CGFloat(node.num("size", 11)), px = CGFloat(node.num("px", 10))
-        HStack(spacing: 0) {
-            TagFlowLayout(gap: gap) {
-                ForEach(Array(node.items.prefix(12).enumerated()), id: \.offset) { _, c in
-                    let lab = c["s"] as? String ?? ""
-                    if !lab.isEmpty {
-                        Text(lab).font(Typo.font(size, bold: (c["b"] as? Bool) ?? false)).foregroundColor(nc3(pal, c["tc"] as? String, "text")).lineLimit(1)
-                            .padding(.horizontal, px).frame(height: h)
-                            .background(Capsule().fill(pal.color(c["c"] as? String) ?? .clear))
-                            .overlay(Capsule().strokeBorder(pal.color(c["oc"] as? String) ?? .clear, lineWidth: 1))
-                    }
+                if let dy = node.str("day"), !dy.isEmpty {
+                    Text(dy).font(Typo.font(10, bold: true)).foregroundColor(pill).padding(.horizontal, 7).frame(height: 18)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(pill.opacity(0.15)))
+                }
+                if let b = node.str("btn"), !b.isEmpty {
+                    Button { if let a = Action(node.d["bact"] as? [String: Any]) { host.handle(a) } } label: {
+                        Text(b).font(Typo.font(10)).foregroundColor(sub).frame(minHeight: 34)
+                    }.buttonStyle(.plain)
                 }
             }
-            Spacer(minLength: 0)
-        }
-        .padding(ins(node))
+            .padding(.horizontal, 14).frame(height: CGFloat(node.num("h", 34))).contentShape(Rectangle())
+        }.buttonStyle(PressStyle(radius: 0))
     }
 }

@@ -62,6 +62,14 @@ struct NodeView: View {
         case "ltr": LtrNode(node: node, pal: pal)
         case "pill": PillNode(node: node, pal: pal)
         case "tags": TagsNode(node: node, pal: pal)
+        case "sec": SecNode(node: node, pal: pal)
+        case "gauge": GaugeNode(node: node, pal: pal)
+        case "cgh": CghNode(node: node, pal: pal)
+        case "cars": CarsNode(node: node, pal: pal)
+        case "lpills": LpillsNode(node: node, pal: pal)
+        case "skel": SkelNode(node: node, pal: pal)
+        case "lbar": LbarNode(node: node, pal: pal)
+        case "aih": AihNode(node: node, pal: pal)
         default: EmptyView().onAppear { UnknownKinds.note(node.t, (try? JSONSerialization.data(withJSONObject: node.d)).flatMap { String(data: $0, encoding: .utf8) } ?? "") }
         }
     }
