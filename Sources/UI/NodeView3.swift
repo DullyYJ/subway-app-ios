@@ -48,7 +48,7 @@ struct InbarNode: View {
             }.buttonStyle(.plain).fixedSize()
         }
         .frame(height: h)
-        .onChange(of: text) { v in host.actPublisher.send(TabAction(tab: host.tab, a: "input", v: v, id: "", key: key)) }
+        .onChange(of: text) { v in host.actPublisher.send(Host.TabAction(tab: host.tab, a: "input", v: v, id: "", key: key)) }
         .onChange(of: node.str("value") ?? "") { v in if !focused && v != text { text = v } }
         .onChange(of: host.reloadTick) { _ in }
     }
