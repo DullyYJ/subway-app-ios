@@ -33,7 +33,7 @@ final class MapModel: ObservableObject {
     func tapStation(_ name: String, line: String = "") {
         let n = name.filter { !$0.isWhitespace }
         guard !n.isEmpty else { return }
-        showStn = true; stnScreen = nil; stnLine = line; pickName = ""
+        showStn = true; stnScreen = nil; stnLine = line; pickName = ""; stnName = n; ttMode = false
         let body = "{\"cap\":\(Servers.cap),\"f\":{\"part\":\"stn\",\"stn\":\(Json.q(n)),\"sl\":\(Json.q(line)),\"reg\":\(Json.q(reg)),\"th\":\"dark\"}}"
         Task {
             if let d = try? await Net.request("POST", Servers.base + "/screen/map", body: body, timeout: 10), let s = try? Screen.parse(d) {
@@ -44,6 +44,7 @@ final class MapModel: ObservableObject {
     private func readStn(_ d: Data) {
         pickName = ""; pickLine = ""; pickLa = 0; pickLo = 0
         guard let o = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any], let i = o["info"] as? [String: Any] else { return }
+        ttLines = (i["lines"] as? [Any] ?? []).map { String(describing: $0) }
         if let m = i["msg"] as? [String: Any] { msgS = m["s"] as? String ?? ""; msgE = m["e"] as? String ?? ""; msgE2 = m["e2"] as? String ?? "" }
         if let p = i["pick"] as? [String: Any] {
             pickName = p["name"] as? String ?? ""; pickLine = p["line"] as? String ?? ""
@@ -54,7 +55,9 @@ final class MapModel: ObservableObject {
     /// 역 팝업 단추(출발 · 도착 · 시간표)
     func sheetAct(_ v: String, host: Host) {
         let home = HomeModel.shared
-        if v == "mp.close" { showStn = false; return }
+        if v == "mp.close" { showStn = false; ttMode = false; return }
+        if v == "mp.tt" { openTimetable(); return }
+        if v.hasPrefix("mt.") { ttAct(v); return }
         if v == "mp.start" || v == "mp.dest" {
             guard !pickName.isEmpty else { return }
             showStn = false
@@ -72,7 +75,6 @@ final class MapModel: ObservableObject {
             }
             return
         }
-        host.say("시간표는 다음 단계에서 연결돼요")
     }
 
     private var busRes: [String: String] = [:]
@@ -89,6 +91,12 @@ final class MapModel: ObservableObject {
     var stnLine = ""
     @Published var aliasEdit: AliasEdit? = nil
     @Published var routeOpen = false
+    @Published var ttMode = false
+    var stnName = ""
+    var ttLines: [String] = [], ttDks: [String] = [], ttDays: [String] = []
+    var ttLine = "", ttDay = "", ttDk = "", ttState = "loading", needLine = "", needDay = "", ttAsked = ""
+    var ttRes: [String: String] = [:]
+    var ttSeq = 0, ttNeed = false
     let route = BusRoute()
     var pkBusName = "", pkBusId = ""
     struct AliasEdit: Identifiable { let id = UUID(); let key: String; let name: String; let cur: String }
@@ -260,6 +268,7 @@ struct MapTab: View {
                             if let s = m.stnScreen { ScreenBody(screen: s, pal: pal) } else { ProgressView().frame(height: 120) }
                         }
                         .frame(maxWidth: 520).frame(maxHeight: 520).fixedSize(horizontal: false, vertical: true)
+                        .frame(height: m.ttMode ? UIScreen.main.bounds.height * 0.62 : nil, alignment: .top)
                         .background(pal.color("card") ?? .black)
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
                     }

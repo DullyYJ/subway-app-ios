@@ -138,7 +138,7 @@ extension MapModel {
     }
 }
 
-/// 노선 상세 시트(가득 찬 아래서 올라오는 판) — 10초마다 위치만 새로 받는다.
+/// 노선 상세 시트(가득 찬 아래서 올라오는 판) — 8초마다 위치만 새로 받는다(8초).
 struct RouteSheet: View {
     @ObservedObject var route: BusRoute
     let pal: Palette
@@ -158,7 +158,7 @@ struct RouteSheet: View {
         }
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                try? await Task.sleep(nanoseconds: 8_000_000_000)
                 route.pollPositions()
             }
         }
@@ -203,5 +203,86 @@ struct AliasCard: View {
                 .background(RoundedRectangle(cornerRadius: 10).fill(bg ?? .clear))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(bg == nil ? (pal.color("border2") ?? .gray) : .clear, lineWidth: 1))
         }.buttonStyle(.plain).layoutPriority(w)
+    }
+}
+
+// MARK: 역 시간표(안드로이드 MapCore.ttRequest/onTt/addTt + ShellActivity.ttRender/ttFetch)
+extension MapModel {
+    private func ttReq() -> String {
+        let res = ttRes.map { "\(Json.q($0.key)):\($0.value)" }.joined(separator: ",")
+        return "{\"cap\":\(Servers.cap),\"f\":{\"part\":\"tt\",\"stn\":\(Json.q(stnName)),\"sl\":\(Json.q(stnLine)),\"reg\":\(Json.q(reg)),\"th\":\"dark\","
+            + "\"tt\":{\"sv\":1,\"st\":\(Json.q(ttState)),\"sel\":{\"line\":\(Json.q(ttLine)),\"day\":\(Json.q(ttDay)),\"dk\":\(Json.q(ttDk))},\"res\":{\(res)}}}}"
+    }
+    func openTimetable() {
+        ttRes = [:]; ttLine = ""; ttDay = ""; ttDk = ""; ttState = "loading"; needLine = ""; needDay = ""; ttSeq += 1; ttAsked = ""
+        ttMode = true
+        renderTt()
+    }
+    func ttAct(_ v: String) {
+        if v == "mt.retry" { ttState = "loading"; ttSeq += 1; ttAsked = ""; renderTt(); return }
+        if v.hasPrefix("mt.l."), let i = Int(v.dropFirst(5)), i >= 0, i < ttLines.count {
+            ttLine = ttLines[i]; ttDay = ""; ttDk = ""; renderTt()
+        } else if v.hasPrefix("mt.d.") {
+            ttDay = String(v.dropFirst(5))
+            if ttRes[ttLine + "|" + ttDay] == nil { needLine = ttLine; needDay = ttDay; ttState = "loading"; ttSeq += 1 }
+            renderTt()
+        } else if v.hasPrefix("mt.k."), let i = Int(v.dropFirst(5)), i >= 0, i < ttDks.count {
+            ttDk = ttDks[i]; renderTt()
+        }
+    }
+    func renderTt() {
+        let my = ttSeq
+        let body = ttReq()
+        Task {
+            guard let d = try? await Net.request("POST", Servers.base + "/screen/map", body: body, timeout: 9), my == ttSeq,
+                  let s = try? Screen.parse(d) else { return }
+            readTt(d)
+            stnScreen = s
+            if ttWantFetch() { await ttFetch(my) }
+        }
+    }
+    private func readTt(_ d: Data) {
+        needLine = ""; needDay = ""; ttNeed = false
+        guard let o = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any], let i = o["info"] as? [String: Any] else { return }
+        ttLines = (i["lines"] as? [Any] ?? []).map { String(describing: $0) }
+        ttDks = (i["dks"] as? [Any] ?? []).map { String(describing: $0) }
+        ttDays = (i["days"] as? [Any] ?? []).map { String(describing: $0) }
+        if let f = i["fill"] as? [String: Any] {
+            for (k, v) in f where k.count <= 40 && v is [String: Any] { ttRes[k] = Json.text(v) }
+            ttState = "ok"
+        }
+        ttLine = i["line"] as? String ?? ""; ttDay = i["day"] as? String ?? ""; ttDk = i["dk"] as? String ?? ""
+        if let n = i["need"] as? [String: Any] { ttNeed = true; needLine = n["line"] as? String ?? ""; needDay = n["day"] as? String ?? "" }
+    }
+    private func ttWantFetch() -> Bool {
+        if ttState == "fail" || !ttNeed { return false }
+        let k = "\(ttSeq)|\(needLine)|\(needDay)"
+        if k == ttAsked { return false }
+        ttAsked = k; return true
+    }
+    /// 서버가 못 채웠을 때만: 기기가 /next-train 으로 한 번 받아 다시 그린다.
+    private func ttFetch(_ seq: Int) async {
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        var items: [String]
+        if needDay.isEmpty {
+            items = ttLines.prefix(20).enumerated().map { "{\"id\":\($0.offset),\"op\":\"timetable\",\"line\":\(Json.q($0.element)),\"from\":\(Json.q(stnName)),\"baseMs\":\(now)}" }
+        } else {
+            items = ["{\"id\":0,\"op\":\"timetable\",\"line\":\(Json.q(needLine)),\"from\":\(Json.q(stnName)),\"day\":\(Json.q(needDay)),\"baseMs\":\(now)}"]
+        }
+        let first = needDay.isEmpty, nl = needLine, nd = needDay
+        let body = "{\"items\":[" + items.joined(separator: ",") + "]}"
+        guard let d = try? await Net.request("POST", Servers.base + "/next-train", body: body, timeout: 12), seq == ttSeq,
+              let o = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any], let arr = o["items"] as? [[String: Any]] else {
+            if seq == ttSeq { ttState = "fail"; renderTt() }
+            return
+        }
+        for m in arr {
+            let id = (m["id"] as? NSNumber)?.intValue ?? -1
+            let line = first ? (id >= 0 && id < ttLines.count ? ttLines[id] : "") : nl
+            if line.isEmpty { continue }
+            ttRes[line + "|" + (first ? "-" : nd)] = Json.text(m)
+        }
+        ttState = "ok"
+        renderTt()
     }
 }
