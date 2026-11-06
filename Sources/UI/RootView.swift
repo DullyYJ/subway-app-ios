@@ -51,6 +51,7 @@ struct TabContent: View {
         switch tab {
         case "community": BoardTab(pal: pal)
         case "shop": ShopTab(pal: pal)
+        case "food": FoodTab(pal: pal)
         default: DevExplorer(pal: pal, title: tab + " (다음 단계에서 연결)", start: "/screen/settings?cap=8")
         }
     }

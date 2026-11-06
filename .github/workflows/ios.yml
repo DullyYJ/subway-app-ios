@@ -59,10 +59,12 @@ jobs:
           sleep 4
           xcrun simctl io "$UDID" screenshot screenshot-2-dark.png
           # 탭 화면: 커뮤니티 · 쇼핑 (서버에서 받아 그린 모습)
-          for T in community shop; do
+          xcrun simctl privacy "$UDID" grant location com.dullyyj.subway.ios || true
+          xcrun simctl location "$UDID" set 37.5547,126.9707 || true
+          for T in community shop food; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
             xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab $T
-            sleep 12
+            sleep 22
             xcrun simctl io "$UDID" screenshot screenshot-tab-$T.png
           done
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true

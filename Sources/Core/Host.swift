@@ -34,7 +34,8 @@ final class Host: ObservableObject {
         case "set":
             if let k = a.key { UserDefaults.standard.set(a.on ?? false, forKey: "set." + k) }
         case "call":
-            if let v = a.v, v.hasPrefix("bd.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
+            if let v = a.v, v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
+            else if let v = a.v, v.hasPrefix("bd.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else { call(a.v ?? "") }
         default:
             say("‘\(a.a)’ 행동은 아직 연결되지 않았어요 (v=\(a.v ?? "-"))")
@@ -47,6 +48,7 @@ final class Host: ObservableObject {
             if Host.tabNames.contains(t) { tab = t }
             return
         }
+        if v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: "", key: "")); return }
         if v.hasPrefix("bd.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: "", key: "")); return }
         say("call ‘\(v)’ 는 아직 연결되지 않았어요")
     }
