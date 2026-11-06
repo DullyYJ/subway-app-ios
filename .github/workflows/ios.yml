@@ -75,6 +75,10 @@ jobs:
           sleep 22
           xcrun simctl io "$UDID" screenshot screenshot-tab-home-search.png
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab home -homeRoute 1
+          sleep 30
+          xcrun simctl io "$UDID" screenshot screenshot-tab-home-route.png
+          xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
           # 다이내믹 아일랜드: 견본 overlay 로 실시간 현황을 띄우고 다른 앱(사파리)으로 넘어가 섬 모양을 찍는다
           for K in moving wait alert2 alert1 arrived; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
