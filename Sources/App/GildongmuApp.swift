@@ -11,14 +11,10 @@ struct GildongmuApp: App {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 if kind == "journey" {
-                    // 이동 중 → 잠시 뒤 도착: 앱이 뒤로 가 있어도 갱신이 나가도록 잠깐 백그라운드 작업을 잡는다
-                    var bg = UIBackgroundTaskIdentifier.invalid
-                    bg = UIApplication.shared.beginBackgroundTask { UIApplication.shared.endBackgroundTask(bg) }
+                    // 이동 중 → 4초 뒤 도착. 앱이 앞에 있는 채로 갱신해 도착 순간 섬이 저절로 펼쳐지는지 본다
                     LiveRide.shared.apply(OvState.from(DemoOverlay.json("moving")))
-                    try? await Task.sleep(nanoseconds: 7_000_000_000)
+                    try? await Task.sleep(nanoseconds: 4_000_000_000)
                     LiveRide.shared.apply(OvState.from(DemoOverlay.json("arrived")))
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
-                    UIApplication.shared.endBackgroundTask(bg)
                 } else {
                     LiveRide.shared.apply(OvState.from(DemoOverlay.json(kind)))
                 }

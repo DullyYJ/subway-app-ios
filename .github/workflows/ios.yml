@@ -74,14 +74,15 @@ jobs:
           xcrun simctl uninstall "$UDID" com.dullyyj.subway.ios || true
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl launch "$UDID" com.dullyyj.subway.ios -demoRide journey
-          sleep 3
-          xcrun simctl launch "$UDID" com.apple.mobilesafari || true
-          sleep 2
-          xcrun simctl io "$UDID" screenshot screenshot-journey-1-before.png
           sleep 4
-          xcrun simctl io "$UDID" screenshot screenshot-journey-2-arrive.png
-          sleep 6
-          xcrun simctl io "$UDID" screenshot screenshot-journey-3-after.png
+          xcrun simctl io "$UDID" screenshot screenshot-journey-1-before.png
+          for N in 2 3 4 5; do
+            sleep 1.2
+            xcrun simctl io "$UDID" screenshot screenshot-journey-$N-arrive.png
+          done
+          xcrun simctl launch "$UDID" com.apple.mobilesafari || true
+          sleep 3
+          xcrun simctl io "$UDID" screenshot screenshot-journey-6-after.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:
