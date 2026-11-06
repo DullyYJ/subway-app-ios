@@ -226,14 +226,20 @@ final class MetroTiledView: UIView {
     }
 }
 
+/// 크기가 정해진 뒤(layoutSubviews)에 화면 폭에 맞춰 내용을 놓는 스크롤 뷰.
+final class MetroScroll: UIScrollView {
+    var onLayout: (() -> Void)?
+    override func layoutSubviews() { super.layoutSubviews(); onLayout?() }
+}
+
 /// 노선도: 두 손가락으로 확대 · 한 손가락으로 이동 · 역 글자를 누르면 onStation(역 이름).
 struct MetroMapView: UIViewRepresentable {
     let data: MetroData
     let filter: Int
     let onStation: (String) -> Void
 
-    func makeUIView(context: Context) -> UIScrollView {
-        let sv = UIScrollView()
+    func makeUIView(context: Context) -> MetroScroll {
+        let sv = MetroScroll()
         sv.delegate = context.coordinator
         sv.showsHorizontalScrollIndicator = false; sv.showsVerticalScrollIndicator = false
         sv.bouncesZoom = true; sv.backgroundColor = .white
@@ -241,25 +247,24 @@ struct MetroMapView: UIViewRepresentable {
         v.data = data
         sv.addSubview(v)
         context.coordinator.content = v; context.coordinator.scroll = sv
-        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tapped(_:)))
-        sv.addGestureRecognizer(tap)
-        return sv
-    }
-
-    func updateUIView(_ sv: UIScrollView, context: Context) {
-        context.coordinator.parent = self
-        guard let v = context.coordinator.content else { return }
-        // 처음 한 번: 화면 폭에 맞춘다(내용 한 칸 = 화면 폭 / SVG 폭)
-        if v.frame.isEmpty, sv.bounds.width > 0 {
+        sv.onLayout = { [weak sv, weak v] in
+            guard let sv = sv, let v = v, v.frame.isEmpty, sv.bounds.width > 0 else { return }
+            // 처음 한 번: 화면 폭에 맞춘다(내용 한 칸 = 화면 폭 / SVG 폭)
             let fit = sv.bounds.width / data.svgW
             v.scaleBase = fit
             v.frame = CGRect(x: 0, y: 0, width: data.svgW * fit, height: data.svgH * fit)
             sv.contentSize = v.frame.size
             sv.minimumZoomScale = 1; sv.maximumZoomScale = 8
             sv.contentOffset = CGPoint(x: max(0, (v.frame.width - sv.bounds.width) / 2), y: max(0, (v.frame.height - sv.bounds.height) / 2))
+            v.setNeedsDisplay()
         }
-        let fi = filter
-        if v.filter != fi { v.filter = fi }
+        sv.addGestureRecognizer(UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tapped(_:))))
+        return sv
+    }
+
+    func updateUIView(_ sv: MetroScroll, context: Context) {
+        context.coordinator.parent = self
+        if let v = context.coordinator.content, v.filter != filter { v.filter = filter }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -272,7 +277,7 @@ struct MetroMapView: UIViewRepresentable {
         func viewForZooming(in scrollView: UIScrollView) -> UIView? { content }
         @objc func tapped(_ g: UITapGestureRecognizer) {
             guard let v = content, let sv = scroll else { return }
-            let pt = g.location(in: v)                                  // 내용 좌표(확대 반영)
+            let pt = g.location(in: v)                                  // 내용 좌표(확대 반영 전 좌표계)
             let z = max(sv.zoomScale, 0.001)
             let sx = pt.x / v.scaleBase, sy = pt.y / v.scaleBase
             let op = parent.data.hitLabel(x: sx, y: sy, tol: 14 / (v.scaleBase * z), filter: parent.filter)
