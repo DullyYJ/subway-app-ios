@@ -109,37 +109,22 @@ jobs:
             xcrun simctl privacy "$U" grant location com.dullyyj.subway.ios || true
             xcrun simctl privacy "$U" grant location-always com.dullyyj.subway.ios || true
             xcrun simctl location "$U" set 37.5547,126.9707 || true
-            if [ "$N" = noisland ]; then
-              # 예열: 처음 한 번 뜨는 '실시간 현황 허용' 묻기를 미리 눌러 둔다(영상에 안 나오게)
-              xcrun simctl launch "$U" com.dullyyj.subway.ios -demoRide wait
-              sleep 4
-              ax 'tell application "System Events" to keystroke "l" using {command down}'
-              sleep 4
-              ax 'tell application "System Events" to key code 49'
-              sleep 3
-              G=$(osascript -e 'tell application "System Events" to tell process "Simulator" to get {position, size} of window 1' 2>&1 || true)
-              echo "시뮬레이터 창: $G"
-              python3 scripts/click_pos.py "$G" > /tmp/clk.txt || true
-              cat /tmp/clk.txt || true
-              if [ -s /tmp/clk.txt ]; then read CX CY < /tmp/clk.txt; ax "tell application \"System Events\" to click at {$CX, $CY}"; fi
-              sleep 2
-              xcrun simctl io "$U" screenshot screenshot-noisland-warm.png || true
-              xcrun simctl terminate "$U" com.dullyyj.subway.ios || true
-              xcrun simctl launch "$U" com.apple.springboard 2>/dev/null || true
-              ax 'tell application "System Events" to key code 49'
-              sleep 2
-            fi
             xcrun simctl io "$U" recordVideo --codec=h264 --force "video-$N.mp4" &
             RP=$!
             sleep 3
             xcrun simctl launch "$U" com.dullyyj.subway.ios -demoRide journey
             if [ "$N" = noisland ]; then
-              # 섬이 없는 폰: 실시간 현황은 잠금화면에만 보인다 → 잠그고(⌘L) 도착 뒤에 깨워서 찍는다
+              # 섬이 없는 폰: 실시간 현황은 잠금화면에만 보인다 → 잠그고(⌘L) 깨워서 '허용'을 누른 뒤 도착을 찍는다
               sleep 3
               ax 'tell application "System Events" to keystroke "l" using {command down}'
-              sleep 9
-              ax 'tell application "System Events" to key code 49'   # 화면 깨우기
               sleep 3
+              ax 'tell application "System Events" to key code 49'   # 화면 깨우기
+              sleep 2
+              G=$(osascript -e 'tell application "System Events" to tell process "Simulator" to get {position, size} of window 1' 2>&1 || true)
+              echo "시뮬레이터 창: $G"
+              python3 scripts/click_pos.py "$G" > /tmp/clk.txt || true
+              if [ -s /tmp/clk.txt ]; then read CX CY < /tmp/clk.txt; ax "tell application \"System Events\" to click at {$CX, $CY}"; fi
+              sleep 8
               xcrun simctl io "$U" screenshot "screenshot-noisland-lock.png" || true
               sleep 4
             else
