@@ -197,6 +197,8 @@ jobs:
           json.dump(body,open("probe-chat-req.json","w"))
           PY
           curl -sS -m 25 -H "$H" -d @probe-chat-req.json $B/screen/chat > probe-chat-all.json || true
+          D=$(xcrun simctl get_app_container "$UDID" com.dullyyj.subway.ios data 2>/dev/null || true)
+          [ -n "$D" ] && cp "$D/Documents/unknown-kinds.txt" probe-unknown-kinds.txt 2>/dev/null || true
           ls -la probe-*.json || true
       - uses: actions/upload-artifact@v4
         if: always()
