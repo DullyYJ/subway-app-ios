@@ -16,6 +16,11 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published private(set) var running = false
     @Published private(set) var last = OvState()
     @Published var note = ""
+    /// 결과 카드에 실어 보낼 탑승 사실(안드로이드 RideCore.rideJson / lvJson). 엔진이 준 값을 그대로 옮겨 담을 뿐이다.
+    @Published private(set) var rideJson = ""
+    @Published private(set) var lvJson = ""
+    private var text = "", rowJson = "", dtJson = "", cur = -1, posJson = "null", arrJson = "null", waitJson = ""
+    private var pendingAct = ""
 
     private let mgr = CLLocationManager()
     private var stateJson = ""
@@ -31,9 +36,11 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         mgr.activityType = .otherNavigation
     }
 
-    func start(stateJson: String) {
+    func start(stateJson: String, text: String = "") {
         stop()
         self.stateJson = stateJson; fixes = []; lastSentTs = 0
+        self.text = text; rowJson = ""; dtJson = ""; cur = -1; posJson = "null"; arrJson = "null"; waitJson = ""; pendingAct = ""
+        rebuild()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         mgr.requestWhenInUseAuthorization()
         mgr.allowsBackgroundLocationUpdates = true            // 다른 앱을 쓰는 동안에도 위치를 받는다(Info.plist UIBackgroundModes: location)
@@ -48,7 +55,43 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         task?.cancel(); task = nil
         mgr.stopUpdatingLocation()
         running = false
+        rideJson = ""; lvJson = ""
         LiveRide.shared.end()
+    }
+
+    /// 경로 카드 오른쪽 칸([탑승] · [환승])을 눌렀다 — 다음 걸음에 act 로 엔진에 알린다(안드로이드 pendingAct).
+    func press() { pendingAct = "press" }
+    var rowSlot: String { ((try? JSONSerialization.jsonObject(with: Data(rowJson.utf8))) as? [String: Any])?["slot"] as? String ?? "" }
+    var rowCan: Bool { (((try? JSONSerialization.jsonObject(with: Data(rowJson.utf8))) as? [String: Any])?["can"] as? Bool) ?? false }
+
+    private func js(_ o: Any?) -> String {
+        guard let o = o, !(o is NSNull), JSONSerialization.isValidJSONObject(o), let d = try? JSONSerialization.data(withJSONObject: o), let s = String(data: d, encoding: .utf8) else { return "" }
+        return s
+    }
+    private func q(_ s: String) -> String { js([s]).dropFirst().dropLast().description }
+    private func rebuild() {
+        rideJson = "{\"on\":1,\"text\":\(q(text))" + (dtJson.count > 2 ? ",\"dt\":\(q(text))" : "") + (rowJson.count > 2 ? ",\"row\":\(rowJson)" : "") + "}"
+        lvJson = "{\"cur\":\(cur),\"pos\":\(posJson),\"arr\":\(arrJson)\(waitJson)" + (dtJson.count > 2 ? ",\"dt\":\(dtJson)" : "") + "}"
+    }
+    /// 걸음 응답에서 탑승 사실(상주 글 · 줄 · 위치 · 도착 시각 · 승차 대기)을 옮겨 담는다.
+    private func readFacts(_ m: [String: Any]) {
+        if let on = m["ongoing"] as? [String: Any], let t = on["text"] as? String { text = t }
+        if let rw = m["row"] as? [String: Any] { rowJson = js(rw) } else { rowJson = "" }
+        if let c = m["curIdx"] as? NSNumber { cur = c.intValue }
+        posJson = (m["pos"] as? [String: Any]).map { js($0) } ?? "null"
+        arrJson = (m["arr"] as? [Any]).map { js($0) } ?? "null"
+        dtJson = (m["dt"] as? [String: Any]).map { js($0) } ?? ""
+        waitJson = ""
+        if let st = m["state"] as? [String: Any] {
+            if let w = st["wait"] as? [String: Any], let i = (w["i"] as? NSNumber)?.intValue, i >= 1 {
+                var b = ",\"wait\":{\"i\":\(i)"
+                if let la = (w["lat"] as? NSNumber)?.doubleValue, let lo = (w["lng"] as? NSNumber)?.doubleValue {
+                    b += ",\"lat\":\(la),\"lng\":\(lo)"
+                    if let me = fixes.last, me.count >= 3, let a = me[1] as? Double, let o = me[2] as? Double { b += ",\"me\":[\(a),\(o)]" }
+                }
+                waitJson = b + "}"
+            } else if let x = st["xw"] as? [String: Any], let i = (x["i"] as? NSNumber)?.intValue, i >= 1 { waitJson = ",\"wait\":{\"i\":\(i)}" }
+        }
     }
 
     // MARK: 위치 모으기
@@ -67,7 +110,9 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     func stepBody(now: Date = Date()) -> String? {
         let tail = Array(fixes.suffix(RideLoop.sendFix))
         if let ts = tail.last?.first as? Int64 { lastSentTs = ts }
-        return RideLoopBody.make(nowMs: Int64(now.timeIntervalSince1970 * 1000), fixes: tail, state: stateJson)
+        var b = RideLoopBody.make(nowMs: Int64(now.timeIntervalSince1970 * 1000), fixes: tail, state: stateJson)
+        if !pendingAct.isEmpty { b = String(b.dropLast()) + ",\"act\":\(q(pendingAct))}"; pendingAct = "" }
+        return b
     }
 
     private func loop() async {
@@ -90,6 +135,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
               let sd = try? JSONSerialization.data(withJSONObject: st), let ss = String(data: sd, encoding: .utf8) else { return nil }
         stateJson = ss
         fixes.removeAll { (($0.first as? Int64) ?? 0) <= lastSentTs }          // 보낸 위치는 지운다(그 뒤 들어온 것은 남긴다)
+        readFacts(m); rebuild()
         last = OvState.from(m["overlay"])
         LiveRide.shared.apply(last)
         if let a = m["alert"] as? [String: Any] { notify(a) }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 /// 홈 탭 — 안드로이드 HomeCore + ShellActivity 홈 흐름과 같은 순서(계산·문구·모양은 모두 엔진, 앱은 입력 상태를 실어 보내고 그리기만):
 ///  ① 입력 상태(출발·도착 글자 · 고른 장소 · 눌린 칸 · 후보 원자료)를 POST /screen/home 에 보낸다.
@@ -30,11 +31,19 @@ final class HomeModel: ObservableObject {
     private var resRb: Int64 = 0
     private var hasRoute: Bool { routeRaw.count > 2 }
     private var seq = 0, seqRoute = 0
+    // 탑승 안내(경로 확정): 어느 경로로 확정했는지 기억하고, 탑승 사실(ride · lv)은 RideLoop 가 엔진 답에서 옮겨 둔 것을 쓴다
+    private var rideSeq = -1, confirming = false
+    private var bag = Set<AnyCancellable>()
+    private var riding: Bool { RideLoop.shared.running && rideSeq == seqRoute && RideLoop.shared.rideJson.count > 2 }
+    @Published var dlg: Screen? = nil
+    private var pickCtx: (facts: String, ms: [Int64], no: [String], startTxt: String, seq: Int)? = nil
     private var pending: Task<Void, Never>? = nil
 
     /// 화면 확인용 실행 인자: -homeDest 명동 → 도착지 칸에 글자를 넣고 시작 · -homeRoute 1 → 서울역→명동 경로까지 자동으로 찾는다
     var demoRoute = false
     init() {
+        RideLoop.shared.$lvJson.dropFirst().sink { [weak self] _ in Task { @MainActor in self?.reloadSoon() } }.store(in: &bag)
+        RideLoop.shared.$rideJson.dropFirst().sink { [weak self] _ in Task { @MainActor in self?.reloadSoon() } }.store(in: &bag)
         if let d = UserDefaults.standard.string(forKey: "homeDest"), !d.isEmpty { text[1] = d; active = 1; last = 1; candQ[1] = d }
         if UserDefaults.standard.string(forKey: "homeRoute") == "1" {
             loc[0] = HLoc(type: "subway", name: "서울역", line: "1호선", qname: "", lat: 37.5547, lng: 126.9707); text[0] = "서울역"
@@ -71,8 +80,9 @@ final class HomeModel: ObservableObject {
         var f = "{\"data\":\(routeRaw),\"tab\":\(Json.q(resTab)),\"a\":\(Json.q(resA)),\"b\":\(Json.q(resB)),\"bt\":null,\"rb\":\(resRb)"
         if let d = loc[1], d.ok { f += ",\"dl\":{\"la\":\(d.lat),\"lo\":\(d.lng),\"n\":\(Json.q(d.name))}" }
         if let s = loc[0], s.ok { f += ",\"me\":[\(s.lat),\(s.lng)]" }
-        f += ",\"now\":\(e.ms),\"tz\":\(-e.tzo),\"th\":\"dark\",\"fav\":1}"
-        return f
+        f += ",\"now\":\(e.ms),\"tz\":\(-e.tzo),\"th\":\"dark\",\"fav\":1"
+        if riding { f += ",\"ride\":\(RideLoop.shared.rideJson)" + (RideLoop.shared.lvJson.count > 2 ? ",\"lv\":\(RideLoop.shared.lvJson)" : "") }
+        return f + "}"
     }
     private func resultBody() -> String? {
         guard let f = resultFacts() else { return nil }
@@ -92,6 +102,7 @@ final class HomeModel: ObservableObject {
     }
     private func detailAct(_ v: String, host: Host) {
         if v == "rd.close" { closeDetail() }
+        else if v == "rd.confirm" { confirm(host: host) }
         else if v.hasPrefix("rd.tg."), let i = Int(v.dropFirst(6)), i >= 0, i < 40 {
             if detOpen.contains(i) { detOpen.remove(i) } else { detOpen.insert(i) }
             Task { await loadDetail() }
@@ -298,7 +309,92 @@ final class HomeModel: ObservableObject {
         if v.hasPrefix("rh.tab.") { resTab = String(v.dropFirst(7)); reloadSoon() }
         else if v == "rh.close" { routeRaw = ""; reloadSoon() }
         else if v == "rh.detail" { openDetail() }
+        else if v == "rh.confirm" { confirm(host: host) }
+        else if v == "rh.stop" { stopRide(host: host) }
+        else if v == "rh.slot" { slot(host: host) }
         else { host.say("이 기능은 다음 단계에서 연결돼요") }
+    }
+
+    // MARK: 경로 확정 · 탑승 안내 (안드로이드 ShellActivity.startRide / rideCommit)
+    private func startBody(_ facts: String, pickMs: Int64 = 0, pickNo: String = "") -> String {
+        var f = facts
+        if pickMs > 0 { f = String(f.dropLast()) + ",\"pick\":{\"ms\":\(pickMs)" + (pickNo.isEmpty ? "" : ",\"no\":\(Json.q(pickNo))") + "}}" }
+        return "{\"cap\":\(Servers.cap),\"r\":\(f)}"
+    }
+    func confirm(host: Host) {
+        guard hasRoute, !riding, !confirming, let facts = resultFacts() else { return }
+        confirming = true
+        let my = seqRoute
+        LocationStore.shared.start()
+        host.say("탑승 안내를 준비하고 있어요")
+        Task {
+            let body = startBody(facts)
+            // 첫 구간이 버스면 고를 차가 있는지(/ride/buspick)를 시작 요청과 동시에 묻는다 — 기다림을 늘리지 않는다
+            async let st = try? Net.request("POST", Servers.base + "/ride/start", body: body, timeout: 12)
+            async let pk = try? Net.request("POST", Servers.base + "/ride/buspick", body: body, timeout: 6)
+            let (sd, pd) = await (st, pk)
+            confirming = false
+            guard my == seqRoute, hasRoute else { return }
+            let txt = sd.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            if !txt.isEmpty, let pd = pd, let o = Json.obj(pd) as? [String: Any] {
+                var ms: [Int64] = [], no: [String] = []
+                if let items = (o["info"] as? [String: Any])?["items"] as? [[String: Any]] {
+                    for x in items { if let m = (x["ms"] as? NSNumber)?.int64Value { ms.append(m); no.append(x["no"].map { "\($0)" } ?? "") } }
+                }
+                if (o["ask"] as? Bool) != true, let a = o["auto"] as? [String: Any], let am = (a["ms"] as? NSNumber)?.int64Value, am > 0 {
+                    await startPicked(startBody(facts, pickMs: am, pickNo: a["no"].map { "\($0)" } ?? ""), seq: my, host: host); return      // 오는 버스가 하나뿐 — 묻지 않고 그 버스로
+                }
+                if (o["ask"] as? Bool) == true, !ms.isEmpty, (o["dlg"] as? [String: Any]) != nil, let sc = try? Screen.parse(pd) {
+                    pickCtx = (facts, ms, no, txt, my); dlg = sc; return                // 탈 버스 고르기 카드
+                }
+            }
+            commit(txt, seq: my, host: host)
+        }
+    }
+    /// 카드의 눌림: dl.bp.N → N 번째 버스로 다시 시작 · dl.ok → 경로 시각대로 시작 · 그 밖(dl.close · 바깥)은 취소.
+    func dlgAct(_ v: String, host: Host) {
+        guard let c = pickCtx else { dlg = nil; return }
+        dlg = nil; pickCtx = nil
+        if v.hasPrefix("dl.bp."), let i = Int(v.dropFirst(6)), i >= 0, i < c.ms.count {
+            Task { await startPicked(startBody(c.facts, pickMs: c.ms[i], pickNo: c.no[i]), seq: c.seq, host: host) }
+        } else if v == "dl.ok" { commit(c.startTxt, seq: c.seq, host: host) }
+        else { host.say("탑승 안내를 시작하지 않았어요") }
+    }
+    private func startPicked(_ body: String, seq my: Int, host: Host) async {
+        host.say("고른 버스로 탑승 안내를 준비하고 있어요")
+        let d = try? await Net.request("POST", Servers.base + "/ride/start", body: body, timeout: 12)
+        commit(d.flatMap { String(data: $0, encoding: .utf8) } ?? "", seq: my, host: host)
+    }
+    /// 엔진이 만든 탑승 state(/ride/start 응답 {ok, state, text})를 받아 안내 루프를 켠다.
+    private func commit(_ txt: String, seq my: Int, host: Host) {
+        guard my == seqRoute, hasRoute, !riding else { return }
+        guard !txt.isEmpty, let o = Json.obj(Data(txt.utf8)) as? [String: Any], (o["ok"] as? Bool) == true, let st = o["state"] as? [String: Any] else {
+            let msg = ((Json.obj(Data(txt.utf8)) as? [String: Any])?["msg"] as? String) ?? ""
+            host.say(msg.isEmpty ? "탑승 안내를 시작하지 못했어요" : msg); return
+        }
+        rideSeq = my
+        RideLoop.shared.start(stateJson: Json.text(st), text: (o["text"] as? String) ?? "")
+        host.say("\(optName(resTab)) 경로로 확정했어요")
+        if showDetail { closeDetail() }
+        reloadSoon()
+    }
+    private func optName(_ t: String) -> String { ["fast": "최단시간", "less": "최소환승", "cheap": "최저요금", "walk": "최소도보", "comfort": "편한"][t] ?? "선택한" }
+    /// 안내 종료 = 여정 종료 — 도착지를 넣기 전 첫 홈 화면으로(안드로이드 stopRide / endJourney).
+    private func stopRide(host: Host) {
+        RideLoop.shared.stop()
+        rideSeq = -1; routeRaw = ""; text = ["", ""]; loc = [nil, nil]; active = -1
+        busRaw = [[], []]; placeRaw = [[], []]; candQ = ["", ""]; fetchedQ = ["", ""]; pkU = []
+        reloadSoon()
+        host.say("여정을 끝냈어요. 새 도착지를 넣어 주세요")
+    }
+    /// 버튼 줄 오른쪽 칸: 도착 = 안내 종료 · 탑승/환승 = 엔진에 눌렀다고 알린다(누를 수 있을 때만).
+    private func slot(host: Host) {
+        guard riding else { return }
+        let r = RideLoop.shared
+        if r.rowSlot == "arrive" { stopRide(host: host) }
+        else if r.rowSlot == "board" || r.rowSlot == "transfer" {
+            if r.rowCan { r.press() } else { host.say("앞 구간을 내린 뒤에 눌러 주세요") }
+        }
     }
 }
 
@@ -312,11 +408,12 @@ struct HomeTab: View {
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
             if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
             if m.showDetail { DetailSheet(m: m, pal: pal) }
+            if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0, host: host) } }
         }
         .task { LocationStore.shared.start(); await m.load(); await m.startDemo(host: host) }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "home" else { return }
-            if x.a == "input" { m.typed(x.key, x.v) } else if x.a == "call" { m.call(x.v, host: host) }
+            if x.a == "input" { m.typed(x.key, x.v) } else if x.a == "call" { if x.v.hasPrefix("dl.") { m.dlgAct(x.v, host: host) } else { m.call(x.v, host: host) } }
         }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
     }
@@ -339,5 +436,37 @@ struct DetailSheet: View {
             .padding(.top, 10)
         }
         .transition(.move(edge: .bottom))
+    }
+}
+
+
+/// 엔진이 만든 안내창(screen.dlg): 흐린 바탕 + 가운데 카드. 너비 w(최대 화면-2·mx) · 높이 최대 maxh · 모서리 r · 흐림 dim. 바깥을 누르면 dl.close.
+struct DlgCard: View {
+    let screen: Screen
+    let pal: Palette
+    let act: (String) -> Void
+    @StateObject private var open = PostOpen()
+    private var d: [String: Any] { screen.raw["dlg"] as? [String: Any] ?? [:] }
+    private func n(_ k: String, _ def: Double, _ lo: Double, _ hi: Double) -> Double { min(hi, max(lo, (d[k] as? NSNumber)?.doubleValue ?? def)) }
+    var body: some View {
+        GeometryReader { g in
+            let w = min(n("w", 320, 120, 480), g.size.width - 2 * n("mx", 16, 0, 80))
+            ZStack {
+                Color.black.opacity(n("dim", 0.5, 0, 0.85)).ignoresSafeArea().onTapGesture { act("dl.close") }
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(screen.head) { NodeView(node: $0, pal: pal) }
+                        ForEach(screen.body) { NodeView(node: $0, pal: pal) }
+                        ForEach(screen.foot) { NodeView(node: $0, pal: pal) }
+                    }
+                }
+                .environmentObject(open)
+                .frame(width: w).frame(maxHeight: g.size.height * n("maxh", 0.85, 0.3, 0.95))
+                .fixedSize(horizontal: false, vertical: true)
+                    .background(pal.color((d["fill"] as? String) ?? "") ?? pal.color("card") ?? .black)
+                    .clipShape(RoundedRectangle(cornerRadius: n("r", 16, 0, 40)))
+                    .position(x: g.size.width / 2, y: g.size.height * n("top", 0.5, 0.1, 0.9))
+            }
+        }
     }
 }
