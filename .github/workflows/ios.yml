@@ -166,6 +166,15 @@ jobs:
           rec "$UDID" island
           if [ -n "$NOISL" ]; then rec "$NOISL" noisland; fi
           ls -la video-*.mp4 || true
+      - name: 엔진 응답 확인용(개발) — 같은 요청을 직접 보내 받은 글을 ios-ci-out 에 남긴다
+        continue-on-error: true
+        run: |
+          B=https://route-v2.phg0643.workers.dev
+          H='content-type: application/json'
+          curl -sS -m 25 -H "$H" -d '{"cap":29,"f":{"part":"b","mode":"bus","reg":"seoul","flt":"ALL","th":"dark","gps":[37.5547,126.9707],"bus":{"vw":"near","sel":-1,"sv":1,"svb":300,"fav":[],"nx":{},"al":{},"ord":[],"lat":37.5547,"lng":126.9707,"res":{}}}}' $B/screen/map > probe-map-bus-body.json || true
+          curl -sS -m 25 -H "$H" -d '{"cap":29,"f":{"part":"h","mode":"bus","reg":"seoul","flt":"ALL","th":"dark","gps":[37.5547,126.9707]}}' $B/screen/map > probe-map-bus-head.json || true
+          curl -sS -m 25 -H "$H" -d '{"cap":29,"f":{"part":"b","mode":"subway","reg":"seoul","flt":"ALL","th":"dark","gps":[37.5547,126.9707]}}' $B/screen/map > probe-map-subway-body.json || true
+          ls -la probe-*.json || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -178,7 +187,7 @@ jobs:
       - name: 결과를 ios-ci-out 브랜치에 올리기 (Artifacts 를 못 받는 환경에서 화면을 확인하려고)
         if: always()
         run: |
-          mkdir -p /tmp/out && cp screenshot-*.png video-*.mp4 /tmp/out/ 2>/dev/null || true
+          mkdir -p /tmp/out && cp screenshot-*.png video-*.mp4 probe-*.json /tmp/out/ 2>/dev/null || true
           tail -300 build.log > /tmp/out/build-tail.log || true
           cd /tmp/out && git init -q && git checkout -q -b ios-ci-out
           git config user.name ci && git config user.email ci@users.noreply.github.com
