@@ -43,13 +43,14 @@ struct RemoteScreenInline: View {
     }
 }
 
-/// 켜진 탭의 본문. 1단계: 설정과 개발용 화면 탐색기만 실제로 연결(홈·노선도·커뮤니티·쇼핑·맛집은 다음 단계).
+/// 켜진 탭의 본문. 연결된 탭: 커뮤니티 · 쇼핑. 홈 · 노선도 · 맛집은 다음 단계(그동안 개발용 화면 탐색기).
 struct TabContent: View {
     let tab: String
     let pal: Palette
     var body: some View {
         switch tab {
-        case "home": DevExplorer(pal: pal, title: "홈 (다음 단계에서 연결)", start: "/screen/settings?cap=8")
+        case "community": BoardTab(pal: pal)
+        case "shop": ShopTab(pal: pal)
         default: DevExplorer(pal: pal, title: tab + " (다음 단계에서 연결)", start: "/screen/settings?cap=8")
         }
     }

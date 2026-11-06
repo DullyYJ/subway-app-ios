@@ -408,15 +408,51 @@ struct TabBarNode: View {
 }
 
 // 맨 위 흐르는 감성 문구: 글 13.5 굵게 · 금색 · 높이 26(1단계: 문구를 한 줄씩 바꿔 보여 준다 — 흐르는 움직임과 무지개 색은 다음 단계)
+/// 흐르는 문구(안드로이드 ScreenView.drawMarq 와 같다): 오른쪽 끝에서 왼쪽 끝으로 한 문구가 pass(ms) 동안 한 번 흐르고, 다 흐르면 다음 문구.
+/// 글자색은 금 → 주황 → 파랑 → 금 이 글자 길이의 3배 주기로 번지며 grad(ms) 동안 두 번 돈다. 양끝 8% 는 서서히 사라지고, line 이면 아래에 구분선.
 struct MarqueeNode: View {
     let node: Node; let pal: Palette
-    @State private var i = 0
-    private var msgs: [String] { (node.d["msgs"] as? [String]) ?? (node.str("value")?.components(separatedBy: "\n") ?? []) }
+    @State private var t0 = Date()
+    private var msgs: [String] {
+        let m = (node.d["msgs"] as? [String]) ?? (node.str("value")?.components(separatedBy: "\n") ?? [])
+        return m.filter { !$0.isEmpty }
+    }
     var body: some View {
-        Text(msgs.isEmpty ? "" : msgs[i % msgs.count])
-            .font(Typo.font(13.5, bold: true)).foregroundColor(pal.color("gold") ?? .yellow)
-            .lineLimit(1).frame(maxWidth: .infinity, minHeight: CGFloat(node.num("h", 26)))
-            .id(i).transition(.opacity)
-            .onReceive(Timer.publish(every: 7, on: .main, in: .common).autoconnect()) { _ in withAnimation { i += 1 } }
+        let h = CGFloat(node.num("h", 26)), pass = max(3000.0, node.num("pass", 16000)), grad = max(1000.0, node.num("grad", 6000))
+        let gold = pal.color("gold") ?? Color(argb: 0xFFD4AF37), orange = Color(argb: 0xFFFF9F0A), blue = Color(argb: 0xFF2F7CF6)
+        let list = msgs
+        ZStack(alignment: .bottom) {
+            TimelineView(.animation) { tl in
+                Canvas { ctx, size in
+                    guard !list.isEmpty else { return }
+                    let now = tl.date.timeIntervalSince(t0) * 1000
+                    let idx = Int(now / pass) % list.count
+                    let frac = now.truncatingRemainder(dividingBy: pass) / pass
+                    let text = ctx.resolve(Text(list[idx]).font(Typo.font(13.5, bold: true)))
+                    let tw = text.measure(in: CGSize(width: 10000, height: 200)).width
+                    let x = size.width - CGFloat(frac) * (size.width + tw)
+                    let wall = tl.date.timeIntervalSince1970 * 1000
+                    let phase = CGFloat(wall.truncatingRemainder(dividingBy: grad) / grad * 2)
+                    let period = tw * 3
+                    let g0 = x - phase * period
+                    let base = g0 + floor((x - g0) / period) * period
+                    let cs = [gold, orange, blue, gold, orange, blue, gold]
+                    let g = Gradient(stops: cs.enumerated().map { Gradient.Stop(color: $0.element, location: CGFloat($0.offset) / 6) })
+                    ctx.drawLayer { l in
+                        l.draw(text, at: CGPoint(x: x, y: size.height / 2), anchor: .leading)
+                        l.blendMode = .sourceIn
+                        l.fill(Path(CGRect(x: x - 1, y: 0, width: tw + 2, height: size.height)),
+                               with: .linearGradient(g, startPoint: CGPoint(x: base, y: 0), endPoint: CGPoint(x: base + 2 * period, y: 0)))
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity).frame(height: h)
+            .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.08),
+                                         .init(color: .black, location: 0.92), .init(color: .clear, location: 1)],
+                                 startPoint: .leading, endPoint: .trailing))
+            if node.bool("line") { Rectangle().fill(pal.color("border") ?? .gray.opacity(0.4)).frame(height: 1) }
+        }
+        .frame(height: h)
+        .onAppear { t0 = Date() }
     }
 }

@@ -34,11 +34,12 @@ struct Action {
     let url: String?
     let key: String?
     let on: Bool?
-    static func set(_ key: String, _ on: Bool) -> Action { Action(a: "set", v: nil, url: nil, key: key, on: on) }
-    private init(a: String, v: String?, url: String?, key: String?, on: Bool?) { self.a = a; self.v = v; self.url = url; self.key = key; self.on = on }
+    let id: String?                    // 엔진이 행동에 실어 준 대상 고유 id(글 번호 등) — 순번 대신 이것으로 가리킨다
+    static func set(_ key: String, _ on: Bool) -> Action { Action(a: "set", v: nil, url: nil, key: key, on: on, id: nil) }
+    private init(a: String, v: String?, url: String?, key: String?, on: Bool?, id: String?) { self.a = a; self.v = v; self.url = url; self.key = key; self.on = on; self.id = id }
     init?(_ m: [String: Any]?) {
         guard let m = m, let a = m["a"] as? String else { return nil }
-        self.a = a; v = m["v"] as? String; url = m["url"] as? String; key = m["key"] as? String; on = (m["on"] as? NSNumber)?.boolValue
+        self.a = a; v = m["v"] as? String; url = m["url"] as? String; key = m["key"] as? String; on = (m["on"] as? NSNumber)?.boolValue; id = m["id"] as? String
     }
 }
 

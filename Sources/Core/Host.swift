@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 /// 화면에서 눌린 행동(Action)을 받아 처리하는 곳. 안드로이드의 ShellActivity 가 하던 일을 단계별로 옮긴다.
 /// 1단계: open(https) · tab.* 전환 · set(스위치 저장) · refresh · 나머지는 '아직 연결 안 됨' 안내로 기록한다.
@@ -8,6 +9,9 @@ final class Host: ObservableObject {
     @Published var toast: String? = nil
     @Published var reloadTick = 0
     @Published var sheet: SheetRoute? = nil
+    /// 분류 칩(cat) · 글 펼침(tog) 같은 탭 안의 행동: 켜진 탭이 받아 자기 화면을 다시 그린다.
+    struct TabAction { let tab: String; let a: String; let v: String; let id: String; let key: String }
+    let actPublisher = PassthroughSubject<TabAction, Never>()
 
     struct SheetRoute: Identifiable { let id = UUID(); let path: String; let body: String?; let title: String }
 
@@ -20,10 +24,13 @@ final class Host: ObservableObject {
             if let u = a.url, let url = URL(string: u), url.scheme == "https" { UIApplication.shared.open(url) }
         case "refresh":
             reloadTick += 1
+        case "cat", "tog":
+            actPublisher.send(TabAction(tab: tab, a: a.a, v: a.v ?? "", id: a.id ?? "", key: a.key ?? ""))
         case "set":
             if let k = a.key { UserDefaults.standard.set(a.on ?? false, forKey: "set." + k) }
         case "call":
-            call(a.v ?? "")
+            if let v = a.v, v.hasPrefix("bd.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
+            else { call(a.v ?? "") }
         default:
             say("‘\(a.a)’ 행동은 아직 연결되지 않았어요 (v=\(a.v ?? "-"))")
         }
@@ -35,6 +42,7 @@ final class Host: ObservableObject {
             if Host.tabNames.contains(t) { tab = t }
             return
         }
+        if v.hasPrefix("bd.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: "", key: "")); return }
         say("call ‘\(v)’ 는 아직 연결되지 않았어요")
     }
 
