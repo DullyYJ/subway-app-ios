@@ -50,6 +50,8 @@ struct NodeView: View {
         case "inbar": InbarNode(node: node, pal: pal)
         case "swap": SwapNode(node: node, pal: pal)
         case "trow": TrowNode(node: node, pal: pal)
+        case "rhd": RhdNode(node: node, pal: pal)
+        case "trk": TrkNode(node: node, pal: pal)
         default: EmptyView()
         }
     }
