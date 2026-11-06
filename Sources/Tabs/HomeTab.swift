@@ -28,7 +28,10 @@ final class HomeModel: ObservableObject {
     private var candQ = ["", ""], fetchedQ = ["", ""]
     // 경로 결과(받은 응답을 그대로 들고 있다가 엔진에 다시 보낸다 — 앱은 가공하지 않는다)
     private var routeRaw = "", resTab = "fast", resA = "", resB = ""
-    private var resRb: Int64 = 0
+    private var resRb: Int64 = 0, resBt: Int64 = -1
+    private var baseMs: Int64 = -1                      // -1 = 기준시각을 안 골랐다(지금)
+    @Published var showTimePick = false
+    @Published var pickDate = Date()
     private var hasRoute: Bool { routeRaw.count > 2 }
     private var seq = 0, seqRoute = 0
     // 탑승 안내(경로 확정): 어느 경로로 확정했는지 기억하고, 탑승 사실(ride · lv)은 RideLoop 가 엔진 답에서 옮겨 둔 것을 쓴다
@@ -91,12 +94,12 @@ final class HomeModel: ObservableObject {
         }
         return "{\"cap\":\(Servers.cap),\"f\":{\"start\":\(Json.q(text[0])),\"dest\":\(Json.q(text[1])),\"active\":\(Json.q(key)),"
             + "\"startSet\":\(loc[0] != nil),\"destSet\":\(loc[1] != nil),\"gps\":\(gps),\"rs\":\(routing),"
-            + "\"base\":{\"ms\":null,\"tzo\":\(e.tzo),\"today\":[\(e.y),\(e.m),\(e.d)],\"now\":\(e.ms)}},\"d\":\(d)}"
+            + "\"base\":{\"ms\":\(baseMs >= 0 ? String(baseMs) : "null"),\"tzo\":\(e.tzo),\"today\":[\(e.y),\(e.m),\(e.d)],\"now\":\(e.ms)}},\"d\":\(d)}"
     }
     private func resultFacts() -> String? {
         guard hasRoute else { return nil }
         let e = env()
-        var f = "{\"data\":\(routeRaw),\"tab\":\(Json.q(resTab)),\"a\":\(Json.q(resA)),\"b\":\(Json.q(resB)),\"bt\":null,\"rb\":\(resRb)"
+        var f = "{\"data\":\(routeRaw),\"tab\":\(Json.q(resTab)),\"a\":\(Json.q(resA)),\"b\":\(Json.q(resB)),\"bt\":\(resBt >= 0 ? String(resBt) : "null"),\"rb\":\(resRb)"
         if let d = loc[1], d.ok { f += ",\"dl\":{\"la\":\(d.lat),\"lo\":\(d.lng),\"n\":\(Json.q(d.name))}" }
         if let s = loc[0], s.ok { f += ",\"me\":[\(s.lat),\(s.lng)]" }
         f += ",\"now\":\(e.ms),\"tz\":\(-e.tzo),\"th\":\"dark\",\"fav\":1"
@@ -111,17 +114,34 @@ final class HomeModel: ObservableObject {
     @Published var showDetail = false
     @Published var detail: Screen? = nil
     private var detOpen = Set<Int>()
+    private var navKakao: [String]? = nil, navNaver: [String]? = nil
+    /// 카카오맵 · 네이버지도 길찾기 앱을 열고, 앱이 없으면 웹 주소로(안드로이드 openNav). 허용된 앱 주소 모양만 연다.
+    private func openNav(_ u: [String]?, host: Host) {
+        guard let u = u else { return }
+        let okApp = u[0].count < 1024 && !u[0].contains(" ") && (u[0].hasPrefix("kakaomap://route?") || u[0].hasPrefix("nmap://route/public?") || u[0].hasPrefix("nmap://route/walk?"))
+        let web = URL(string: u[1]).flatMap { $0.scheme == "https" ? $0 : nil }
+        if okApp, let app = URL(string: u[0]) {
+            UIApplication.shared.open(app, options: [:]) { ok in if !ok, let w = web { UIApplication.shared.open(w) } }
+        } else if let w = web { UIApplication.shared.open(w) }
+    }
     func openDetail() { detOpen = []; detail = nil; showDetail = true; Task { await loadDetail() } }
     func closeDetail() { showDetail = false }
     func loadDetail() async {
         guard let f = resultFacts() else { return }
         // view · open 은 r 안에 들어간다(안드로이드 HomeCore.detailRequest 와 같다)
         let body = "{\"cap\":\(Servers.cap),\"r\":\(f.dropLast()),\"view\":\"detail\",\"open\":[\(detOpen.sorted().map(String.init).joined(separator: ","))]}}"
-        if let d = try? await Net.request("POST", Servers.base + "/screen/result", body: body, timeout: 16), let s = try? Screen.parse(d) { detail = s }
+        if let d = try? await Net.request("POST", Servers.base + "/screen/result", body: body, timeout: 16), let s = try? Screen.parse(d) {
+            detail = s
+            let nav = (s.raw["info"] as? [String: Any])?["nav"] as? [String: Any]
+            func pair(_ o: Any?) -> [String]? { if let a = o as? [String], a.count == 2 { return a }; return nil }
+            navKakao = pair(nav?["kakao"]); navNaver = pair(nav?["naver"])
+        }
     }
     private func detailAct(_ v: String, host: Host) {
         if v == "rd.close" { closeDetail() }
         else if v == "rd.confirm" { confirm(host: host) }
+        else if v == "rd.kakao" { openNav(navKakao, host: host) }
+        else if v == "rd.naver" { openNav(navNaver, host: host) }
         else if v.hasPrefix("rd.tg."), let i = Int(v.dropFirst(6)), i >= 0, i < 40 {
             if detOpen.contains(i) { detOpen.remove(i) } else { detOpen.insert(i) }
             Task { await loadDetail() }
@@ -289,8 +309,13 @@ final class HomeModel: ObservableObject {
             }
             active = -1
             Task { await goRoute(host: host) }
-        case "bt.pick", "bt.now":
-            host.say("기준시각 고르기는 다음 단계에서 연결돼요")
+        case "bt.pick":
+            if riding { host.say("탑승 안내 중에는 바꿀 수 없어요"); return }
+            pickDate = baseMs >= 0 ? Date(timeIntervalSince1970: Double(baseMs) / 1000) : Date()
+            showTimePick = true
+        case "bt.now":
+            baseMs = -1
+            reloadSoon()
         default: break
         }
     }
@@ -316,8 +341,9 @@ final class HomeModel: ObservableObject {
     private func num(_ v: Double) -> String { v == v.rounded() && abs(v) < 1e15 ? String(Int64(v)) : String(v) }
     private func goRoute(host: Host) async {
         guard let s = loc[0], let d = loc[1], s.ok, d.ok else { host.say("출발지와 도착지를 목록에서 골라 주세요"); return }
-        let base = nowMs()
-        let qs = "SX=\(num(s.lng))&SY=\(num(s.lat))&EX=\(num(d.lng))&EY=\(num(d.lat))&baseMs=\(base)"
+        let picked = baseMs >= 0
+        let base = picked ? baseMs : nowMs()
+        let qs = "SX=\(num(s.lng))&SY=\(num(s.lat))&EX=\(num(d.lng))&EY=\(num(d.lat))&baseMs=\(base)" + (picked ? "&bf=1" : "")
             + "&SN=\(enc(String((s.qname.isEmpty ? s.name : s.qname).prefix(60))))&EN=\(enc(String((d.qname.isEmpty ? d.name : d.qname).prefix(60))))"
         seqRoute += 1; let my = seqRoute
         routing = true; await load()
@@ -328,7 +354,7 @@ final class HomeModel: ObservableObject {
               raw.count > 2, raw.hasPrefix("{"), raw.hasSuffix("}") else {
             host.say("경로를 찾지 못했어요. 잠시 뒤에 다시 해 주세요"); await load(); return
         }
-        routeRaw = raw; resTab = "fast"; resA = s.qname.isEmpty ? text[0] : s.qname; resB = text[1]; resRb = base
+        routeRaw = raw; resTab = "fast"; resA = s.qname.isEmpty ? text[0] : s.qname; resB = text[1]; resRb = base; resBt = picked ? baseMs : -1
         await load()
     }
 
@@ -341,6 +367,13 @@ final class HomeModel: ObservableObject {
         else if v == "rh.stop" { stopRide(host: host) }
         else if v == "rh.slot" { slot(host: host) }
         else { host.say("이 기능은 다음 단계에서 연결돼요") }
+    }
+
+    /// 시각 시트의 [확인]: 고른 시각(초는 0)으로 두고, 결과를 보는 중이면 그 시각으로 다시 찾는다.
+    func commitBase(host: Host) {
+        let t = floor(pickDate.timeIntervalSince1970 / 60) * 60
+        baseMs = Int64(t * 1000); showTimePick = false
+        if hasRoute, loc[0]?.ok == true, loc[1]?.ok == true { Task { await goRoute(host: host) } } else { reloadSoon() }
     }
 
     // MARK: 경로 확정 · 탑승 안내 (안드로이드 ShellActivity.startRide / rideCommit)
@@ -436,6 +469,7 @@ struct HomeTab: View {
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
             if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
             if m.showDetail { DetailSheet(m: m, pal: pal) }
+            if m.showTimePick { TimePickCard(m: m, pal: pal) { m.commitBase(host: host) } }
             if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0, host: host) } }
         }
         .task { LocationStore.shared.start(); await m.load(); await m.startDemo(host: host) }
@@ -496,6 +530,38 @@ struct DlgCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: n("r", 16, 0, 40)))
                     .position(x: g.size.width / 2, y: g.size.height * n("top", 0.5, 0.1, 0.9))
             }
+        }
+    }
+}
+
+
+/// 기준시각 고르기: 날짜 + 시각 한 장(안드로이드는 날짜 → 시각 두 번). 바깥을 누르면 닫는다.
+struct TimePickCard: View {
+    @ObservedObject var m: HomeModel
+    let pal: Palette
+    let ok: () -> Void
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5).ignoresSafeArea().onTapGesture { m.showTimePick = false }
+            VStack(spacing: 8) {
+                Text("기준시각").font(Typo.font(15, bold: true)).foregroundColor(pal.color("text") ?? .white).padding(.top, 14)
+                DatePicker("", selection: $m.pickDate, displayedComponents: [.date, .hourAndMinute])
+                    .datePickerStyle(.graphical).labelsHidden().environment(\.locale, Locale(identifier: "ko_KR"))
+                    .tint(pal.color("gold") ?? .yellow).padding(.horizontal, 8)
+                HStack(spacing: 10) {
+                    Button { m.showTimePick = false } label: {
+                        Text("취소").font(Typo.font(14, bold: true)).foregroundColor(pal.color("sub") ?? .gray).frame(maxWidth: .infinity).frame(height: 42)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(pal.color("card2") ?? .gray.opacity(0.3)))
+                    }.buttonStyle(.plain)
+                    Button(action: ok) {
+                        Text("확인").font(Typo.font(14, bold: true)).foregroundColor(Color(hex: 0x121214)).frame(maxWidth: .infinity).frame(height: 42)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(pal.color("gold") ?? .yellow))
+                    }.buttonStyle(.plain)
+                }.padding(.horizontal, 16).padding(.bottom, 14)
+            }
+            .frame(maxWidth: 340)
+            .background(RoundedRectangle(cornerRadius: 20).fill(pal.color("card") ?? .black))
+            .padding(.horizontal, 16)
         }
     }
 }
