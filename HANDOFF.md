@@ -36,10 +36,13 @@
 1. 밝은 모드(낮) 장면·터치·햅틱 확인(screenshot-2-dark 등).
 2. (완료) 열차 장면 피드(LivePosStore→trainPos/trainClock), 3초 꾹 누르기 인사(SceneOpen+SceneNode 높이 확장). 남음: 혼잡도 카드 2번째 페이지, 실기기 햅틱 확인.
 3. 위치·경로 흐름, 탑승 바 → Live Activity/Dynamic Island, APNs(FCM 대체), StoreKit 2(Play Billing 대체), 위젯.
-4. 키즈 앱: 지도 탭, 다마고치 동작, APNs, 꾸미기/아이템, 부모 앱의 QR·비밀키 연결 화면과 `gildongmu-kids://` 처리.
+4. 키즈 앱: 지도 탭, 다마고치 동작, APNs, 꾸미기/아이템.
+5. 부모 앱 키즈 연동 2차(1차는 아래 '부모 ↔ 키즈 연동'): QR 스캐너(kl.scan), 푸시 토큰 `/p/ft`, 구독 잠금(kg.ok/LOCK_ROW), 호출 팝업(kx.open pop), 자녀 허브를 탭으로(지금은 설정 맨 위 '자녀 보기'), 지도 자녀 마커·`/p/loc`, 자녀 꾸민 모습 `/p/wear`→홈 장면, 가족대화 칸(`v=fam`).
 
 ## 부모 ↔ 키즈 연동
 - 서버: Cloudflare Worker `gildongmu-kids`(D1). 부모는 `/p/*`, 아이는 `/c/*`. 연결 상태 변화는 long-wait로 즉시 반영.
+- 부모 iOS 1차(Sources/Kids/KidsHub.swift, 부모 전용 폴더라 키즈 vendor 가 안 가져감): 부모 기기 등록(`/reg` role p, 키체인→UserDefaults 대체), `Host.handle` 이 `k..` 형 행동(kl. kh. kg. kr. kq. kx. kn. km. …)을 actPublisher tab "kids" 로 넘기면 KidsHubLayer 가 `/p/act` 로 보내고 돌려준 screen 을 시트로 그린다(화면 이름이 `kids` 면 허브). 허브는 `/p/screen?v=hub` + `/p/wait` 긴 대기. 설정 맨 위 줄은 `/p/setrow?kn=1`(연결 전엔 '길동무 키즈 연결' 한 줄), '개발자 도구' 카드 위에 끼움(SettingsView.withKids). 연결은 `/p/act v=kl.join t=키`, QR 은 `gildongmu-kids://pair?k=XXXXX-XXXXX`(project.yml CFBundleURLTypes + onOpenURL). 입력칸 글은 UserDefaults `field.<key>` 에서 모아 `f` 로 보냄. Host.swift 는 키즈 vendor 에도 가므로 타입 의존 없이 이름 판별(isKidsCall)만 한다.
+- 부모 iOS 1차 검증(CI #91): 시뮬레이터에서 등록→`/p/act kl.open`→서버 연결 팝업(kidlink)이 그대로 그려짐 확인(screenshot-tab-community-set.png). 시험 인자: `-ccMode set` = 연결 팝업 자동 열기, `-ccMode board` = 허브 열기(연결된 자녀가 없으면 서버가 linked:0 을 줘서 곧바로 닫히는 게 정상). 허브 실화면·QR 연결은 자녀 앱과 짝지어 시험해야 함. 시작 크래시 교훈: ViewModifier 가 @EnvironmentObject 를 읽으면 `.environmentObject()` 보다 안쪽에 붙일 것.
 - iOS 제약: 오버레이 불가 → Live Activity + 로컬 알림. 백그라운드 위치 "항상 허용"은 심사 사유서 필요.
 - 엔진 워커 파일(engine/route-v2-worker.ascii.js)이 바뀌면 최신본을 전달하고 Cloudflare route-v2에 붙여넣기를 안내한다.
 
