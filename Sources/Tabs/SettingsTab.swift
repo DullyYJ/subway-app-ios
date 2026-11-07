@@ -64,10 +64,25 @@ final class SettingsModel: ObservableObject {
 struct SettingsView: View {
     let pal: Palette
     @StateObject private var m = SettingsModel()
+    @ObservedObject private var kids = KidsHub.shared
     @EnvironmentObject var host: Host
+    /// 길동무 키즈 줄(연결 전엔 '연결' 한 줄 · 연결 뒤엔 키즈 서버가 준 줄들)을 '개발자 도구' 카드 위에(없으면 '약관 및 정책' 위) 끼운다 — 안드로이드 ScreenCore.settingsExtra 와 같은 자리.
+    private func withKids(_ s: Screen) -> Screen {
+        var body = s.body
+        var at = 0, dev = -1
+        for (i, n) in body.enumerated() where n.t == "panel" {
+            let first = n.kids.first?.str("s")
+            if first == "개발자 도구", dev < 0 { dev = i }
+            if first == "약관 및 정책" { at = i; break }
+        }
+        if dev >= 0 { at = dev }
+        let extra = kids.extraNodes.enumerated().map { Node(d: $1, id: "kids\($0)") }
+        body.insert(contentsOf: extra, at: min(at, body.count))
+        return Screen(name: s.name, head: s.head, body: body, foot: s.foot, bg: s.bg, raw: s.raw)
+    }
     var body: some View {
         ZStack {
-            if let s = m.screen { ScreenBody(screen: s, pal: pal) }
+            if let s = m.screen { ScreenBody(screen: withKids(s), pal: pal) }
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
             if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
             if m.subOpen {
@@ -88,7 +103,7 @@ struct SettingsView: View {
                 }.transition(.move(edge: .bottom))
             }
         }
-        .task { await m.load() }
+        .task { await m.load(); kids.refreshLink() }
         .onReceive(host.actPublisher) { x in if x.tab == "community" { m.handle(x, host: host) } }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
     }
