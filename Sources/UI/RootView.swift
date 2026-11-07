@@ -7,6 +7,10 @@ struct RootView: View {
     private var pal: Palette { theme == "dark" ? .dark : theme == "pastel" ? .light : (scheme == .dark ? .dark : .light) }
 
     var body: some View {
+        if NodeDemo.on { NodeDemoView(pal: pal) } else { mainBody }
+    }
+
+    private var mainBody: some View {
         VStack(spacing: 0) {
             // 맨 위 흐르는 응원 문구(서버 /screen/hdr)
             RemoteScreenInline(path: "/screen/hdr?tz=\(TimeZone.current.secondsFromGMT() / 60)&now=\(Int(Date().timeIntervalSince1970 * 1000))", method: "GET", pal: pal)
