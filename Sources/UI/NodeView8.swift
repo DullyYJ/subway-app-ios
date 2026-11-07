@@ -58,7 +58,7 @@ struct BrtNode: View {
     var body: some View {
         let text = pal.color("text") ?? .white, sub = pal.color("sub") ?? .gray
         let tag = node.str("tag") ?? "", cls = brCls(node.str("tk"))
-        let chips = Array(node.items.prefix(6))
+        let chips = Array(node.list("chips").prefix(6))
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Text(node.str("a") ?? "").font(Typo.font(14, bold: true)).foregroundColor(text).lineLimit(1)
@@ -130,7 +130,7 @@ struct BrsNode: View {
         let cls = brCls(node.str("k")), tag = node.str("ps") ?? "", lab = node.str("lab") ?? ""
         let badge = node.str("mk") ?? "", here = node.bool("here") || node.num("here", 0) > 0, mine = node.bool("mine") || node.num("mine", 0) > 0
         let go = node.str("fl") ?? "", big = node.bool("ar") || node.num("ar", 0) > 0
-        let notes = Array(node.items.prefix(3))
+        let notes = Array(node.list("notes").prefix(3))
         let id = node.str("id") ?? ""
         let nc = notes.count
         let bodyH: CGFloat = 20 + (id.isEmpty ? 0 : 3 + 15) + CGFloat(nc) * 17
@@ -280,7 +280,7 @@ struct PicklNode: View {
     @State private var open: Bool
     init(node: Node, pal: Palette) { self.node = node; self.pal = pal; _open = State(initialValue: node.bool("open")) }
     var body: some View {
-        let plain = node.bool("plain"), fold = node.bool("fold") && node.items.count > 1
+        let plain = node.bool("plain"), fold = node.bool("fold") && node.list("rows").count > 1
         let h = CGFloat(node.num("h", 38)), vis = max(1, min(8, Int(node.num("vis", 5))))
         let rows = node.list("rows")
         let onIdx = rows.firstIndex { ($0["on"] as? Bool) == true } ?? 0
