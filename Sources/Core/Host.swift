@@ -35,12 +35,14 @@ final class Host: ObservableObject {
         case "cat", "tog":
             actPublisher.send(TabAction(tab: tab, a: a.a, v: a.v ?? "", id: a.id ?? "", key: a.key ?? ""))
         case "set":
-            if tab == "community" { actPublisher.send(TabAction(tab: "community", a: "set", v: "", id: "", key: a.key ?? "", on: a.on ?? false)) }
+            if a.key == "kidsHome" { actPublisher.send(TabAction(tab: "kids", a: "set", v: "", id: "", key: "kidsHome", on: a.on ?? false)) }
+            else if tab == "community" { actPublisher.send(TabAction(tab: "community", a: "set", v: "", id: "", key: a.key ?? "", on: a.on ?? false)) }
             else if let k = a.key { UserDefaults.standard.set(a.on ?? false, forKey: "set." + k) }
         case "sel", "web":
             actPublisher.send(TabAction(tab: "community", a: a.a, v: a.v ?? a.url ?? "", id: "", key: a.key ?? ""))
         case "call":
-            if let v = a.v, v.hasPrefix("cc.") || v.hasPrefix("nw.") || v.hasPrefix("ch.") || v == "saveId" || v == "clearId" || v.hasPrefix("pol.") || v.hasPrefix("pg.") || v == "errlog" { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
+            if let v = a.v, Host.isKidsCall(v) { actPublisher.send(TabAction(tab: "kids", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
+            else if let v = a.v, v.hasPrefix("cc.") || v.hasPrefix("nw.") || v.hasPrefix("ch.") || v == "saveId" || v == "clearId" || v.hasPrefix("pol.") || v.hasPrefix("pg.") || v == "errlog" { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
             else if let v = a.v, v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("bd.") || v.hasPrefix("wr.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("mp.") || v.hasPrefix("br.") || v.hasPrefix("mr.") { actPublisher.send(TabAction(tab: "map", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
@@ -49,6 +51,13 @@ final class Host: ObservableObject {
         default:
             say("‘\(a.a)’ 행동은 아직 연결되지 않았어요 (v=\(a.v ?? "-"))")
         }
+    }
+
+    /// 길동무 키즈 서버 화면의 행동 이름(kl. · kh. · kg. · kr. · kq. · kx. · kn. · km. · kpg. …) — 처리는 Sources/Kids 가 한다(키즈 앱에는 그 폴더가 없어 여기서는 이름만 가린다).
+    static func isKidsCall(_ v: String) -> Bool {
+        guard v.first == "k", let dot = v.firstIndex(of: ".") else { return false }
+        let n = v.distance(from: v.startIndex, to: dot)
+        return (2...3).contains(n) && v[v.index(after: v.startIndex)..<dot].allSatisfy { $0 >= "a" && $0 <= "z" }
     }
 
     func call(_ v: String) {
