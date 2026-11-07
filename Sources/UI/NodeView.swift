@@ -71,6 +71,15 @@ struct NodeView: View {
         case "lbar": LbarNode(node: node, pal: pal)
         case "aih": AihNode(node: node, pal: pal)
         case "scene": SceneNode(node: node, pal: pal)
+        case "brh": BrhNode(node: node, pal: pal)
+        case "brt": BrtNode(node: node, pal: pal)
+        case "brsec": BrsecNode(node: node, pal: pal)
+        case "brturn": BrturnNode(node: node, pal: pal)
+        case "brs": BrsNode(node: node, pal: pal)
+        case "chart": ChartNode(node: node, pal: pal)
+        case "pickl": PicklNode(node: node, pal: pal)
+        case "search": SearchNode(node: node, pal: pal)
+        case "runner": RunnerNode(node: node, pal: pal)
         default: EmptyView().onAppear { UnknownKinds.note(node.t, (try? JSONSerialization.data(withJSONObject: node.d)).flatMap { String(data: $0, encoding: .utf8) } ?? "") }
         }
     }
