@@ -12,7 +12,7 @@ struct SceneView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                TimelineView(.animation(minimumInterval: d.hot ? nil : 1.0 / 60.0, paused: !d.ready)) { _ in
+                TimelineView(.animation(minimumInterval: d.hot ? nil : 1.0 / 60.0, paused: !d.isReady)) { _ in
                     Canvas(opaque: false, rendersAsynchronously: true) { gc, _ in
                         gc.withCGContext { cg in d.drawFrame(cg) }
                     }

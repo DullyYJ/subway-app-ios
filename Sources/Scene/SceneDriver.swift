@@ -13,7 +13,7 @@ import QuartzCore
 final class SceneDriver: ObservableObject, SceneHost {
     static let shared = SceneDriver()
 
-    @Published private(set) var ready = false
+    @Published private(set) var isReady = false
     @Published private(set) var tag = ""
     @Published private(set) var hot = false
     /// 캐릭터를 꾹 눌러 잡았다 → 아래 목록의 스크롤을 막아야 한다.
@@ -52,7 +52,7 @@ final class SceneDriver: ObservableObject, SceneHost {
             sheets = got; introImg = intro; loaded = true
             core.apply(core.last())
             lock.unlock()
-            DispatchQueue.main.async { [self] in ready = true }
+            DispatchQueue.main.async { [self] in isReady = true }
         }
     }
     private static func decode(_ name: String) -> SceneImg? {
