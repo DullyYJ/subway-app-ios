@@ -18,6 +18,7 @@ final class KidsHub: ObservableObject {
     @Published var hubOpen = false
     @Published var note: String? = nil
     @Published var busy = false
+    @Published var scanOpen = false
     @Published private(set) var start = false
 
     private let ud = UserDefaults.standard
@@ -198,6 +199,12 @@ final class KidsHub: ObservableObject {
         guard let m = code.firstMatch(in: u, range: NSRange(u.startIndex..., in: u)), let r = Range(m.range, in: u) else { return nil }
         return String(u[r])
     }
+    /// QR 로 읽은 글(키 또는 gildongmu-kids://pair?k=…)로 연결한다.
+    func joined(scanned s: String) {
+        scanOpen = false
+        guard let c = KidsHub.codeOf(s) else { say("키를 읽지 못했어요"); return }
+        act("kl.join", t: c)
+    }
     func join(from url: URL) {
         guard url.scheme == "gildongmu-kids", let c = KidsHub.codeOf(url.absoluteString) else { return }
         act("kl.join", t: c)
@@ -215,6 +222,7 @@ struct KidsHubLayer: ViewModifier {
                 guard x.tab == "kids" else { return }
                 if x.a == "set", x.key == "kidsHome" { hub.setStart(x.on); return }
                 if x.v == "kh.open" { hub.openHub(); return }
+                if x.v == "kl.scan" { hub.scanOpen = true; return }
                 if x.v == "kl.close" || x.v == "kh.close" { hub.sheetOpen = false; if x.v == "kh.close" { hub.closeHub() }; return }
                 hub.act(x.v, id: x.id, t: x.t)
             }
@@ -245,6 +253,9 @@ private struct KidsPanel: View {
             if let n = hub.note {
                 Text(n).font(Typo.font(12, bold: true)).foregroundColor(.white).padding(10).background(Color.black.opacity(0.8)).cornerRadius(10).padding(.bottom, 16)
             }
+        }
+        .fullScreenCover(isPresented: $hub.scanOpen) {
+            KidsScanView(pal: pal, onCode: { hub.joined(scanned: $0) }, onClose: { hub.scanOpen = false })
         }
     }
 }
