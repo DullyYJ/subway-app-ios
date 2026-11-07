@@ -74,3 +74,24 @@ enum SU {
         func pick(_ n: Int) -> Int { Int(floor(r() * Double(n))) % n }
     }
 }
+
+// ── 이식한 그림 코드가 안드로이드 원본처럼 짧게 부를 수 있게 하는 전역 줄임말 ──
+let PI = Double.pi, PI2 = Double.pi * 2
+@inline(__always) func clamp(_ v: Double, _ a: Double, _ b: Double) -> Double { SU.clamp(v, a, b) }
+@inline(__always) func ease(_ u: Double) -> Double { SU.ease(u) }
+@inline(__always) func css(_ s: String) -> ARGB { SU.css(s) }
+@inline(__always) func rgba(_ r: Int, _ g: Int, _ b: Int, _ a: Double) -> ARGB { SU.rgba(r, g, b, a) }
+@inline(__always) func mulA(_ c: ARGB, _ a: Double) -> ARGB { SU.mulA(c, a) }
+@inline(__always) func mix(_ a: ARGB, _ b: ARGB, _ t: Double) -> ARGB { SU.mix(a, b, t) }
+@inline(__always) func mix(_ a: String, _ b: String, _ t: Double) -> ARGB { SU.mix(a, b, t) }
+@inline(__always) func mix(_ a: ARGB, _ b: String, _ t: Double) -> ARGB { SU.mix(a, b, t) }
+@inline(__always) func shade(_ a: ARGB, _ k: Double) -> ARGB { SU.shade(a, k) }
+@inline(__always) func shade(_ a: String, _ k: Double) -> ARGB { SU.shade(a, k) }
+@inline(__always) func rr(_ c: SceneCv, _ x: Double, _ y: Double, _ w: Double, _ h: Double, _ r: Double) { SU.rr(c, x, y, w, h, r) }
+
+/// 자바 String.hashCode() 와 같은 값(UTF-16 단위 31 진 해시, 32비트 감김) — 같은 장소 이름이면 같은 시드가 되게.
+func javaHash(_ s: String) -> Int {
+    var h: Int32 = 0
+    for u in s.utf16 { h = h &* 31 &+ Int32(u) }
+    return Int(h)
+}
