@@ -391,48 +391,88 @@ struct SearchNode: View {
     }
 }
 
-// MARK: runner — 경로 탐색 로딩: 달리는 칸 98 + 제목(14 굵게, 위 8 · 높이 19) 뒤 점 3개(0.2초씩 늦게 깜박) + 안내 11(위 4 · 높이 14)
-// 캐릭터 시트 그림은 아직 옮기지 못해 굴러가는 바퀴(안드로이드가 시트를 못 읽었을 때 그리는 그림과 같다)로 대신한다
+// MARK: runner — 경로 탐색 로딩(웹 #transitLoading): 달리는 칸 98 · 제목 14 굵게(위 8 · 높이 19) 뒤 점 3개 · 안내 11(위 4 · 높이 14) = 총 143
+// 캐릭터는 방금 나온 것이 아닌 하나를 뽑아(시각으로 정해지는 값) 화면을 한 번 가로지르면 다음 캐릭터로 넘어간다. 시트(256px 칸 4×4)에서 칸을 잘라 안드로이드와 같은 자리·크기로 그린다.
+final class RunnerState {
+    var id = "", prev = "", t0: Int64 = 0, born: Int64 = 0, last: Int64 = 0
+}
 struct RunnerNode: View {
     let node: Node; let pal: Palette
-    @State private var t0 = Date()
+    @State private var st = RunnerState()
+    private func nowMs(_ d: Date) -> Int64 { Int64(d.timeIntervalSince1970 * 1000) }
     var body: some View {
-        let gold = pal.color("gold") ?? .yellow, line = pal.color("border2") ?? .gray
         VStack(spacing: 0) {
             TimelineView(.animation) { tl in
-                let t = tl.date.timeIntervalSince(t0)
-                GeometryReader { g in
-                    let trackW = min(g.size.width - 40, 220), trackH: CGFloat = 36
-                    let ph = (t * 0.9).truncatingRemainder(dividingBy: 1)
-                    let wx = (trackW - 24) * CGFloat(ph) + 12
-                    ZStack(alignment: .topLeading) {
-                        Path { p in p.move(to: .zero); p.addLine(to: CGPoint(x: trackW, y: 0)) }
-                            .stroke(line, style: StrokeStyle(lineWidth: 2, dash: [8, 8], dashPhase: CGFloat(-t * 40)))
-                            .offset(y: trackH + 1)
-                        Circle().strokeBorder(gold, lineWidth: 3).frame(width: 20, height: 20)
-                            .overlay(Rectangle().fill(gold).frame(width: 20, height: 2).rotationEffect(.degrees(t * 360 * 0.9)))
-                            .offset(x: wx - 10, y: trackH - 20)
-                    }
-                    .frame(width: trackW, height: trackH + 4, alignment: .topLeading)
-                    .position(x: g.size.width / 2, y: 49)
-                    .offset(y: 0)
-                }
-            }.frame(height: 98)
+                let now = nowMs(tl.date)
+                let _ = step(now)
+                let t = now - st.born
+                Canvas { ctx, size in draw(ctx, size, now: now, t: t) }
+                    .frame(height: RunnerCore.trackH)
+            }.frame(height: RunnerCore.trackH)
             TimelineView(.animation) { tl in
-                let t = tl.date.timeIntervalSince(t0)
+                let t = nowMs(tl.date) - st.born
                 HStack(spacing: 0) {
                     Text(node.str("ttl") ?? "").font(Typo.font(14, bold: true)).foregroundColor(pal.color("text") ?? .white)
                     ForEach(0..<3, id: \.self) { i in
-                        let a = 0.25 + 0.75 * max(0, sin((t - Double(i) * 0.2) * 2 * .pi / 1.2))
-                        Text(".").font(Typo.font(14, bold: true)).foregroundColor((pal.color("text") ?? .white).opacity(a))
+                        Text(".").font(Typo.font(14, bold: true)).foregroundColor((pal.color("text") ?? .white).opacity(RunnerCore.dotAlpha(t, i)))
                     }
-                }.frame(height: 19)
-            }.padding(.top, 8)
-            if let s = node.str("sub"), !s.isEmpty {
-                Text(s).font(Typo.font(11)).foregroundColor(pal.color("sub") ?? .gray).frame(height: 14).padding(.top, 4)
-            }
+                }.frame(height: RunnerCore.ttlH)
+            }.padding(.top, RunnerCore.ttlGap)
+            Group {
+                if let s = node.str("sub"), !s.isEmpty { Text(s).font(Typo.font(11)).foregroundColor(pal.color("sub") ?? .gray) }
+                else { Color.clear }
+            }.frame(height: RunnerCore.subH).padding(.top, RunnerCore.subGap)
         }
         .frame(maxWidth: .infinity)
         .padding(ins8(node))
+    }
+    /// 새로 보이기 시작(0.4초 넘게 안 그려졌다) → 캐릭터를 하나 뽑는다
+    private func step(_ now: Int64) {
+        if st.id.isEmpty || now - st.last > 400 {
+            st.id = RunnerCore.pick(st.prev, RunnerCore.unit(now)); st.prev = st.id; st.t0 = now; st.born = now
+            RunnerArt.warm(first: st.id)
+        }
+        st.last = now
+    }
+    private func draw(_ ctx: GraphicsContext, _ size: CGSize, now: Int64, t: Int64) {
+        let w = size.width, hc = RunnerCore.trackH
+        let line = pal.color("border2") ?? .gray
+        var f = RunnerCore.at(st.id, now - st.t0, w)
+        if f.done { st.id = RunnerCore.pick(st.id, RunnerCore.unit(now)); st.prev = st.id; st.t0 = now; f = RunnerCore.at(st.id, 0, w); RunnerArt.warm(first: st.id) }
+        let file = f.intro ? "dudung_intro" : RunnerCore.file(st.id, now)
+        func dash(_ c: GraphicsContext, _ x0: CGFloat, _ x1: CGFloat, _ y: CGFloat, _ off: CGFloat) {
+            var x = x0 - 16 + off
+            while x < x1 {
+                let a = max(x0, x), b = min(x1, x + 8)
+                if b > a { var p = Path(); p.move(to: CGPoint(x: a, y: y)); p.addLine(to: CGPoint(x: b, y: y)); c.stroke(p, with: .color(line), lineWidth: 2) }
+                x += 16
+            }
+        }
+        if let img = RunnerArt.get(file), let d = RunnerCore.spec(st.id) {
+            let sc = CGFloat(d.cell / 256), gy = hc - 12
+            var c = ctx
+            c.clip(to: Path(CGRect(x: 0, y: 0, width: w, height: hc)))
+            dash(c, 0, w, gy + 3, CGFloat((Double(t) / 1000 * 40).truncatingRemainder(dividingBy: 16)))   // 바닥 점선: 초당 40 으로 흐른다
+            let sw = CGFloat(d.cell * d.sh)                                                              // 그림자
+            c.fill(Path(ellipseIn: CGRect(x: f.shadowX - sw / 2, y: gy + 3 - 3, width: sw, height: 6)), with: .color(Color.black.opacity(0.2)))
+            let col = f.idx % 4, row = f.idx / 4
+            let left = f.x - CGFloat(d.ox) * sc, top = gy + 3 - CGFloat(d.lift) - CGFloat(d.base) * sc, cell = CGFloat(d.cell)
+            var cc = c
+            cc.clip(to: Path(CGRect(x: left, y: top, width: cell, height: cell)))
+            cc.draw(Image(uiImage: img), in: CGRect(x: left - CGFloat(col) * cell, y: top - CGFloat(row) * cell, width: cell * 4, height: cell * 4))
+        } else {                                                                                          // 시트를 아직 못 읽었다 → 굴러가는 바퀴
+            let tw = RunnerCore.wheelTrackW, th = RunnerCore.wheelTrackH
+            let tx = (w - tw) / 2, ty = (hc - th) / 2, cy = ty + th / 2 + 1
+            var c = ctx
+            var base = Path(); base.move(to: CGPoint(x: tx, y: ty + th)); base.addLine(to: CGPoint(x: tx + tw, y: ty + th))
+            c.stroke(base, with: .color(line), style: StrokeStyle(lineWidth: 2, dash: [8, 8]))
+            c.clip(to: Path(CGRect(x: tx, y: ty - 4, width: tw, height: th + 8)))
+            let wx = tx + RunnerCore.wheelX(t, tw) + 12, gold = pal.color("gold") ?? .yellow
+            c.stroke(Path(ellipseIn: CGRect(x: wx - 10, y: cy - 2 - 10, width: 20, height: 20)), with: .color(gold), lineWidth: 3)
+            var r = c
+            r.translateBy(x: wx, y: cy - 2); r.rotate(by: .degrees(Double(RunnerCore.wheelRot(t))))
+            var ln = Path(); ln.move(to: CGPoint(x: -10, y: 0)); ln.addLine(to: CGPoint(x: 10, y: 0))
+            r.stroke(ln, with: .color(gold), lineWidth: 2)
+        }
     }
 }

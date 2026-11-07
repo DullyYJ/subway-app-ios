@@ -22,6 +22,9 @@ targets:
         optional: true
       - path: Resources/metro_native.bin
         buildPhase: resources
+      - path: Resources/chars3d
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: GildongmuLive
         embed: true

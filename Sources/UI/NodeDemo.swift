@@ -19,6 +19,11 @@ enum NodeDemo {
      {"t":"brs","k":"down","i":4,"nm":"서울역","id":"22010","fl":"l","ps":"s","lab":"종점","act":{"a":"call","v":"br.s4"}}
     ]}
     """
+    static let json3 = """
+    {"ok":true,"screen":"demo3","body":[
+     {"t":"runner","ttl":"경로를 찾고 있어요","sub":"잠시만 기다려 주세요","pad":[16,40,16,0]}
+    ]}
+    """
     static let json2 = """
     {"ok":true,"screen":"demo2","body":[
      {"t":"chart","ttl":"시간대별 혼잡","src":"서울교통공사","pk":"피크 08시","bh":112,"ci":9,"co":"#ffffff","pc":"gold","bars":[
@@ -40,7 +45,7 @@ enum NodeDemo {
 struct NodeDemoView: View {
     let pal: Palette
     var body: some View {
-        let s = try? Screen.parse(Data((NodeDemo.page == 2 ? NodeDemo.json2 : NodeDemo.json1).utf8))
+        let s = try? Screen.parse(Data((NodeDemo.page == 3 ? NodeDemo.json3 : NodeDemo.page == 2 ? NodeDemo.json2 : NodeDemo.json1).utf8))
         ZStack {
             (pal.color("bg") ?? .black).ignoresSafeArea()
             if let s = s { ScreenBody(screen: s, pal: pal) } else { Text("견본 읽기 실패").foregroundColor(.red) }
