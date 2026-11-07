@@ -350,11 +350,19 @@ struct AihNode: View {
 // MARK: scene — 길동무 친구들 장면. 엔진(SceneCore 이식)이 그리고, 앱은 높이(h, 기본 180)·모서리(r 12)·바깥 여백만 정한다.
 struct SceneNode: View {
     let node: Node; let pal: Palette
+    @ObservedObject private var d = SceneDriver.shared
     var body: some View {
         let h = CGFloat(node.num("h", 180)), r = CGFloat(node.num("r", 12))
-        SceneView(json: node.str("sc") ?? "")
-            .frame(height: h)
+        Group {
+            if d.helloOn {                                         // 3초 꾹 누르기 인사: 카드가 세로로 늘었다 줄어든다(실제 시계 기준 매 프레임)
+                TimelineView(.animation) { _ in card(h, r, CGFloat(d.helloExtNow())) }
+            } else { card(h, r, 0) }
+        }
+        .padding(ins(node))
+    }
+    private func card(_ h: CGFloat, _ r: CGFloat, _ ext: CGFloat) -> some View {
+        SceneView(json: node.str("sc") ?? "", baseH: h)
+            .frame(height: h * (1 + ext))
             .clipShape(RoundedRectangle(cornerRadius: r, style: .continuous))
-            .padding(ins(node))
     }
 }
