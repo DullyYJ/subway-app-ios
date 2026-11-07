@@ -181,6 +181,14 @@ final class KidsHub: ObservableObject {
         }
     }
 
+    /// 시험 전용(CI 화면 확인): 실행 인자 `-ccMode set` → 연결 팝업(kl.open)을, `-ccMode board` → 자녀 허브를 바로 띄운다. 평소 실행엔 영향 없음.
+    func demoFromArgs() async {
+        let a = CommandLine.arguments
+        guard let i = a.firstIndex(of: "-ccMode"), i + 1 < a.count else { return }
+        try? await Task.sleep(nanoseconds: 6_000_000_000)
+        if a[i + 1] == "set" { act("kl.open") } else if a[i + 1] == "board" { openHub() }
+    }
+
     // ───────── QR → 앱 열기(gildongmu-kids://pair?c=…&k=XXXXX-XXXXX) ─────────
     private static let code = try! NSRegularExpression(pattern: "[A-HJ-NP-Z2-9]{5}-[A-HJ-NP-Z2-9]{5}")
     /// QR 글이나 입력한 글에서 시크릿 키만 뽑는다.
@@ -211,7 +219,7 @@ struct KidsHubLayer: ViewModifier {
                 hub.act(x.v, id: x.id, t: x.t)
             }
             .onOpenURL { hub.join(from: $0) }
-            .task { hub.refreshLink(force: true) }
+            .task { hub.refreshLink(force: true); await hub.demoFromArgs() }
             .sheet(isPresented: $hub.sheetOpen) {
                 KidsPanel(pal: pal, screen: hub.sheet, onClose: { hub.sheetOpen = false }).environmentObject(host)
             }
