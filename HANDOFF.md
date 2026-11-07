@@ -4,7 +4,7 @@
 
 ## 한눈에
 - 부모 앱: 이 저장소(DullyYJ/subway-app-ios), SwiftUI. 안드로이드 원본은 DullyYJ/subway-app (branch native-shell).
-- 키즈 앱: DullyYJ/gildongmu-kids-ios (아직 빈 저장소). 부모 앱의 장면 엔진을 그대로 재사용할 예정.
+- 키즈 앱: DullyYJ/gildongmu-kids-ios (SwiftUI 1차 완성, 문법 검사 통과, 전체 빌드 확인 중). CI가 이 저장소를 `parent/`로 받아 tools/vendor.sh로 Core·UI·Scene·chars3d를 복사해 쓴다.
 - 원칙: 앱은 그리기만, 계산은 엔진(서버). 화면 JSON은 Cloudflare Worker가 내려준다. 메인 스레드 부하 0.
 - 맥이 없으므로 모든 빌드는 GitHub Actions(macos-latest).
 
@@ -34,14 +34,18 @@
 
 ## 남은 일 (우선순위)
 1. 밝은 모드(낮) 장면·터치·햅틱 확인(screenshot-2-dark 등).
-2. 열차 장면 피드(trainPos/trainClock) 연결, 3초 꾹 누르기 → SceneHello.Plan(엔진 대본) 연결, 혼잡도 카드 2번째 페이지.
+2. (완료) 열차 장면 피드(LivePosStore→trainPos/trainClock), 3초 꾹 누르기 인사(SceneOpen+SceneNode 높이 확장). 남음: 혼잡도 카드 2번째 페이지, 실기기 햅틱 확인.
 3. 위치·경로 흐름, 탑승 바 → Live Activity/Dynamic Island, APNs(FCM 대체), StoreKit 2(Play Billing 대체), 위젯.
-4. 키즈 앱 시작: 부모 앱 장면 엔진 재사용(quietAuto, wearHook), 서버 `gildongmu-kids`(/p/* 부모, /c/* 아이, 장기 대기 /c/wait /p/wait).
+4. 키즈 앱: 지도 탭, 다마고치 동작, APNs, 꾸미기/아이템, 부모 앱의 QR·비밀키 연결 화면과 `gildongmu-kids://` 처리.
 
 ## 부모 ↔ 키즈 연동
 - 서버: Cloudflare Worker `gildongmu-kids`(D1). 부모는 `/p/*`, 아이는 `/c/*`. 연결 상태 변화는 long-wait로 즉시 반영.
 - iOS 제약: 오버레이 불가 → Live Activity + 로컬 알림. 백그라운드 위치 "항상 허용"은 심사 사유서 필요.
 - 엔진 워커 파일(engine/route-v2-worker.ascii.js)이 바뀌면 최신본을 전달하고 Cloudflare route-v2에 붙여넣기를 안내한다.
+
+## 공유 코드 주의
+- 키즈가 vendor로 가져가는 UI/Core 파일이 부모의 다른 폴더(Shared, Tabs)에 있는 타입을 쓰면 키즈 typecheck가 깨진다. 예: Color(argb:)는 Shared/Overlay.swift → 키즈에 KidsColor.swift로 복제, Core/Rules.swift는 vendor에서 제외. 공유 쪽에 새 의존을 넣을 때 키즈 typecheck도 확인할 것.
+- ios.yml은 concurrency(cancel-in-progress)로 겹친 빌드를 취소한다.
 
 ## 작업 방법 (이 세션에서 검증됨)
 - git push는 프록시에서 막힘 → Chrome에서 GitHub 웹 업로드(`/upload/main/<dir>`)로 푸시. file_upload는 프로젝트 폴더나 스크래치패드 경로만 허용. 커밋 후 저장소 루트로 리다이렉트될 때까지 이동 금지.
