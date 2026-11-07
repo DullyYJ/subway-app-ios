@@ -1,0 +1,15 @@
+name: Scene typecheck
+on:
+  push:
+    paths: ['Sources/Scene/**', '.github/workflows/typecheck.yml']
+  workflow_dispatch:
+jobs:
+  typecheck:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: 장면 엔진 문법 검사(빠르게)
+        run: |
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          swiftc -typecheck -sdk "$SDK" -target arm64-apple-ios16.2-simulator Sources/Scene/*.swift 2>&1 | tee typecheck.log
+          test ${PIPESTATUS[0]} -eq 0
