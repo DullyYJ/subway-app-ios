@@ -347,20 +347,14 @@ struct AihNode: View {
     }
 }
 
-// MARK: scene — 캐릭터 장면 자리. 안드로이드는 SceneCore(수천 줄)가 그리는데 iOS 는 아직 못 옮겼다.
-// 그동안 같은 높이(h, 기본 180)·모서리(r 12)의 빈 무대를 두어 아래 카드들이 안드로이드와 같은 자리에 놓이게 한다. 장면 값의 look.emo 한 글자만 가운데에 띄운다.
+// MARK: scene — 길동무 친구들 장면. 엔진(SceneCore 이식)이 그리고, 앱은 높이(h, 기본 180)·모서리(r 12)·바깥 여백만 정한다.
 struct SceneNode: View {
     let node: Node; let pal: Palette
     var body: some View {
         let h = CGFloat(node.num("h", 180)), r = CGFloat(node.num("r", 12))
-        let sc = (node.str("sc") ?? "").data(using: .utf8).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-        let emo = ((sc?["look"] as? [String: Any])?["emo"] as? String) ?? ""
-        let night = ((sc?["look"] as? [String: Any])?["night"] as? Bool) ?? false
-        ZStack {
-            RoundedRectangle(cornerRadius: r).fill(LinearGradient(colors: night ? [Color(red: 0.07, green: 0.09, blue: 0.16), Color(red: 0.12, green: 0.14, blue: 0.22)] : [Color(red: 0.55, green: 0.75, blue: 0.95), Color(red: 0.80, green: 0.90, blue: 0.98)], startPoint: .top, endPoint: .bottom))
-            Text(emo).font(.system(size: 34))
-        }
-        .frame(height: h)
-        .padding(ins(node))
+        SceneView(json: node.str("sc") ?? "")
+            .frame(height: h)
+            .clipShape(RoundedRectangle(cornerRadius: r, style: .continuous))
+            .padding(ins(node))
     }
 }
