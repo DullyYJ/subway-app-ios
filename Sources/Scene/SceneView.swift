@@ -30,12 +30,13 @@ struct SceneView: View {
             .onAppear { d.load(); d.resume(); push(geo.size) }
             .onChange(of: geo.size) { push($0); if let b = baseH { d.helloStretch(Double(max(0, geo.size.height - b))) } }
             .onChange(of: cs) { _ in push(geo.size) }
-            .onChange(of: json) { _ in push(geo.size) }
+            .onChange(of: json) { j in push(geo.size, j) }     // 새 글자는 바뀐 값(j)으로 받는다 — 뒤늦게 도착한 장면도 낡은 값 없이 적용
         }
     }
-    private func push(_ s: CGSize) {
+    private func push(_ s: CGSize, _ js: String? = nil) {
         d.layout(Double(s.width), Double(baseH ?? s.height), Double(scale), cs == .dark)
-        if !json.isEmpty { d.apply(json) }
+        let j = js ?? json
+        if !j.isEmpty { d.apply(j) }
     }
 }
 
