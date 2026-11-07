@@ -27,8 +27,8 @@ struct RootView: View {
                 .frame(height: 56)
         }
         .background(pal.color("bg") ?? Color(.systemBackground))
+        .kidsHubLayer(pal: pal)            // 반드시 environmentObject(host) 보다 안쪽(먼저) — 층이 Host 를 환경에서 읽는다
         .environmentObject(host)
-        .kidsHubLayer(pal: pal)
         .preferredColorScheme(theme == "dark" ? .dark : theme == "pastel" ? .light : nil)
     }
 }
