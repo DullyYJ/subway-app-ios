@@ -28,6 +28,7 @@ struct RootView: View {
         }
         .background(pal.color("bg") ?? Color(.systemBackground))
         .environmentObject(host)
+        .kidsHubLayer(pal: pal)
         .preferredColorScheme(theme == "dark" ? .dark : theme == "pastel" ? .light : nil)
     }
 }
