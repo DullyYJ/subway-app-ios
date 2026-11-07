@@ -25,6 +25,8 @@ targets:
       - path: Resources/chars3d
         type: folder
         buildPhase: resources
+      - path: Resources/open.json
+        buildPhase: resources
     dependencies:
       - target: GildongmuLive
         embed: true
