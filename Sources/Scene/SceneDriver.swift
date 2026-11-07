@@ -85,6 +85,7 @@ final class SceneDriver: ObservableObject, SceneHost {
     /// 화면에 다시 나타났을 때: 시간 점프 없이 새로 시작한다.
     func resume() { lock.lock(); lastT = 0; lock.unlock() }
     func isRunning() -> Bool { lock.lock(); defer { lock.unlock() }; return core.isRunning() }
+    func diag() -> String { lock.lock(); defer { lock.unlock() }; return "loaded=\(loaded) " + core.diag() }
 
     // ───────────── 프레임: 움직임 계산 + 그리기(Canvas 의 CGContext, 점 단위 · 맨 왼쪽 위가 장면 왼쪽 위) ─────────────
     func drawFrame(_ cg: CGContext) {

@@ -149,6 +149,8 @@ extension SceneCore {
     }
     func stop() { dragReset(); hotUntil = 0; running = false; actors = []; prev = nil; fade = 0; tv = -1; xf = -1; pan = -1; panBg = nil; panL = nil; panWx = nil; oldTraffic = [] }
     func isRunning() -> Bool { running }
+    /// 시험 실행용 한 줄 진단(그리는 데 필요한 조건이 어디서 막혔는지).
+    func diag() -> String { "laid=\(laid) PW=\(Int(PW)) PH=\(Int(PH)) dens=\(dens) run=\(running) hasRes=\(hasRes) last=\(LAST == nil ? "nil" : LAST!.mode) mode=\(mode)" }
     func last() -> SceneModel.Res? { LAST }
     func tag() -> String { running && hasRes ? res.tag : "" }
     func designW() -> Double { W }
