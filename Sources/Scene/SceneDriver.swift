@@ -16,8 +16,14 @@ final class SceneDriver: ObservableObject, SceneHost {
     @Published private(set) var isReady = false
     @Published private(set) var tag = ""
     @Published private(set) var hot = false
+    /// 3초 꾹 누르기 인사가 진행 중인가(카드가 늘어나 있는 동안) — 카드 높이는 이 동안만 매 프레임 helloExtNow() 로 잰다.
+    @Published private(set) var helloOn = false
+    private var helloPlan: SceneHello.Plan?
+    private var helloT0 = 0.0
     /// 캐릭터를 꾹 눌러 잡았다 → 아래 목록의 스크롤을 막아야 한다.
     var onHeld: (() -> Void)?
+    /// 인사가 끝났다(스크롤 잠금을 풀 때 쓴다).
+    var onHelloEnd: (() -> Void)?
     var haptics = true
 
     private let lock = NSRecursiveLock()
@@ -30,6 +36,7 @@ final class SceneDriver: ObservableObject, SceneHost {
     private var lastT = 0.0
     private var tagNow = "", hotNow = false
     private var json = ""
+    private var trainPosCache: String? = nil
 
     private static let IDS = SceneModel.ORDER
     private static let ACT_IDS = ["juksun", "bbosong", "dolsom", "ppopu", "lovel", "dudung", "sul", "chaeng"]      // 전용 동작 시트(<id>_act)가 있는 친구
@@ -71,7 +78,7 @@ final class SceneDriver: ObservableObject, SceneHost {
     @discardableResult func apply(_ js: String) -> Bool {
         lock.lock(); defer { lock.unlock() }
         if js == json && core.isRunning() { return true }
-        json = js
+        json = js; trainPosCache = nil
         return core.apply(SceneModel.parse(js))
     }
     func stop() { lock.lock(); core.stop(); lastT = 0; lock.unlock() }
@@ -86,6 +93,11 @@ final class SceneDriver: ObservableObject, SceneHost {
         let now = CACurrentMediaTime()
         let h = core.interactive() || core.helloActive()
         if h != hotNow { hotNow = h; DispatchQueue.main.async { [self] in hot = h } }
+        if core.mode == "train" {                                                      // 객실 장면: 탑승 엔진의 시각표(pos.segs)와 지금 시각만 건넨다 — 달림/섬은 그 시각의 함수
+            let pj = LivePosStore.shared.get()
+            if pj != trainPosCache { trainPosCache = pj; core.trainPos(pj) }
+            core.trainClock(Int64(Date().timeIntervalSince1970 * 1000))
+        }
         if lastT > 0 { let dt = min(now - lastT, 0.1); if dt > 0 { core.update(dt) } }
         lastT = now
         cg.saveGState(); cg.scaleBy(x: CGFloat(1 / density), y: CGFloat(1 / density))      // 장면은 '화면 픽셀'로 그린다(렌더가 dpr 배로 확대)
@@ -96,12 +108,36 @@ final class SceneDriver: ObservableObject, SceneHost {
     }
 
     // ───────────── 카드 확장 인사(s340) ─────────────
-    func helloReady() -> Bool { lock.lock(); defer { lock.unlock() }; return loaded && core.isRunning() && core.mode == "idle" }
-    func helloStart(_ plan: SceneHello.Plan, _ seed: Int64) -> Bool { lock.lock(); defer { lock.unlock() }; return core.startHello(plan, seed) }
-    func helloActive() -> Bool { lock.lock(); defer { lock.unlock() }; return core.helloActive() }
+    func helloReady() -> Bool { lock.lock(); defer { lock.unlock() }; return loaded && core.isRunning() && core.mode == "idle" && helloPlan == nil }
+    /// 인사를 시작한다(손가락이 올라와 있는 메인에서 부른다). 시간은 장면 계산 시계가 아니라 실제 시계로 잰다 — 카드 높이는 프레임을 건너뛰어도 매 프레임 부드럽게 변한다.
+    func helloStart(_ plan: SceneHello.Plan, _ seed: Int64) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard helloPlan == nil, core.startHello(plan, seed) else { return false }
+        helloPlan = plan; helloT0 = CACurrentMediaTime()
+        DispatchQueue.main.async { [self] in helloOn = true }
+        return true
+    }
+    func helloActive() -> Bool { lock.lock(); defer { lock.unlock() }; return helloPlan != nil && core.helloActive() }
     func helloMs() -> Double { lock.lock(); defer { lock.unlock() }; return core.helloMs() }
-    func helloSkip() { lock.lock(); core.helloSkip(); lock.unlock() }
-    func helloStop() { lock.lock(); core.helloStop(); lock.unlock() }
+    /// 한 번 톡 치면 일찍 끝낸다 — 나갈 차례(leave)로 건너뛴다.
+    func helloSkip() {
+        lock.lock(); defer { lock.unlock() }
+        core.helloSkip()
+        if let p = helloPlan, (CACurrentMediaTime() - helloT0) * 1000 < Double(p.leave) { helloT0 = CACurrentMediaTime() - Double(p.leave) / 1000 }
+    }
+    func helloStop() { lock.lock(); endHelloLocked(); lock.unlock() }
+    private func endHelloLocked() {
+        core.helloStop(); core.setStretch(0); helloPlan = nil
+        DispatchQueue.main.async { [self] in helloOn = false; let f = onHelloEnd; onHelloEnd = nil; f?() }
+    }
+    /// 카드가 늘어난 정도 0~1(지금 실제 시계 기준). 끝났으면 인사를 마무리하고 0.
+    func helloExtNow() -> Double {
+        lock.lock(); defer { lock.unlock() }
+        guard let p = helloPlan else { return 0 }
+        let ms = (CACurrentMediaTime() - helloT0) * 1000
+        if !core.helloActive() || SceneHello.done(p, ms) { endHelloLocked(); return 0 }
+        return SceneHello.ext(p, ms)
+    }
     /// 카드가 늘어난 높이(pt) — 장면 안에서는 디자인 좌표(÷배율)로 바꿔 인도를 그만큼 늘린다.
     func helloStretch(_ ext: Double) { lock.lock(); core.setStretch(core.k > 0 ? ext / core.k : 0); lock.unlock() }
 
