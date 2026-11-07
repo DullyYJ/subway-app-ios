@@ -10,6 +10,11 @@ on:
 permissions:
   contents: write
 
+# 푸시가 연달아 오면 앞선 빌드는 취소한다(안 그러면 먼저 끝난 오래된 빌드가 ios-ci-out 결과를 덮어쓴다).
+concurrency:
+  group: ios-build
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: macos-latest
