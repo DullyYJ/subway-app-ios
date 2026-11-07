@@ -58,6 +58,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         task?.cancel(); task = nil
         mgr.stopUpdatingLocation()
         running = false
+        LivePosStore.shared.set("")
         rideJson = ""; lvJson = ""
         LiveRide.shared.end(); share = nil
     }
@@ -91,6 +92,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     private func q(_ s: String) -> String { js([s]).dropFirst().dropLast().description }
     private func rebuild() {
+        LivePosStore.shared.set(running ? posJson : "")
         rideJson = "{\"on\":1,\"text\":\(q(text))" + (dtJson.count > 2 ? ",\"dt\":\(q(text))" : "") + (rowJson.count > 2 ? ",\"row\":\(rowJson)" : "") + "}"
         lvJson = "{\"cur\":\(cur),\"pos\":\(posJson),\"arr\":\(arrJson)\(waitJson)" + (dtJson.count > 2 ? ",\"dt\":\(dtJson)" : "") + "}"
     }
