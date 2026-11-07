@@ -4,7 +4,7 @@
 
 ## 한눈에
 - 부모 앱: 이 저장소(DullyYJ/subway-app-ios), SwiftUI. 안드로이드 원본은 DullyYJ/subway-app (branch native-shell).
-- 키즈 앱: DullyYJ/gildongmu-kids-ios (SwiftUI 1차 완성, 문법 검사 통과, 전체 빌드 확인 중). CI가 이 저장소를 `parent/`로 받아 tools/vendor.sh로 Core·UI·Scene·chars3d를 복사해 쓴다.
+- 키즈 앱: DullyYJ/gildongmu-kids-ios (SwiftUI 1차 완성, 시뮬레이터 실행 확인: 가족대화·퀘스트·홈 장면·설정). CI가 이 저장소를 `parent/`로 받아 tools/vendor.sh로 Core·UI·Scene·chars3d를 복사해 쓴다.
 - 원칙: 앱은 그리기만, 계산은 엔진(서버). 화면 JSON은 Cloudflare Worker가 내려준다. 메인 스레드 부하 0.
 - 맥이 없으므로 모든 빌드는 GitHub Actions(macos-latest).
 
@@ -45,6 +45,7 @@
 
 ## 공유 코드 주의
 - 키즈가 vendor로 가져가는 UI/Core 파일이 부모의 다른 폴더(Shared, Tabs)에 있는 타입을 쓰면 키즈 typecheck가 깨진다. 예: Color(argb:)는 Shared/Overlay.swift → 키즈에 KidsColor.swift로 복제, Core/Rules.swift는 vendor에서 제외. 공유 쪽에 새 의존을 넣을 때 키즈 typecheck도 확인할 것.
+- SceneView: 장면 JSON이 화면보다 늦게 와도 적용되도록 onChange 새 값(j)을 쓴다. SceneDriver.diag()는 시험 실행 진단용.
 - ios.yml은 concurrency(cancel-in-progress)로 겹친 빌드를 취소한다.
 
 ## 작업 방법 (이 세션에서 검증됨)
