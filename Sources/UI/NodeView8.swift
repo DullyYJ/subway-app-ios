@@ -235,7 +235,7 @@ struct ChartNode: View {
                         }
                         .padding(.horizontal, side)
                     }
-                    .onAppear { if ci >= 0 { DispatchQueue.main.async { proxy.scrollTo(ci, anchor: .center) } } }
+                    .task { if ci >= 0 { try? await Task.sleep(nanoseconds: 250_000_000); proxy.scrollTo(ci, anchor: .center) } }
                 }
             }
             .frame(height: bh + 4)
