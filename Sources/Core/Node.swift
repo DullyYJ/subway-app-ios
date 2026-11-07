@@ -19,6 +19,8 @@ struct Node: Identifiable {
     func nodes(_ k: String) -> [Node] { (d[k] as? [[String: Any]] ?? []).enumerated().map { Node(d: $1, id: "\(id)/\(k)\($0)") } }
     var kids: [Node] { nodes("kids") }
     var items: [[String: Any]] { d["items"] as? [[String: Any]] ?? [] }
+    /// 노드마다 목록 키가 다르다(chart.bars · pickl.rows · cars.cells …)
+    func list(_ k: String) -> [[String: Any]] { d[k] as? [[String: Any]] ?? [] }
     /// pad:[왼,위,오른,아래] (dp)
     var pad: (l: Double, t: Double, r: Double, b: Double) {
         let a = (d["pad"] as? [Any])?.compactMap { ($0 as? NSNumber)?.doubleValue } ?? []

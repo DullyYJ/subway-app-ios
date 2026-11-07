@@ -215,7 +215,7 @@ struct ChartNode: View {
     var body: some View {
         let bh = CGFloat(node.num("bh", 112)), ci = Int(node.num("ci", -1))
         let sub = pal.color("sub") ?? .gray, pc = nc8(pal, node.str("pc"), "gold"), co = nc8(pal, node.str("co"), "#ffffff")
-        let bars = node.items
+        let bars = node.list("bars")
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 4) {
                 Text(node.str("ttl") ?? "").font(Typo.font(11)).foregroundColor(sub).lineLimit(1).fixedSize()
@@ -282,7 +282,7 @@ struct PicklNode: View {
     var body: some View {
         let plain = node.bool("plain"), fold = node.bool("fold") && node.items.count > 1
         let h = CGFloat(node.num("h", 38)), vis = max(1, min(8, Int(node.num("vis", 5))))
-        let rows = node.items
+        let rows = node.list("rows")
         let onIdx = rows.firstIndex { ($0["on"] as? Bool) == true } ?? 0
         let shown = Swift.min(rows.count, vis)
         let tail: CGFloat = plain ? 0 : 4

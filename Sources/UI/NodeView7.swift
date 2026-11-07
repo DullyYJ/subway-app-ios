@@ -203,7 +203,7 @@ struct CarsNode: View {
     let node: Node; let pal: Palette
     var body: some View {
         let sub = pal.color("sub") ?? .gray
-        let cells = node.items.prefix(12)
+        let cells = node.list("cells").prefix(12)
         VStack(alignment: .leading, spacing: 0) {
             if let t = node.str("ttl"), !t.isEmpty { Text(t).font(Typo.font(11)).foregroundColor(sub).lineLimit(1).frame(height: 15).padding(.bottom, 6) }
             if cells.isEmpty {
