@@ -70,6 +70,7 @@ struct NodeView: View {
         case "skel": SkelNode(node: node, pal: pal)
         case "lbar": LbarNode(node: node, pal: pal)
         case "aih": AihNode(node: node, pal: pal)
+        case "scene": SceneNode(node: node, pal: pal)
         default: EmptyView().onAppear { UnknownKinds.note(node.t, (try? JSONSerialization.data(withJSONObject: node.d)).flatMap { String(data: $0, encoding: .utf8) } ?? "") }
         }
     }
