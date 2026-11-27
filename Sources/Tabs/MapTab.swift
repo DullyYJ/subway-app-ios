@@ -78,6 +78,8 @@ final class MapModel: ObservableObject {
     }
 
     private var busRes: [String: String] = [:]
+    /// s451: 지도를 2초 꾹 눌러 고른 곳(위도, 경도) — 있으면 엔진이 그 주변 100m 정류장을 찾는다. 앱을 끄면 사라지고, 내 위치(새로고침 · 📍)를 누르면 버린다.
+    private var busPin: (Double, Double)? = nil
     private var busSel = -1
 
     // 화면에서 읽은 것(info): 정류장 · 노선 · 즐겨찾기 규칙 · 지방 노선 목록
@@ -158,6 +160,7 @@ final class MapModel: ObservableObject {
             f.removeLast()
             f += ",\"bus\":{\"vw\":\(Json.q(busView)),\"sel\":\(busSel),\"sv\":1,\"svb\":300,\"fav\":\(favRaw),\"nx\":{},\"al\":\(alRaw),\"ord\":[]"
             if let g = gps { f += ",\"lat\":\(g.0),\"lng\":\(g.1)" }
+            if let p = busPin { f += ",\"pin\":[\(p.0),\(p.1)]" }
             f += ",\"res\":{" + busRes.map { "\(Json.q($0.key)):\(Json.q($0.value))" }.joined(separator: ",") + "}}}"
         }
         return "{\"cap\":\(Servers.cap),\"f\":\(f)}"
@@ -231,7 +234,13 @@ final class MapModel: ObservableObject {
             let nv = String(v.dropFirst(6)); if nv == busView { return }
             ud.set(nv, forKey: "map_busvw"); busSel = -1; Task { await load() }
         } else if v == "mp.rf" || v == "mp.loc" || v == "mp.rt" {
+            busPin = nil
             LocationStore.shared.start(); busRes = [:]; busSel = -1; Task { await load() }
+        } else if v.hasPrefix("mp.lp.") {          // 지도 2초 꾹 → 그 주변 100m 정류장(좌표는 앱이 붙이고 무엇을 할지는 엔진이 정한다)
+            guard mode == "bus", busView == "near", let u = v.dropFirst(6).firstIndex(of: "_"),
+                  let la = Double(v.dropFirst(6)[..<u]), let lo = Double(v.dropFirst(6)[v.dropFirst(6).index(after: u)...]),
+                  abs(la) <= 85, abs(lo) <= 180 else { return }
+            busPin = (la, lo); busRes = [:]; busSel = -1; Task { await load() }
         } else if v.hasPrefix("mp.pc.") || v.hasPrefix("mp.pm."), let i = Int(v.dropFirst(6)) {
             busSel = i; Task { await load() }
         } else if v.hasPrefix("mp.fv."), let i = Int(v.dropFirst(6)) {

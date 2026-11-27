@@ -141,6 +141,9 @@ struct TmapNode: View {
     @State private var dragBase: TM.View? = nil
     @State private var pinchBase: TM.View? = nil
     @State private var winH: CGFloat = UIScreen.main.bounds.height
+    @State private var holdTask: Task<Void, Never>? = nil          // 꾹 누르기(hold): 움직이지 않고 hms 밀리초 누르고 있으면 그 자리 좌표를 행동에 붙여 보낸다(안드로이드 ScreenView tmHold)
+    @State private var holdFired = false
+    @State private var touching = false
 
     private var pins: [TMPin] { tmParse(node.d["pts"] as? [[String: Any]] ?? []) }
     private var live: Bool { node.num("live", 0) > 0 }
@@ -162,6 +165,28 @@ struct TmapNode: View {
             guard a.count >= 2, let la = (a[0] as? NSNumber)?.doubleValue, let lo = (a[1] as? NSNumber)?.doubleValue else { return nil }
             return CGPoint(x: la, y: lo)
         }
+    }
+
+    private func holdBegin(_ p: CGPoint) {
+        if touching { return }
+        touching = true; holdFired = false; holdTask?.cancel()
+        guard live, let act = node.str("hold"), !act.isEmpty else { return }
+        let ms = max(300, node.num("hms", 2000))
+        holdTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
+            if Task.isCancelled || dragBase != nil || pinchBase != nil { return }
+            let (la, lo) = vw.toLatLng(Double(p.x), Double(p.y))
+            guard abs(la) <= 85, abs(lo) <= 180 else { return }
+            holdFired = true
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            host.handle(Action.call(act + "." + String(format: "%.6f_%.6f", la, lo)))
+        }
+    }
+    /// 손을 뗐다: 꾹 눌러 이미 행동을 보냈으면 true(누름으로 치지 않는다).
+    private func holdEnd() -> Bool {
+        holdTask?.cancel(); holdTask = nil; touching = false
+        let f = holdFired; holdFired = false
+        return f
     }
 
     private func setup(_ size: CGSize) {
@@ -202,7 +227,8 @@ struct TmapNode: View {
             .background(tmBg)
             .clipShape(RoundedRectangle(cornerRadius: radius))
             .contentShape(Rectangle())
-            .modifier(TmGestures(live: live, vw: $vw, dragBase: $dragBase, pinchBase: $pinchBase, tap: { tap($0, size, ps) }))
+            .modifier(TmGestures(live: live, vw: $vw, dragBase: $dragBase, pinchBase: $pinchBase, tap: { tap($0, size, ps) },
+                                 began: { p in holdBegin(p) }, cancel: { holdTask?.cancel(); holdTask = nil }, ended: { holdEnd() }))
             .overlay(alignment: .bottom) { if node.num("bl", 0) > 0 { Rectangle().fill(pal.color("border") ?? .gray).frame(height: 1) } }
             .onAppear { setup(size) }
             .onChange(of: geo.size.width) { _ in setup(CGSize(width: geo.size.width, height: h)) }
@@ -353,19 +379,26 @@ private struct TmGestures: ViewModifier {
     @Binding var dragBase: TM.View?
     @Binding var pinchBase: TM.View?
     let tap: (CGPoint) -> Void
+    var began: (CGPoint) -> Void = { _ in }
+    var cancel: () -> Void = {}
+    var ended: () -> Bool = { false }          // 꾹 눌러 이미 행동을 보냈으면 true — 손을 뗄 때 누름(tap)으로 치지 않는다
     func body(content: Content) -> some View {
         if live {
             content
                 .gesture(DragGesture(minimumDistance: 0).onChanged { g in
+                    began(g.startLocation)
                     if abs(g.translation.width) < 4 && abs(g.translation.height) < 4 && dragBase == nil { return }
+                    cancel()
                     if dragBase == nil { dragBase = vw }
                     var v = dragBase!; v.pan(Double(g.translation.width), Double(g.translation.height)); vw = v
                 }.onEnded { g in
                     let moved = dragBase != nil
                     dragBase = nil
-                    if !moved { tap(g.location) }
+                    let held = ended()
+                    if !moved && !held { tap(g.location) }
                 })
                 .simultaneousGesture(MagnificationGesture().onChanged { s in
+                    cancel()
                     if pinchBase == nil { pinchBase = vw }
                     var v = pinchBase!; v.zoomBy(log2(Double(s)), v.w / 2, v.h / 2); vw = v
                 }.onEnded { _ in pinchBase = nil })
