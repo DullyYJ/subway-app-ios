@@ -82,4 +82,5 @@
 - 서버 지연 안내: 엔진이 HTTP 503 + `delayed:true,retry:[초…]` 화면을 주면 `Net.screen` 이 오류가 아니라 그릴 화면으로 돌려주고(쇼핑), `AutoRetry` 가 그 간격(1~120초, 6번까지)마다 뒤에서 다시 받는다. 단추 `gdm_retry` 는 `Host.handle` 이 받아 `reloadTick` 을 올린다(600ms 안 거듭 누름은 한 번). 통신 자체가 안 돼 탭이 비면 `RetryCard`(안드로이드 ShellCore.errorScreen 과 같은 문구 · 단추, 4·8·16·30초 자동 재시도). 시험: `Tests/RetryTests.swift`.
 - 경로 방식 탭(rh.tab.*)·두 칸 단추(btog)도 누르면 새 화면 전에 먼저 켠다(`ButtonNode`, `ChipPick.pickBtn` — 켜진 단추와 모양을 맞바꾸고 0.15초 섞는다; 밀어서 넘길 때도 `light`). 새 화면 판별은 `ChipPick.sig`(탭 · 칩 켜짐 모양)이 바뀔 때 거둔다. 시험: `Tests/ChipPickTests.swift`.
 - 정류장 이름 설정(AliasCard)은 이미 있었고 글꼴 13 · 단추 높이 44 · 너비 340 으로 안드로이드와 맞췄다.
-- 하단 토스트: 안드로이드는  본문을 비워 아무것도 안 뜬다 → iOS 도  가 화면에 띄우지 않고 로그만 남긴다().
+- 하단 토스트: 안드로이드는 `toast()` 본문을 비워 아무것도 안 뜬다 → iOS 도 `Host.say` 가 화면에 띄우지 않고 로그만 남긴다(`Host.toastOn` 으로 되돌림).
+- 탭을 옮기면 새 화면이 흐림 0.35 → 1 로 240ms 떠오른다(`TabFadeIn`, 소통방 제외 — 안드로이드 fadeIn).
