@@ -64,13 +64,24 @@ struct TabContent: View {
     let tab: String
     let pal: Palette
     var body: some View {
-        switch tab {
-        case "community": CommunityTab(pal: pal)
-        case "shop": ShopTab(pal: pal)
-        case "food": FoodTab(pal: pal)
-        case "home": HomeTab(pal: pal)
-        case "map": MapTab(pal: pal)
-        default: DevExplorer(pal: pal, title: tab + " (다음 단계에서 연결)", start: "/screen/settings?cap=8")
+        Group {
+            switch tab {
+            case "community": CommunityTab(pal: pal)          // 소통방은 흐릿하게 떠오르지 않고 바로 또렷하게(안드로이드 s286)
+            case "shop": ShopTab(pal: pal).modifier(TabFadeIn())
+            case "food": FoodTab(pal: pal).modifier(TabFadeIn())
+            case "home": HomeTab(pal: pal).modifier(TabFadeIn())
+            case "map": MapTab(pal: pal).modifier(TabFadeIn())
+            default: DevExplorer(pal: pal, title: tab + " (다음 단계에서 연결)", start: "/screen/settings?cap=8")
+            }
         }
+        .id(tab)
+    }
+}
+
+/// 탭을 옮기면 새 화면이 살짝 떠오른다: 흐림 0.35 → 1, 240ms, 감속(안드로이드 ShellActivity.fadeIn).
+struct TabFadeIn: ViewModifier {
+    @State private var a = 0.35
+    func body(content: Content) -> some View {
+        content.opacity(a).onAppear { withAnimation(.easeOut(duration: 0.24)) { a = 1 } }
     }
 }
