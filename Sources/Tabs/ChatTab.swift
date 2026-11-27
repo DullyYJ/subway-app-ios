@@ -222,12 +222,14 @@ struct ChatView: View {
             if let s = m.screen {
                 VStack(spacing: 0) {
                     ForEach(s.head) { NodeView(node: $0, pal: pal).environment(\.inHead, true) }
-                    ScrollViewReader { sp in
-                        ScrollView {
-                            LazyVStack(spacing: 0) { ForEach(s.body) { NodeView(node: $0, pal: pal) }; Color.clear.frame(height: 1).id("end") }
+                    SwipeArea(screen: s, cfg: SwipeCfg(tab: "community", host: host)) {
+                        ScrollViewReader { sp in
+                            ScrollView {
+                                LazyVStack(spacing: 0) { ForEach(s.body) { NodeView(node: $0, pal: pal) }; Color.clear.frame(height: 1).id("end") }
+                            }
+                            .onAppear { sp.scrollTo("end", anchor: .bottom) }
+                            .onChange(of: s.body.count) { _ in withAnimation(.none) { sp.scrollTo("end", anchor: .bottom) } }
                         }
-                        .onAppear { sp.scrollTo("end", anchor: .bottom) }
-                        .onChange(of: s.body.count) { _ in withAnimation(.none) { sp.scrollTo("end", anchor: .bottom) } }
                     }
                     ForEach(s.foot) { NodeView(node: $0, pal: pal) }
                 }

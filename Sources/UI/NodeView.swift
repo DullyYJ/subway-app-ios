@@ -260,9 +260,12 @@ struct FlowLayout: Layout {
 struct ChipView: View {
     let node: Node; let item: [String: Any]; let pal: Palette
     @EnvironmentObject var host: Host
+    @ObservedObject private var pick = ChipPick.shared
     var body: some View {
-        let on = (item["on"] as? Bool) ?? false
-        let plain = (item["pl"] as? Bool) ?? false
+        let actD = item["act"] as? [String: Any]
+        var on = (item["on"] as? Bool) ?? false
+        if (actD?["a"] as? String) == "cat", let v = actD?["v"] as? String, let p = pick.picks[ChipPick.rowKey(node.items)] { on = (v == p) }          // 누른 칩을 새 화면 전에 먼저 켠다
+        let plain = (item["pl
         let fs = CGFloat(node.num("fs", 12)), px = CGFloat(node.num("px", 12)), h = CGFloat(node.num("h", 30))
         let onRole = (item["c"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? node.str("onc").flatMap { $0.isEmpty ? nil : $0 } ?? "orange"
         let onFill = pal.color(onRole) ?? pal.color("orange") ?? .orange
@@ -282,7 +285,7 @@ struct ChipView: View {
         else if web { fg = oc ?? offt ?? subC; fill = ofl ?? .clear; border = ob ?? oc ?? offb ?? .clear }
         else if tinted { fg = subC; fill = pal.color("card") ?? .clear }
         let label = item["label"] as? String ?? ""
-        return Button { if let a = Action(item["act"] as? [String: Any]) { host.handle(a) } } label: {
+        return Button { if let a = Action(actD) { if a.a == "cat", let v = a.v { pick.pick(items: node.items, v: v) }; host.handle(a) } } label: {
             HStack(spacing: 6) {
                 Text(label)
                 if let b = item["badge"] as? String, !b.isEmpty { Text(b).opacity(0.7) }

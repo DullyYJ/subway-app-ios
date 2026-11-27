@@ -15,7 +15,7 @@
 - 출퇴근 알림의 아이폰 차이: 알림이 울릴 때 앱이 코드를 못 돌린다(안드로이드는 알람 때 /commute-brief 를 받아 띄움). 그래서 /commute-alarm 이 준 시각마다 로컬 알림(최대 14+14, 식별자 `cm.morn.N`/`cm.eve.N`)을 걸고, 12시간 안의 가장 가까운 알림만 앱을 열 때 엔진 글로 본문을 채운다. 나머지는 짧은 안내 글 → 알림을 누르면 그때 엔진 글을 새로 받아 가운데 창에 보인다(Host.cmbOpen). 앱을 열 때마다(scenePhase active) 4주 창을 다시 민다. '지금 미리보기' 는 `cm.test` 로 1초 뒤 알림.
 - 설정 화면 사실: `cm`/`cmi`/`cmh`/`cmf`(CmCore.inlineFacts)/`pgs:["cm"]` 를 실어 엔진이 출퇴근 패널을 설정 화면 안에 펼치게 한다. 장소 입력칸(inbar key `cmp.*`)은 focus/blur/input 을 알리고(NodeView3.InbarNode), 버스정류장 후보는 `/suggest?k=b`(CommuteAlarm.busSearch).
 - 시험 인자: `-skipSetup` = 처음 설치 승인(알림·위치 안내)을 건너뜀(CI 화면 찍기용, ios.yml 의 모든 simctl launch 에 붙어 있다).
-- 아직 안 옮긴 것(우선순위 순): 탭 스와이프 · 화면 동작 대조, 테마·글꼴·여백·애니메이션 화면 대조(스크린샷 나란히), 위젯(안드로이드 6종 · iOS 는 Live Activity 1종), 푸시(APNs — 유료 Apple 계정 필요), 구독(StoreKit — 상품 설정 필요), PerfLog, 개발자 도구(dev 페이지), 갤럭시 전용 안내(sam/ovl/bat — iOS 해당 없음).
+- 아직 안 옮긴 것(우선순위 순): 화면 동작 대조, 테마·글꼴·여백·애니메이션 화면 대조(스크린샷 나란히), 위젯(안드로이드 6종 · iOS 는 Live Activity 1종), 푸시(APNs — 유료 Apple 계정 필요), 구독(StoreKit — 상품 설정 필요), PerfLog, 개발자 도구(dev 페이지), 갤럭시 전용 안내(sam/ovl/bat — iOS 해당 없음).
 - 단위 시험 추가: CmCoreTests · RideSwapTests · ParseTests.testShopCardActionCarriesNameAndImage.
 
 ## 장면 엔진 이식 (Sources/Scene)
@@ -66,3 +66,11 @@
 - 빠른 검사: Actions "Scene typecheck"(~30초, Sources/Scene/** 푸시 시). 전체 빌드 "iOS build (simulator)"(~11–20분, 스크린샷은 ios-ci-out 브랜치).
 - 오류 보기: 잡 페이지에서 실패 단계를 펼쳐 텍스트 읽기.
 - 커밋 꼬리말: `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` + `Claude-Session: …`.
+
+## 2026-11-27 (이어서) 좌우 밀기 · 고정 머리/꼬리 · 칩 먼저 켜기
+- `Sources/UI/EngineSwipe.swift`: 안드로이드 SwipeCore + ScreenView mode 9 + ShellActivity.commSwipe 이식. 엔진이 화면에 담은 `sw{l,r,lh,rh,lc,rc,k,t}` 가 넘길 곳을 정하고(앱은 계산 없음), 창에 붙인 가로 팬 인식기가 몸짓을 알아본다(32pt 이상 또는 520pt/s 쓸기 · 고무줄 88pt · 나가기 0.11초 · 들어오기 56pt/0.34초 · 안 오면 450ms 뒤 제자리). 입력칸 · 가로로 밀리는 줄 · 시트 위에서 시작한 몸짓은 무시. `news_cat`(lc/rc) 먼저 켜기. 홈은 경로가 있고 탑승 중이 아닐 때만.
+- 켜진 곳: 쇼핑 · 맛집 · 노선도 본문 · 소식 · 게시판 · 소통방 · 홈(경로 결과). 시험: `Tests/SwipeCoreTests.swift`.
+- `ScreenBody`: 머리(head)는 위에 고정 · 꼬리(foot)는 아래에 고정 · 본문만 스크롤(전에는 머리가 같이 스크롤됐고 꼬리는 안 그려졌다).
+- `Sources/UI/ChipPick.swift`: 칩(cat)을 누르거나 밀어서 칸을 넘기면 새 화면 전에 그 칩을 먼저 켠다(안드로이드 pickChip/lightChip). 새 화면이 오면 거둔다. 경로 방식 탭(rh.tab.*) 먼저 켜기(pickRtab)는 아직.
+- 서버는 건드리지 않았다(사용자 지시 "서버는 최신이니까 건들지마").
+

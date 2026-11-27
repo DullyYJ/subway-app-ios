@@ -349,6 +349,8 @@ final class HomeModel: ObservableObject {
     var bothSet: Bool { loc[0]?.ok == true && loc[1]?.ok == true }
     var isRouting: Bool { routing }
     var isRiding: Bool { riding }
+    /// 좌우 밀기를 써도 되는가(안드로이드: 경로가 확정되어 결과 카드가 떠 있고 탑승 중이 아닐 때만).
+    var swipeOK: Bool { hasRoute && !riding }
     func favCur() -> (String, String, String, String) {
         let a = hasRoute ? resA : text[0], b = hasRoute ? resB : text[1]
         let l0 = loc[0], l1 = loc[1]
@@ -638,7 +640,7 @@ struct HomeTab: View {
     @EnvironmentObject var host: Host
     var body: some View {
         ZStack {
-            if let s = m.screen { ScreenBody(screen: s, pal: pal) }
+            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "home", host: host, ok: { m.swipeOK && m.dlg == nil && !m.showDetail && !m.showTimePick })) }
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
             if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
             if m.showDetail { DetailSheet(m: m, pal: pal) }

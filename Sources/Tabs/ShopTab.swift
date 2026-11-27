@@ -54,7 +54,7 @@ struct ShopTab: View {
     @EnvironmentObject var host: Host
     var body: some View {
         ZStack {
-            if let s = m.screen { ScreenBody(screen: s, pal: pal) }
+            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "shop", host: host)) }
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
             if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
             if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0) } }
