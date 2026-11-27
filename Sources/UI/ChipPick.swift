@@ -72,7 +72,8 @@ final class ChipPick: ObservableObject {
         var out = ""
         func scan(_ nodes: [[String: Any]], _ depth: Int) {
             for n in nodes {
-                switch n["t"] as? String {
+                let t = (n["t"] as? String) ?? ""
+                switch t {
                 case "button": if isRtab(n) { out += bkey(n) + "=" + ((n["fill"] as? String) ?? "") + ";" }
                 case "chips", "btog": out += ((n["items"] as? [[String: Any]]) ?? []).map { ($0["on"] as? Bool) == true ? "1" : "0" }.joined() + ";"
                 default: break
