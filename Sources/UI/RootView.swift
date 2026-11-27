@@ -4,6 +4,7 @@ struct RootView: View {
     @StateObject private var host = Host()
     @AppStorage("theme") private var theme = ""
     @Environment(\.scenePhase) private var phase
+    @State private var hdrAt = Int(Date().timeIntervalSince1970 * 1000)          // 맨 위 문구를 받은 때(켤 때 · 10분마다만 바뀐다 — 안드로이드 loadHdr/hdrTick)
     private var pal: Palette { theme == "dark" ? .dark : .light }          // 안드로이드 ShellCore.theme: dark 아니면 모두 파스텔(밝은 쪽) — 폰의 다크 모드를 따라가지 않는다
 
     var body: some View {
@@ -13,7 +14,7 @@ struct RootView: View {
     private var mainBody: some View {
         VStack(spacing: 0) {
             // 맨 위 흐르는 응원 문구(서버 /screen/hdr)
-            RemoteScreenInline(path: "/screen/hdr?tz=\(TimeZone.current.secondsFromGMT() / 60)&now=\(Int(Date().timeIntervalSince1970 * 1000))", method: "GET", pal: pal)
+            RemoteScreenInline(path: "/screen/hdr?tz=\(TimeZone.current.secondsFromGMT() / 60)&now=\(hdrAt)", method: "GET", pal: pal, cacheKey: "hdr")
                 .frame(height: 30)
             // 본문: 켜진 탭
             ZStack(alignment: .bottom) {
@@ -30,15 +31,32 @@ struct RootView: View {
                 }
             }
             // 아래 탭 막대(서버 /screen/tabs)
-            RemoteScreenInline(path: "/screen/tabs", payload: "{\"cap\":\(Servers.cap),\"f\":{\"tab\":\"\(host.tab)\"}}", pal: pal)
+            RemoteScreenInline(path: "/screen/tabs", payload: "{\"cap\":\(Servers.cap),\"f\":{\"tab\":\"\(host.tab)\"}}", pal: pal, cacheKey: "tabs|" + host.tab, ttl: 600)
                 .frame(height: 56)
         }
         .background(pal.color("bg") ?? Color(.systemBackground))
         .kidsHubLayer(pal: pal)            // 반드시 environmentObject(host) 보다 안쪽(먼저) — 층이 Host 를 환경에서 읽는다
         .environmentObject(host)
         .onAppear { RideLoop.shared.host = host; CommuteAlarm.attach(host); FirstRun.host = host; FirstRun.begin() }
+        .task { await prefetchTabBars() }
+        .task {          // 맨 위 문구는 10분마다(앞에 있을 때만) 새로 받는다
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 600_000_000_000)
+                if UIApplication.shared.applicationState == .active { hdrAt = Int(Date().timeIntervalSince1970 * 1000) }
+            }
+        }
         .onChange(of: phase) { p in if p == .active { CommuteAlarm.refresh() } }          // 앱이 앞으로 올 때마다 출퇴근 알림 4주 창을 다시 민다(안드로이드 onCreate 의 rescheduleAsync)
         .preferredColorScheme(theme == "dark" ? .dark : .light)
+    }
+
+    /// 아래 탭 막대를 탭마다 미리 받아 둔다(안드로이드 prefetchTabs) — 처음 옮길 때도 켜진 칸 표시가 바로 바뀐다.
+    @MainActor private func prefetchTabBars() async {
+        for t in Host.tabNames where t != host.tab {
+            let k = "tabs|" + t
+            if ScreenCache.shared.fresh(k, within: 600) { continue }
+            let body = "{\"cap\":\(Servers.cap),\"f\":{\"tab\":\"\(t)\"}}"
+            if let s = try? await Net.screen("/screen/tabs", body: body) { ScreenCache.shared.put(k, s) }
+        }
     }
 }
 
@@ -48,6 +66,8 @@ struct RemoteScreenInline: View {
     var method: String = "POST"
     var payload: String? = nil
     let pal: Palette
+    var cacheKey: String? = nil          // 있으면 그 열쇠의 옛 화면을 먼저 보이고 새로 받으면 바꾼다(안드로이드 hdr · tabs|탭)
+    var ttl: TimeInterval = 0            // 받은 지 이 초 안이면 다시 받지 않는다(탭 막대 10분)
     @StateObject private var loader = ScreenLoader()
     private var key: String { "\(path)|\(payload ?? "")" }
     var body: some View {
@@ -55,7 +75,14 @@ struct RemoteScreenInline: View {
             if let s = loader.screen { VStack(spacing: 0) { ForEach(s.body) { NodeView(node: $0, pal: pal) } } }
             else { Color.clear }
         }
-        .task(id: key) { await loader.load(path: path, method: method, body: payload) }
+        .task(id: key) {
+            if let k = cacheKey {
+                if let c = ScreenCache.shared.get(k) { loader.screen = c }
+                if ttl > 0 && ScreenCache.shared.fresh(k, within: ttl) { return }
+            }
+            await loader.load(path: path, method: method, body: payload)
+            if let k = cacheKey, loader.error == nil, let s = loader.screen { ScreenCache.shared.put(k, s) }
+        }
     }
 }
 

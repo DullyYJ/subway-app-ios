@@ -656,8 +656,8 @@ struct HomeTab: View {
     @EnvironmentObject var host: Host
     var body: some View {
         ZStack {
-            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "home", host: host, ok: { m.swipeOK && m.dlg == nil && !m.showDetail && !m.showTimePick })) }
-            else { SkelScreen(kind: "cards", pal: pal) }
+            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "home", host: host, ok: { m.swipeOK && m.dlg == nil && !m.showDetail && !m.showTimePick })).transition(.arrival) }
+            else { SkelScreen(kind: "cards", pal: pal).transition(.identity) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if m.showDetail { DetailSheet(m: m, pal: pal) }
             if m.showTimePick { TimePickCard(m: m, pal: pal) { m.commitBase(host: host) } }
@@ -665,6 +665,7 @@ struct HomeTab: View {
             if let r = m.rload { DlgCard(screen: r, pal: pal) { _ in } }          // 경로 탐색 로딩 카드(바깥을 눌러도 안 닫힌다)
             FavLayer(fav: m.fav, pal: pal)
         }
+        .arrivalFade(m.screen != nil)
         .task { LocationStore.shared.start(); await m.rloadPrefetch(); await m.load(); await m.startDemo(host: host) }
         .task { while !Task.isCancelled { try? await Task.sleep(nanoseconds: 30_000_000_000); m.tick() } }
         .task { while !Task.isCancelled { await m.pollTalks(); try? await Task.sleep(nanoseconds: 5_000_000_000) } }

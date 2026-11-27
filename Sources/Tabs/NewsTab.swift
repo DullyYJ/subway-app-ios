@@ -104,11 +104,12 @@ struct NewsView: View {
     @EnvironmentObject var host: Host
     var body: some View {
         ZStack {
-            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "community", host: host)) }
-            else { SkelScreen(kind: "list", pal: pal) }
+            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "community", host: host)).transition(.arrival) }
+            else { SkelScreen(kind: "list", pal: pal).transition(.identity) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if let d = m.detail { NewsDetailSheet(d: d, pal: pal) { m.detail = nil } }
         }
+        .arrivalFade(m.screen != nil)
         .task { m.hostRef = host; await m.load() }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "community" else { return }

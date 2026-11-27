@@ -12,6 +12,13 @@ final class ScreenCache {
         return d
     }()
     private var pruned = false
+    private var at: [String: Date] = [:]                 // 이번 실행에서 새로 받아 담은 때(디스크에서 읽은 건 없음)
+
+    /// 이번 실행에서 받은 지 `within` 초 안인 화면이 있으면 true(안드로이드 tabsAt — 탭 막대는 10분 안이면 다시 안 받는다).
+    func fresh(_ key: String, within: TimeInterval) -> Bool {
+        guard mem[key] != nil, let t = at[key] else { return false }
+        return Date().timeIntervalSince(t) < within
+    }
 
     /// 열쇠 → 파일 이름(프로세스가 바뀌어도 같아야 해서 djb2 로 만든다).
     nonisolated static func fileName(_ key: String) -> String {
@@ -31,6 +38,7 @@ final class ScreenCache {
     func put(_ key: String, _ s: Screen) {
         if s.retryHint != nil || s.name == "error" || s.name == "skel" { return }
         mem[key] = s
+        at[key] = Date()
         var raw = s.raw
         raw["_k"] = key
         guard let d = try? JSONSerialization.data(withJSONObject: raw), d.count < 2_000_000 else { return }

@@ -60,11 +60,12 @@ struct ShopTab: View {
     @EnvironmentObject var host: Host
     var body: some View {
         ZStack {
-            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "shop", host: host)) }
-            else { SkelScreen(kind: "cards", pal: pal) }
+            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "shop", host: host)).transition(.arrival) }
+            else { SkelScreen(kind: "cards", pal: pal).transition(.identity) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0) } }
         }
+        .arrivalFade(m.screen != nil)
         .task { LocationStore.shared.start(); await m.load() }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "shop" else { return }

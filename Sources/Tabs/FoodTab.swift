@@ -263,10 +263,11 @@ struct FoodTab: View {
     @ObservedObject private var loc = LocationStore.shared
     var body: some View {
         ZStack {
-            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "food", host: host), onPull: { host.reloadTick += 1 }) }
-            else { SkelScreen(kind: "list", pal: pal) }
+            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "food", host: host), onPull: { host.reloadTick += 1 }).transition(.arrival) }
+            else { SkelScreen(kind: "list", pal: pal).transition(.identity) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
         }
+        .arrivalFade(m.screen != nil)
         .task { LocationStore.shared.start(); await m.load(); try? await Task.sleep(nanoseconds: 1_500_000_000); m.autoOpen(host: host) }
         .onChange(of: loc.last?.coordinate.latitude) { _ in Task { await m.gpsChanged() } }
         .onChange(of: loc.status) { _ in Task { await m.gpsChanged() } }

@@ -270,13 +270,14 @@ struct BoardTab: View {
     @EnvironmentObject var host: Host
     var body: some View {
         ZStack {
-            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "community", host: host)) }
-            else { SkelScreen(kind: "list", pal: pal) }
+            if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "community", host: host)).transition(.arrival) }
+            else { SkelScreen(kind: "list", pal: pal).transition(.identity) }
             if m.writeOpen { WriteSheet(m: m, pal: pal) }
             if m.askId { IdCard(pal: pal, initial: m.commId, onSave: { m.saveId($0) { host.say($0) } }, onClose: { m.askId = false }) }
             if m.askUgc { UgcCard(pal: pal, onAgree: { m.agreeUgc { host.say($0) } }, onClose: { m.askUgc = false }) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
         }
+        .arrivalFade(m.screen != nil)
         .task { m.hostRef = host; await m.load() }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "community" else { return }
