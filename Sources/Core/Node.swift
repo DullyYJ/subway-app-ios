@@ -36,7 +36,8 @@ struct Action {
     let url: String?
     let key: String?
     let on: Bool?
-    let t: String?                     // 눌린 줄의 제목(뉴스 기사 — 목록이 바뀌어도 같은 기사를 찾는 데 쓴다)
+    var t: String?                     // 눌린 줄의 제목(뉴스 기사 — 목록이 바뀌어도 같은 기사를 찾는 데 쓴다)
+    var img: String? = nil             // s481: 쇼핑 카드를 눌렀을 때 그 카드의 그림 주소(확인 팝업이 쓴다) — 카드가 채운다
     let id: String?                    // 엔진이 행동에 실어 준 대상 고유 id(글 번호 등) — 순번 대신 이것으로 가리킨다
     static func tog(_ v: String) -> Action { Action(a: "tog", v: v, url: nil, key: nil, on: nil, id: nil, t: nil) }
     static func call(_ v: String) -> Action { Action(a: "call", v: v, url: nil, key: nil, on: nil, id: nil, t: nil) }

@@ -35,7 +35,7 @@ private struct CardView: View {
     var body: some View {
         let name = c["name"] as? String ?? "", tag = c["tag"] as? String ?? "", fb = c["fb"] as? String ?? ""
         let img = (c["img"] as? String).flatMap { $0.hasPrefix("http") ? URL(string: $0) : nil }
-        Button { if let a = Action(c["act"] as? [String: Any]) { host.handle(a) } } label: {
+        Button { if var a = Action(c["act"] as? [String: Any]) { if a.a == "open" { a.t = name; a.img = c["img"] as? String }; host.handle(a) } } label: {
             VStack(alignment: .leading, spacing: 5) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8).fill(nodeColor(pal, "imgbg", "card2"))

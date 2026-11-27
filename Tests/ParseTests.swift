@@ -24,6 +24,13 @@ final class ParseTests: XCTestCase {
         XCTAssertFalse(SVGPath.path("M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0").isEmpty)
         XCTAssertFalse(SVGPath.path("M1.5.5l-.5 1").isEmpty)
     }
+    /// s481: 쇼핑 카드 탭 — 행동이 카드의 이름(t)과 그림(img)을 실어 확인 팝업(shopgo)에 넘긴다(안드로이드 ScreenCore 와 같다).
+    func testShopCardActionCarriesNameAndImage() {
+        var a = Action(["a": "open", "url": "https://link.coupang.com/x"])!
+        XCTAssertNil(a.t); XCTAssertNil(a.img)
+        a.t = "사과 1kg"; a.img = "https://img.example.com/a.jpg"
+        XCTAssertEqual(a.t, "사과 1kg"); XCTAssertEqual(a.img, "https://img.example.com/a.jpg"); XCTAssertEqual(a.url, "https://link.coupang.com/x")
+    }
     func testActionSet() { let a = Action.set("k", true); XCTAssertEqual(a.a, "set"); XCTAssertEqual(a.on, true) }
 
     /// 안드로이드 wrap 과 같은 규칙: 띄어쓰기에서 끊고, 칸이 넉넉하면 한 줄.

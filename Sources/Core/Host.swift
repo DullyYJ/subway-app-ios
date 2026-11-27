@@ -29,6 +29,8 @@ final class Host: ObservableObject {
     func handle(_ a: Action) {
         switch a.a {
         case "open":
+            // s481 (안드로이드 ShellActivity.shopGo 와 같다): 쇼핑 상품을 누르면 그림과 함께 '쿠팡앱으로 연결하시겠습니까?' 카드를 먼저 띄운다(아니오 / 예)
+            if tab == "shop", let u = a.url, let t = a.t, !t.isEmpty { actPublisher.send(TabAction(tab: "shop", a: "open", v: u, id: a.img ?? "", key: "", t: t)); return }
             if let u = a.url, let url = URL(string: u), url.scheme == "https" { UIApplication.shared.open(url) }
         case "refresh":
             reloadTick += 1
@@ -46,6 +48,7 @@ final class Host: ObservableObject {
             else if let v = a.v, v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("bd.") || v.hasPrefix("wr.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("mp.") || v.hasPrefix("br.") || v.hasPrefix("mr.") { actPublisher.send(TabAction(tab: "map", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
+            else if let v = a.v, v.hasPrefix("dl."), tab == "shop" { actPublisher.send(TabAction(tab: "shop", a: "call", v: v, id: "", key: "")) }
             else if let v = a.v, v.hasPrefix("rt.") || v.hasPrefix("sg.") || v.hasPrefix("bt.") || v.hasPrefix("rh.") || v.hasPrefix("rd.") || v.hasPrefix("dl.") || v.hasPrefix("ai.") || v.hasPrefix("tk.") || v.hasPrefix("share.") || v.hasPrefix("fv.") { actPublisher.send(TabAction(tab: "home", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else { call(a.v ?? "") }
         default:

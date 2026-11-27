@@ -8,6 +8,24 @@ final class ShopModel: ObservableObject {
     @Published var error: String? = nil
     @Published var cat: String = UserDefaults.standard.string(forKey: "shop.cat") ?? ""
     private var shopRaw: Data? = nil, cfgRaw: Data? = nil
+    /// s481: 상품을 누르면 뜨는 확인 카드(엔진 /screen/dlg kind:shopgo). 예 → 쿠팡 주소를 연다 · 아니오 · 바깥 → 닫기. 못 받으면 예전처럼 바로 연다.
+    @Published var dlg: Screen? = nil
+    private var goUrl: String? = nil, asking = false
+
+    func ask(url: String, name: String, img: String) async {
+        guard dlg == nil, !asking else { return }
+        asking = true; defer { asking = false }
+        let body = "{\"cap\":\(Servers.cap),\"f\":{\"kind\":\"shopgo\",\"n\":\(Json.q(name)),\"i\":\(Json.q(img))}}"
+        if let s = try? await Net.screen("/screen/dlg", body: body) { goUrl = url; dlg = s }
+        else { Self.openLink(url) }
+    }
+    func dlgAct(_ v: String) {
+        if v == "dl.keep" { return }                                  // 카드 안의 그림을 눌러도 닫지 않는다
+        let u = goUrl
+        dlg = nil; goUrl = nil
+        if v == "dl.ok", let u = u { Self.openLink(u) }
+    }
+    private static func openLink(_ u: String) { if let url = URL(string: u), url.scheme == "https" { UIApplication.shared.open(url) } }
 
     func setCat(_ c: String) { cat = c; UserDefaults.standard.set(c, forKey: "shop.cat"); Task { await load(fetch: false) } }
 
@@ -39,9 +57,15 @@ struct ShopTab: View {
             if let s = m.screen { ScreenBody(screen: s, pal: pal) }
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
             if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
+            if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0) } }
         }
         .task { LocationStore.shared.start(); await m.load() }
-        .onReceive(host.actPublisher) { x in if x.tab == "shop" && x.a == "cat" { m.setCat(x.v) } }
+        .onReceive(host.actPublisher) { x in
+            guard x.tab == "shop" else { return }
+            if x.a == "cat" { m.setCat(x.v) }
+            else if x.a == "open" { Task { await m.ask(url: x.v, name: x.t, img: x.id) } }
+            else if x.a == "call", x.v.hasPrefix("dl.") { m.dlgAct(x.v) }
+        }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
     }
 }
