@@ -144,6 +144,6 @@ enum RecoFlow {
         if UIApplication.shared.applicationState == .active, await host.showReco(title: title, text: text, ad: ad) { return }
         let c = UNMutableNotificationContent()
         c.title = title; c.body = text; c.sound = .default
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "reco", content: c, trigger: nil))
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "reco", content: c, trigger: nil), withCompletionHandler: nil)
     }
 }
