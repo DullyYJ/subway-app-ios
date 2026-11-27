@@ -49,7 +49,7 @@ final class ShopModel: ObservableObject {
         body += ",\"shop\":\(shopText)"
         if let c = cfgRaw, let t = String(data: c, encoding: .utf8) { body += ",\"cfg\":\(t)" }
         body += "}"
-        do { let s = try await Net.screen("/screen/shop", body: body); screen = s; error = nil; ScreenCache.shared.put(ckey, s) }
+        do { let s = try await Net.screen("/screen/shop", body: body); screen = s; error = nil; ScreenCache.shared.put(ckey, s); ImageStore.shared.warm(ImageStore.urls(in: s.raw)) }          // 상품 그림은 화면이 오자마자 미리 받아 둔다
         catch { self.error = error.localizedDescription }
     }
 }

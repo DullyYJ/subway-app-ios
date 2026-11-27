@@ -40,12 +40,9 @@ private struct CardView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8).fill(nodeColor(pal, "imgbg", "card2"))
                     if let u = img {
-                        AsyncImage(url: u) { ph in
-                            switch ph {
-                            case .success(let i): ZStack { RoundedRectangle(cornerRadius: 8).fill(nodeColor(pal, "white", "card")); i.resizable().scaledToFit() }
-                            default: Text(fb).font(Typo.font(26))
-                            }
-                        }
+                        RemoteImage(url: u, placeholder: { Text(fb).font(Typo.font(26)) }, content: { i in
+                            ZStack { RoundedRectangle(cornerRadius: 8).fill(nodeColor(pal, "white", "card")); i.resizable().scaledToFit() }
+                        })
                     } else { Text(fb).font(Typo.font(26)) }
                 }
                 .frame(height: 78).clipShape(RoundedRectangle(cornerRadius: 8))

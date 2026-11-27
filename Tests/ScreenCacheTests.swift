@@ -28,3 +28,12 @@ final class ScreenCacheTests: XCTestCase {
         XCTAssertNil(ScreenCache.shared.get(key2))                                                       // 지연 안내는 담지 않는다
     }
 }
+
+final class ImageUrlsTests: XCTestCase {
+    func testUrlsInScreen() {
+        let raw: [String: Any] = ["body": [["t": "cards", "cells": [["img": "https://a.example/1.jpg", "name": "x"], ["img": "https://a.example/1.jpg"], ["img": "ftp://no", "name": "y"], ["img": "https://a.example/2.png"]]]]]
+        let u = ImageStore.urls(in: raw)
+        XCTAssertEqual(u.map { $0.absoluteString }, ["https://a.example/1.jpg", "https://a.example/2.png"])           // 같은 주소는 한 번 · http 가 아닌 것은 뺀다
+        XCTAssertEqual(ImageStore.urls(in: raw, limit: 1).count, 1)
+    }
+}
