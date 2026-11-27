@@ -1,12 +1,22 @@
 # 길동무 iOS — HANDOFF
 
-최종 갱신: 2026-11-07 (Claude Sonnet 5.5 인계 세션)
+최종 갱신: 2026-11-27 (안드로이드와 똑같이 맞추기 세션 — 아래 '2026-11-27' 절)
 
 ## 한눈에
 - 부모 앱: 이 저장소(DullyYJ/subway-app-ios), SwiftUI. 안드로이드 원본은 DullyYJ/subway-app (branch native-shell).
 - 키즈 앱: DullyYJ/gildongmu-kids-ios (SwiftUI 1차 완성, 시뮬레이터 실행 확인: 가족대화·퀘스트·홈 장면·설정). CI가 이 저장소를 `parent/`로 받아 tools/vendor.sh로 Core·UI·Scene·chars3d를 복사해 쓴다.
 - 원칙: 앱은 그리기만, 계산은 엔진(서버). 화면 JSON은 Cloudflare Worker가 내려준다. 메인 스레드 부하 0.
 - 맥이 없으므로 모든 빌드는 GitHub Actions(macos-latest).
+
+## 2026-11-27 안드로이드와 똑같이 맞추기 (YJ: "모든 기능 똑같이 · 맥북 없이 IPA 로 설치해서 시험")
+- **IPA**: `.github/workflows/ipa.yml` — main 푸시마다 서명 없는 실기기 IPA 를 만들어 GitHub 릴리스 `ios-latest`(prerelease)에 올린다. `Gildongmu-unsigned.ipa`(위젯 확장 포함) · `Gildongmu-noext.ipa`(확장 뺀 것 — 무료 Apple ID 로 확장 서명이 안 될 때). 윈도우에서 Sideloadly 로 내 Apple ID 서명 후 설치(7일마다 다시, USB 케이블, 개발자 모드 켜기). `gh release view` 는 GraphQL 이 막혀 `gh api repos/DullyYJ/subway-app-ios/releases/tags/ios-latest` 로 확인.
+- **서버는 공용**: route-v2 엔진 서버는 안드로이드 · iOS 가 같이 쓴다(YJ: "서버는 최신이니까 건들지마" — 엔진 배포는 요청 없이 하지 않는다).
+- 옮긴 것(안드로이드 대응 파일): 쇼핑 상품 누르면 그림 + '쿠팡앱으로 연결하시겠습니까?' 카드(ShellActivity.shopGo → Host.handle open / ShopModel) · 경로 이탈 팝업(rerouteAsk → HomeModel.rerouteAsk) · 잠깐 뜨는 안내 카드(pop → Host.showPop) · 하차 7분 전 추천 흐름 전체(RideCore.recoBody · RecoNotify · ShopRecent · RecoGo → Sources/Ride/RecoFlow.swift, 앱이 앞이면 팝업·아니면 알림) · 중간 환승 버스 고르기(legAsk · busSwap → HomeModel.legAsk · RideLoop.board/busSwap/applySwap) · 출퇴근 브리핑 알림(CmCore · CommuteAlarm → Sources/Core/CmCore.swift · Sources/Ride/CommuteAlarm.swift · SettingsTab 의 cm 패널 · Host.cmb 브리핑 창 · NotifRouter) · 처음 설치 승인 순서(알림 → 위치 안내 locd → 위치 허용; Sources/Core/FirstRun.swift).
+- 출퇴근 알림의 아이폰 차이: 알림이 울릴 때 앱이 코드를 못 돌린다(안드로이드는 알람 때 /commute-brief 를 받아 띄움). 그래서 /commute-alarm 이 준 시각마다 로컬 알림(최대 14+14, 식별자 `cm.morn.N`/`cm.eve.N`)을 걸고, 12시간 안의 가장 가까운 알림만 앱을 열 때 엔진 글로 본문을 채운다. 나머지는 짧은 안내 글 → 알림을 누르면 그때 엔진 글을 새로 받아 가운데 창에 보인다(Host.cmbOpen). 앱을 열 때마다(scenePhase active) 4주 창을 다시 민다. '지금 미리보기' 는 `cm.test` 로 1초 뒤 알림.
+- 설정 화면 사실: `cm`/`cmi`/`cmh`/`cmf`(CmCore.inlineFacts)/`pgs:["cm"]` 를 실어 엔진이 출퇴근 패널을 설정 화면 안에 펼치게 한다. 장소 입력칸(inbar key `cmp.*`)은 focus/blur/input 을 알리고(NodeView3.InbarNode), 버스정류장 후보는 `/suggest?k=b`(CommuteAlarm.busSearch).
+- 시험 인자: `-skipSetup` = 처음 설치 승인(알림·위치 안내)을 건너뜀(CI 화면 찍기용, ios.yml 의 모든 simctl launch 에 붙어 있다).
+- 아직 안 옮긴 것(우선순위 순): 탭 스와이프 · 화면 동작 대조, 테마·글꼴·여백·애니메이션 화면 대조(스크린샷 나란히), 위젯(안드로이드 6종 · iOS 는 Live Activity 1종), 푸시(APNs — 유료 Apple 계정 필요), 구독(StoreKit — 상품 설정 필요), PerfLog, 개발자 도구(dev 페이지), 갤럭시 전용 안내(sam/ovl/bat — iOS 해당 없음).
+- 단위 시험 추가: CmCoreTests · RideSwapTests · ParseTests.testShopCardActionCarriesNameAndImage.
 
 ## 장면 엔진 이식 (Sources/Scene)
 안드로이드 SceneCore(Java)를 1:1로 Swift로 옮겼다. 전부 타입체크 통과.
