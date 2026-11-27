@@ -276,8 +276,10 @@ struct MapTab: View {
                         Group {
                             if let s = m.stnScreen { ScreenBody(screen: s, pal: pal, eager: !m.ttMode) } else { ProgressView().frame(height: 120) }
                         }
-                        .frame(maxWidth: 520).frame(maxHeight: 520).fixedSize(horizontal: false, vertical: true)
-                        .frame(height: m.ttMode ? UIScreen.main.bounds.height * 0.62 : nil, alignment: .top)
+                        .frame(maxWidth: 520)
+                        // 시간표는 화면 62% 높이로 고정하고 목록이 그 안을 채워 스크롤한다(안 그러면 목록이 첫 줄만 보이고 잘린다). 역 팝업은 내용 높이(최대 520).
+                        .frame(minHeight: m.ttMode ? UIScreen.main.bounds.height * 0.62 : nil, maxHeight: m.ttMode ? UIScreen.main.bounds.height * 0.62 : 520, alignment: .top)
+                        .fixedSize(horizontal: false, vertical: !m.ttMode)
                         .background(pal.color("card") ?? .black)
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
                     }
