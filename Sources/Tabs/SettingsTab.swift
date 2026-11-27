@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 /// 설정 방식(안드로이드 ShellCore.settingsFacts · routeSettings): 기기 사실을 GET /screen/settings?f= 에 실어 보내면 엔진이 화면을 만든다.
 /// 스위치(set) · 테마(sel) · 아이디(saveId/clearId) · 약관 하위 화면(pol.*)을 여기서 처리한다. 안드로이드 전용 하위 화면은 pgs 에서 빼서 엔진이 감춘다.
@@ -18,7 +19,7 @@ final class SettingsModel: ObservableObject {
         let rl = ud.string(forKey: "ride_log_off") == "1" ? 0 : 1
         let cm = CmCore.on() ? 1 : 0
         // cmi/cmh/cmf: 출퇴근 브리핑을 설정 화면 안에 펼친다(안드로이드 ShellCore.settingsFacts). pgs: 이 앱이 열 수 있는 하위 화면(나머지 줄은 엔진이 감춘다)
-        return "{\"id\":\(Json.q(id)),\"np\":{\(np)},\"ovl\":0,\"sam\":0,\"samw\":0,\"cm\":\(cm),\"cmi\":1,\"cmh\":1,\"cmf\":\(CmCore.inlineFacts()),\"errn\":0,\"pgs\":[\"cm\"],\"rl\":\(rl),\"th\":\(Json.q(theme))}"
+        return "{\"id\":\(Json.q(id)),\"np\":{\(np)},\"ovl\":0,\"sam\":0,\"samw\":0,\"cm\":\(cm),\"cmi\":1,\"cmh\":1,\"cmf\":\(CmCore.inlineFacts()),\"errn\":0,\"pgs\":[\"cm\",\"arr\"],\"rl\":\(rl),\"th\":\(Json.q(theme))}"
     }
     private func url(_ p: String? = nil) -> String {
         let f = facts().addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
@@ -88,6 +89,39 @@ final class SettingsModel: ObservableObject {
             }
         }
     }
+    // MARK: 하차 7분 전 추천 시험(안드로이드 ShellActivity.testReco · pageUrlArr) — 글은 엔진이 만들고, 앱은 그 시간대의 실제 알림과 같은 내용을 알림으로 띄워 줄 뿐
+    private func arrFacts(stat: Bool, policy: Bool) -> String {
+        var b = "{\"pf\":{\"nat\":true,\"nv\":true"
+        if stat {
+            let rl = RideLoop.shared
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            b += ",\"st\":{\"timer\":\(rl.running),\"route\":\(rl.recoInfo != nil),\"pre\":7,\"tzo\":-540,\"policy\":\(policy)"
+            if let r = rl.recoInfo { b += ",\"dest\":\(Json.q(r.dest)),\"rem\":\(max(0, min(86400, Int((r.arr - now) / 1000))))" }
+            if RecoFlow.sentAt > 0 { b += ",\"alertAt\":\(RecoFlow.sentAt)" }
+            if !RecoFlow.stage.isEmpty { b += ",\"dg\":{\"stage\":\(Json.q(RecoFlow.stage))" + (RecoFlow.stageAt > 0 ? ",\"at\":\(RecoFlow.stageAt)" : "") + "}" }
+            b += "}"
+        }
+        return b + "}}"
+    }
+    private func openArr(stat: Bool) {
+        subOpen = true; if !stat { sub = nil }
+        Task {
+            let st = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+            let policy = st == .authorized || st == .provisional || st == .ephemeral
+            let f = arrFacts(stat: stat, policy: policy).addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
+            if let d = try? await Net.request("GET", Servers.base + "/screen/settings?cap=\(Servers.cap)&p=arr&f=" + f, timeout: 9), let s = try? Screen.parse(d) { sub = s }
+        }
+        arrStat = stat
+    }
+    private var arrStat = false
+    private func testReco(_ kind: String, host: Host) {
+        host.say("추천 알림을 만드는 중이에요")
+        Task {
+            let r = await RecoFlow.send(body: RecoFlow.testBody(kind: kind, nowMs: Int64(Date().timeIntervalSince1970 * 1000)), host: host, loc: nil, notifyOnly: true)
+            if !r.sent { host.say("추천을 받지 못했어요") }
+            if subOpen { openArr(stat: arrStat) }          // 상태 확인을 켜 둔 채면 새 발송 단계로 다시 그린다
+        }
+    }
     private func openSub(_ p: String) {
         subOpen = true; sub = nil
         Task { if let d = try? await Net.request("GET", url(p), timeout: 9), let s = try? Screen.parse(d) { sub = s } }
@@ -122,11 +156,14 @@ final class SettingsModel: ObservableObject {
             case "clearId":
                 ud.set("", forKey: "comm_id"); host.clearField("cid"); host.say("아이디가 삭제되었어요"); Task { await load() }
             case "pg.back": subOpen = false
+            case "pg.arr": openArr(stat: false)
+            case "arr.stat": openArr(stat: true)
             case "pol.privacy": openSub("polp")
             case "pol.location": openSub("poll")
             case "pol.opensource": openSub("polo")
             default:
-                if x.v.hasPrefix("tab.") { host.call(x.v) } else { host.say("아직 옮기는 중이에요") }
+                if let k = RecoFlow.testKind(x.v) { testReco(k, host: host) }
+                else if x.v.hasPrefix("tab.") { host.call(x.v) } else { host.say("아직 옮기는 중이에요") }
             }
         case "web": host.say("아직 옮기는 중이에요")
         default: break

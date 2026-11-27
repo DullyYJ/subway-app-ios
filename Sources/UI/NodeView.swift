@@ -265,7 +265,7 @@ struct ChipView: View {
         let actD = item["act"] as? [String: Any]
         var on = (item["on"] as? Bool) ?? false
         if (actD?["a"] as? String) == "cat", let v = actD?["v"] as? String, let p = pick.picks[ChipPick.rowKey(node.items)] { on = (v == p) }          // 누른 칩을 새 화면 전에 먼저 켠다
-        let plain = (item["pl
+        let plain = (item["pl"] as? Bool) ?? false
         let fs = CGFloat(node.num("fs", 12)), px = CGFloat(node.num("px", 12)), h = CGFloat(node.num("h", 30))
         let onRole = (item["c"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? node.str("onc").flatMap { $0.isEmpty ? nil : $0 } ?? "orange"
         let onFill = pal.color(onRole) ?? pal.color("orange") ?? .orange

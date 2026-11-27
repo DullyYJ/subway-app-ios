@@ -36,6 +36,9 @@ jobs:
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee build.log | tail -40
           test ${PIPESTATUS[0]} -eq 0
+      - name: 오류 줄 보기 (빌드가 실패했을 때만)
+        if: failure()
+        run: grep -E "error:" build.log | sed -E 's#/Users/runner/work/[^/]+/[^/]+/##' | sort -u | head -40 || true
       - name: .ipa 묶기 (확장 포함 · 확장 뺀 것)
         run: |
           APP=$(find build/Build/Products -name 'Gildongmu.app' -maxdepth 3 | head -1)

@@ -121,27 +121,45 @@ enum RecoFlow {
         else { openWeb() }
     }
 
+    // MARK: 시험 알림(설정 > 하차 7분 전 추천 — 안드로이드 ShellCore.arrTestBody)
+    /// 그 시간대에 드는 한국시간 시각(커피 08:30 · 점심 12:30 · 야식 19:30 · 쇼핑 22:00)을 도착 시각으로, 그 5분 전을 '지금'으로 엔진에 알려 준다. 도착지는 강남역 좌표. 글은 엔진이 만든다.
+    nonisolated static func testBody(kind: String, nowMs: Int64) -> String {
+        let min: Int64 = kind == "morning" ? 8 * 60 + 30 : (kind == "lunch" ? 12 * 60 + 30 : (kind == "night" ? 19 * 60 + 30 : 22 * 60))
+        let kst: Int64 = 9 * 3600000, day: Int64 = 86400000
+        let arr = ((nowMs + kst) / day) * day - kst + min * 60000
+        return "{\"arrMs\":\(arr),\"nowMs\":\(arr - 5 * 60000),\"dest\":\"강남\",\"seed\":\(abs(nowMs / 1000) % 2147483647),\"loc\":{\"lat\":37.4979,\"lng\":127.0276},\"foodPref\":\"server\",\"aiCopy\":1,\"pickShop\":1}"
+    }
+    nonisolated static func testKind(_ v: String) -> String? {
+        guard v.hasPrefix("arr.t.") else { return nil }
+        let k = String(v.dropFirst(6))
+        return ["morning", "lunch", "night", "shop"].contains(k) ? k : nil
+    }
+    /// 상태 확인에 보일 마지막 발송 단계(안드로이드 RideService.recoStage).
+    static var stage = "", stageAt: Int64 = 0, sentAt: Int64 = 0
+
     // MARK: 보내기
     /// /reco-text 를 받아(최대 두 번) 앱이 앞이면 팝업 · 아니면 알림으로 보인다. 보였으면 sent=true(+ 추천 줄), 보낼 글이 없는 시간대면 false.
-    @MainActor static func send(body: String, host: Host, loc: (Double, Double)?) async -> (sent: Bool, ad: Ad?) {
+    @MainActor static func send(body: String, host: Host, loc: (Double, Double)?, notifyOnly: Bool = false) async -> (sent: Bool, ad: Ad?) {
         let now = Int64(Date().timeIntervalSince1970 * 1000)
         let stored = UserDefaults.standard.string(forKey: recentKey) ?? ""
         let b = inject(body, names: recentNames(stored: stored, now: now))
         for _ in 0..<2 {
             guard let d = try? await Net.request("POST", Servers.base + "/reco-text", body: b, timeout: 9), let o = Json.obj(d) as? [String: Any] else { continue }
-            guard let (title, text) = parseText(o) else { return (false, nil) }
+            guard let (title, text) = parseText(o) else { stage = "보낼 시간대 아님"; stageAt = now; return (false, nil) }
             let ad = parseAd(o, loc: loc) ?? textAd(title, text)
-            await deliver(title: title, text: text, ad: ad, host: host)
+            await deliver(title: title, text: text, ad: ad, host: host, notifyOnly: notifyOnly)
+            stage = notifyOnly ? "시험 알림 보냄" : "바로 받아 보냄"; stageAt = now; sentAt = now
             if let nm = (o["shopItem"] as? [String: Any])?["n"] as? String, !nm.isEmpty {
                 UserDefaults.standard.set(recentAdd(stored: stored, name: nm, now: now), forKey: recentKey)
             }
             return (true, ad)
         }
+        stage = "받기 실패"; stageAt = now
         return (false, nil)
     }
 
-    @MainActor private static func deliver(title: String, text: String, ad: Ad?, host: Host) async {
-        if UIApplication.shared.applicationState == .active, await host.showReco(title: title, text: text, ad: ad) { return }
+    @MainActor private static func deliver(title: String, text: String, ad: Ad?, host: Host, notifyOnly: Bool) async {
+        if !notifyOnly, UIApplication.shared.applicationState == .active, await host.showReco(title: title, text: text, ad: ad) { return }
         let c = UNMutableNotificationContent()
         c.title = title; c.body = text; c.sound = .default
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "reco", content: c, trigger: nil), withCompletionHandler: nil)

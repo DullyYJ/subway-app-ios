@@ -35,6 +35,8 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var pendingAct = ""
     /// 하차 추천: 한 여정에 한 번만 보낸다(통신이 실패하면 두 번까지 다시). 보낼 때는 엔진이 정한 reco 를 그대로 /reco-text 에 싣는다.
     private var recoSent = false, recoLive = false, recoRetry = 0, rcRetry = false
+    /// 설정 > 하차 추천 '상태 확인'이 보여 줄 값: 엔진이 알려 준 도착지 · 도착 시각.
+    private(set) var recoInfo: (dest: String, arr: Int64)? = nil
     private var pendingAd: RecoFlow.Ad? = nil, inFlightAd: RecoFlow.Ad? = nil, rcDisAny = false          // 엔진에 아직 못 알린 추천 줄 · 보내는 중인 줄 · 사용자가 처리한 추천
     weak var host: Host? = nil
 
@@ -56,7 +58,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         stop()
         self.stateJson = stateJson; fixes = []; lastSentTs = 0
         pendingSwap = ""; board = Board()
-        self.text = text; rowJson = ""; dtJson = ""; cur = -1; posJson = "null"; arrJson = "null"; waitJson = ""; pendingAct = ""; recoSent = false; recoLive = false; recoRetry = 0; rcRetry = false; pendingAd = nil; inFlightAd = nil; rcDisAny = false
+        self.text = text; rowJson = ""; dtJson = ""; cur = -1; posJson = "null"; arrJson = "null"; waitJson = ""; pendingAct = ""; recoSent = false; recoLive = false; recoRetry = 0; rcRetry = false; recoInfo = nil; pendingAd = nil; inFlightAd = nil; rcDisAny = false
         rebuild()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         mgr.requestWhenInUseAuthorization()
@@ -119,7 +121,10 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let on = m["ongoing"] as? [String: Any], let t = on["text"] as? String { text = t }
         if let rw = m["row"] as? [String: Any] { rowJson = js(rw) } else { rowJson = "" }
         if let c = m["curIdx"] as? NSNumber { cur = c.intValue }
-        if let rc = m["reco"] as? [String: Any], let b = RecoFlow.body(rc) { fireReco(b, loc: Self.recoLoc(rc)) }
+        if let rc = m["reco"] as? [String: Any] {
+            if let arr = (rc["arrMs"] as? NSNumber)?.int64Value { recoInfo = (RecoFlow.str(rc["dest"], 40), arr) }
+            if let b = RecoFlow.body(rc) { fireReco(b, loc: Self.recoLoc(rc)) }
+        }
         let off = m["off"] as? [String: Any]
         offStn = String(((off?["stn"] as? String) ?? "").prefix(24))          // 역 이름을 먼저 — offAt 을 받아 보는 쪽이 둘을 함께 읽는다
         offAt = (off?["at"] as? NSNumber)?.int64Value ?? 0

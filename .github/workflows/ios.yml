@@ -50,6 +50,9 @@ jobs:
           xcodebuild test -project Gildongmu.xcodeproj -scheme Gildongmu \
             -destination "id=$UDID" -derivedDataPath build \
             -resultBundlePath build/result.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | tail -60
+      - name: 오류 줄 보기 (빌드 · 시험이 실패했을 때만)
+        if: failure()
+        run: grep -E "error:|Test Case.*failed|XCTAssert" build.log | sed -E 's#/Users/runner/work/[^/]+/[^/]+/##' | sort -u | head -40 || true
       - name: 실행 화면 캡처
         if: always()
         run: |

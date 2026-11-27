@@ -437,16 +437,32 @@ final class HomeModel: ObservableObject {
         let qs = "SX=\(num(s.lng))&SY=\(num(s.lat))&EX=\(num(d.lng))&EY=\(num(d.lat))&baseMs=\(base)" + (picked ? "&bf=1" : "")
             + "&SN=\(enc(String((s.qname.isEmpty ? s.name : s.qname).prefix(60))))&EN=\(enc(String((d.qname.isEmpty ? d.name : d.qname).prefix(60))))"
         seqRoute += 1; let my = seqRoute
-        routing = true; await load()
+        routing = true; rloadShow(); await load()
         let data = try? await Net.request("GET", Servers.base + "/route-v2-app?" + qs, timeout: 30)
         guard my == seqRoute else { return }
         routing = false
         guard let data = data, let raw = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
               raw.count > 2, raw.hasPrefix("{"), raw.hasSuffix("}") else {
-            host.say("경로를 찾지 못했어요. 잠시 뒤에 다시 해 주세요"); await load(); return
+            rload = nil; host.say("경로를 찾지 못했어요. 잠시 뒤에 다시 해 주세요"); await load(); return
         }
         routeRaw = raw; resTab = "fast"; resA = s.qname.isEmpty ? text[0] : s.qname; resB = text[1]; resRb = base; resBt = picked ? baseMs : -1
         await load()
+        rload = nil                                                // 결과가 그려진 뒤에 로딩 카드를 닫는다(안드로이드 rloadHideSoon)
+    }
+
+    // MARK: 경로 탐색 로딩 카드(안드로이드 rloadShow — 카드 모양 · 글 · 뛰어가는 캐릭터는 엔진 /screen/dlg kind:rload 가 정한다. 앱은 보이고 숨기기만 한다)
+    @Published var rload: Screen? = nil
+    private var rloadCache: Screen? = nil
+    func rloadPrefetch() async {
+        guard rloadCache == nil else { return }
+        let body = "{\"cap\":\(Servers.cap),\"f\":{\"kind\":\"rload\"}}"
+        if let sc = try? await Net.screen("/screen/dlg", body: body) { rloadCache = sc }
+    }
+    private func rloadShow() {
+        guard let c = rloadCache else { Task { await rloadPrefetch() }; return }          // 아직 못 받았으면 이번엔 카드 없이 — 다음부터
+        rload = c
+        let mine = seqRoute
+        Task { try? await Task.sleep(nanoseconds: 50_000_000_000); if seqRoute == mine { rload = nil } }          // 어떻게 끝나든 50초 뒤엔 닫는다
     }
 
     /// 결과 화면의 눌림(rh.*): 탭 바꾸기 · 닫기만 이번 단계. 확정 · 세부경로 · 즐겨찾기 · 안내 종료는 다음 단계.
@@ -646,9 +662,10 @@ struct HomeTab: View {
             if m.showDetail { DetailSheet(m: m, pal: pal) }
             if m.showTimePick { TimePickCard(m: m, pal: pal) { m.commitBase(host: host) } }
             if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0, host: host) } }
+            if let r = m.rload { DlgCard(screen: r, pal: pal) { _ in } }          // 경로 탐색 로딩 카드(바깥을 눌러도 안 닫힌다)
             FavLayer(fav: m.fav, pal: pal)
         }
-        .task { LocationStore.shared.start(); await m.load(); await m.startDemo(host: host) }
+        .task { LocationStore.shared.start(); await m.rloadPrefetch(); await m.load(); await m.startDemo(host: host) }
         .task { while !Task.isCancelled { try? await Task.sleep(nanoseconds: 30_000_000_000); m.tick() } }
         .task { while !Task.isCancelled { await m.pollTalks(); try? await Task.sleep(nanoseconds: 5_000_000_000) } }
         .onReceive(host.actPublisher) { x in
