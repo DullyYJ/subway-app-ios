@@ -16,15 +16,77 @@ final class SettingsModel: ObservableObject {
         let np = SettingsModel.notif.map { "\(Json.q($0)):\(ud.string(forKey: "np_" + $0) == "0" ? 0 : 1)" }.joined(separator: ",")
         let id = ud.string(forKey: "comm_id") ?? ""
         let rl = ud.string(forKey: "ride_log_off") == "1" ? 0 : 1
-        return "{\"id\":\(Json.q(id)),\"np\":{\(np)},\"ovl\":0,\"sam\":0,\"samw\":0,\"cm\":0,\"errn\":0,\"pgs\":[],\"rl\":\(rl),\"th\":\(Json.q(theme))}"
+        let cm = CmCore.on() ? 1 : 0
+        // cmi/cmh/cmf: 출퇴근 브리핑을 설정 화면 안에 펼친다(안드로이드 ShellCore.settingsFacts). pgs: 이 앱이 열 수 있는 하위 화면(나머지 줄은 엔진이 감춘다)
+        return "{\"id\":\(Json.q(id)),\"np\":{\(np)},\"ovl\":0,\"sam\":0,\"samw\":0,\"cm\":\(cm),\"cmi\":1,\"cmh\":1,\"cmf\":\(CmCore.inlineFacts()),\"errn\":0,\"pgs\":[\"cm\"],\"rl\":\(rl),\"th\":\(Json.q(theme))}"
     }
     private func url(_ p: String? = nil) -> String {
         let f = facts().addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
         return Servers.base + "/screen/settings?cap=\(Servers.cap)" + (p.map { "&p=\($0)" } ?? "") + "&f=" + f
     }
+    private var loadSeq = 0
     func load() async {
-        do { let d = try await Net.request("GET", url(), timeout: 9); screen = try Screen.parse(d); error = nil }
+        loadSeq += 1
+        let my = loadSeq
+        do {
+            let d = try await Net.request("GET", url(), timeout: 9)
+            let sc = try Screen.parse(d)
+            if my == loadSeq { screen = sc; error = nil }          // 더 새 요청이 나갔으면 늦게 온 옛 답은 버린다(글자를 칠 때마다 다시 받는다)
+        }
         catch { if screen == nil { self.error = "설정을 받지 못했어요" } }
+    }
+
+    // MARK: 출퇴근 브리핑(안드로이드 ShellActivity.cmInlineAct · cmText · cmReload) — 저장은 CmCore, 글 · 시각은 엔진
+    private var typed: [String: String] = [:]
+    private var editTask: Task<Void, Never>? = nil
+    private func cmAct(_ a: String, _ v: String?, _ key: String?, on: Bool, q: String?, host: Host) {
+        let r = CmCore.shared.act(a, v: v, key: key, on: on, q: q)
+        cmApply(r, host: host)
+    }
+    private func cmApply(_ r: Int, host: Host) {
+        let c = CmCore.shared
+        if r & CmCore.R.resched != 0 { Task { await CommuteAlarm.reschedule() } }
+        if r & CmCore.R.test != 0 { host.say("브리핑을 만드는 중이에요"); Task { await CommuteAlarm.sendPreview(host: host) }; return }
+        if c.sub == "tp" { loadTp(host: host); return }                 // 시각 고르기는 가운데 팝업
+        if host.cmPop != nil { host.cmPop = nil }
+        if r & CmCore.R.bus != 0 {
+            let q = c.pkQ
+            Task { await load(); if await CommuteAlarm.busSearch(q) { await load() } }          // 지하철 후보는 엔진이 바로 · 버스정류장은 찾아 오는 대로 한 번 더
+            return
+        }
+        if r & CmCore.R.render != 0 { Task { await load() } }
+    }
+    private func loadTp(host: Host) {
+        let c = CmCore.shared
+        c.pop = true
+        Task {
+            if let d = try? await Net.request("GET", CommuteAlarm.pageUrl("cm", c.pageFacts()), timeout: 9), let sc = try? Screen.parse(d) { host.cmPop = sc }
+        }
+    }
+    private func cmText(_ k: String, _ value: String, _ kind: String, host: Host) {
+        typed["cmp." + k] = value
+        let c = CmCore.shared
+        if kind == "focus" { c.focusInline(k, value); return }
+        if kind == "input" {
+            guard c.inl, c.pkK == k else { return }                     // 손가락이 들어온 칸의 글자만(화면이 칸 값을 다시 넣을 때는 무시)
+            editTask?.cancel()
+            editTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 120_000_000)
+                if Task.isCancelled { return }
+                guard let self = self else { return }
+                let r = CmCore.shared.onInline(k, value)
+                self.cmApply(r, host: host)
+            }
+            return
+        }
+        if kind == "blur" {
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 350_000_000)         // 후보 줄을 누른 게 아니면(그러면 이미 저장돼 있다) 친 글자를 그대로 자동 저장
+                guard let self = self else { return }
+                let r = CmCore.shared.blurInline(k, self.typed["cmp." + k] ?? value)
+                self.cmApply(r, host: host)
+            }
+        }
     }
     private func openSub(_ p: String) {
         subOpen = true; sub = nil
@@ -32,7 +94,10 @@ final class SettingsModel: ObservableObject {
     }
     func handle(_ x: Host.TabAction, host: Host) {
         switch x.a {
+        case "input", "focus", "blur":
+            if x.key.hasPrefix("cmp.") { cmText(String(x.key.dropFirst(4)), x.v, x.a, host: host) }
         case "set":
+            if x.key == "cm" { cmAct("set", nil, "cm", on: x.on, q: nil, host: host); return }
             if x.key.hasPrefix("n.") {
                 let k = String(x.key.dropFirst(2))
                 if SettingsModel.notif.contains(k) { ud.set(x.on ? "1" : "0", forKey: "np_" + k); Task { await load() } }
@@ -40,6 +105,13 @@ final class SettingsModel: ObservableObject {
         case "sel":
             if x.v == "dark" || x.v == "pastel" { ud.set(x.v, forKey: "theme"); Task { await load() } }
         case "call":
+            if x.v.hasPrefix("cm.") || x.v.hasPrefix("pk.") || x.v.hasPrefix("tp.") {
+                var q: String? = nil
+                if x.v.hasPrefix("pk.save.") { q = typed["cmp." + String(x.v.dropFirst(8))] ?? "" }
+                else if x.v == "pk.n" { q = x.id }
+                cmAct("call", x.v, nil, on: false, q: q, host: host)
+                return
+            }
             switch x.v {
             case "saveId":
                 let raw = ud.string(forKey: "field.cid") ?? ""

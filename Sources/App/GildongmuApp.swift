@@ -1,10 +1,12 @@
 import SwiftUI
 import UIKit
 import CoreLocation
+import UserNotifications
 
 @main
 struct GildongmuApp: App {
     init() {
+        UNUserNotificationCenter.current().delegate = NotifRouter.shared          // 알림 배너를 앞에서도 보이고, 출퇴근 알림을 누르면 앱 안 브리핑 창을 연다
         // 시험용: `-demoRide moving` 으로 켜면 견본 overlay 로 다이내믹 아일랜드를 바로 띄운다(클라우드 맥 화면 확인용).
         let a = CommandLine.arguments
         if let i = a.firstIndex(of: "-demoRide"), i + 1 < a.count {

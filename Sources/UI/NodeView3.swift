@@ -74,6 +74,9 @@ struct InbarNode: View {
         }
         .frame(height: h)
         .onChange(of: text) { v in host.actPublisher.send(Host.TabAction(tab: host.tab, a: "input", v: v, id: "", key: key)) }
+        .onChange(of: focused) { f in           // 설정의 출퇴근 장소 칸(cmp.*)만: 손가락이 들어오고 나감을 알린다(안드로이드 cmText focus · blur)
+            if key.hasPrefix("cmp.") { host.actPublisher.send(Host.TabAction(tab: host.tab, a: f ? "focus" : "blur", v: text, id: "", key: key)) }
+        }
         .onChange(of: node.str("value") ?? "") { v in if !focused && v != text { text = v } }
         .onChange(of: host.reloadTick) { _ in }
     }

@@ -31,6 +31,28 @@ final class Host: ObservableObject {
         RideLoop.shared.recoDone()
         if v == "dl.go" || v == "dl.ok", let ad = ad { RecoFlow.open(ad) }
     }
+    /// 출퇴근 브리핑 창(설정 p=cmb — 안드로이드 ShellActivity.briefLaunch): 알림을 누르면 가운데 창에 글을 보이고 [확인] · [출근하기]/[퇴근하기]. 글은 엔진이 만든 것을 그대로 쓴다.
+    @Published var cmb: Screen? = nil
+    private var cmbKind = "morn"
+    /// 출·퇴근 시각 고르기 팝업(설정 p=cm sub=tp pop) — 설정 화면이 열고 닫는다.
+    @Published var cmPop: Screen? = nil
+    func cmbOpen(kind: String, title: String, body: String, fresh: Bool) {
+        Task {
+            var k = kind == "eve" ? "eve" : "morn", t = title, b = body
+            if !fresh {                                                  // 미리 걸어 둔 안내 글이면 지금 엔진 글을 새로 받는다
+                if let x = await CommuteAlarm.brief(kind: k) { t = x.0; b = x.1; k = x.2 }
+                else { b = "브리핑을 받지 못했어요. 잠시 뒤에 다시 열어 주세요." }
+            }
+            cmbKind = k
+            let pf = "{\"pf\":{\"cb\":{\"kind\":\(Json.q(k)),\"title\":\(Json.q(t)),\"body\":\(Json.q(b))}}}"
+            if let d = try? await Net.request("GET", CommuteAlarm.pageUrl("cmb", pf), timeout: 9), let sc = try? Screen.parse(d) { cmb = sc }
+            else { say(t) }
+        }
+    }
+    func cmbAct(_ v: String) {
+        cmb = nil
+        if v == "cmb.go" { CommuteAlarm.startRoute(kind: cmbKind, host: self) }
+    }
     func showPop(_ msg: String, _ sub: String, cls: String = "sh") {
         Task {
             let body = "{\"cap\":\(Servers.cap),\"f\":{\"kind\":\"pop\",\"msg\":\(Json.q(msg)),\"sub\":\(Json.q(sub)),\"cls\":\(Json.q(cls))}}"
@@ -74,6 +96,8 @@ final class Host: ObservableObject {
         case "call":
             if let v = a.v, v.hasPrefix("dl."), reco != nil { recoAct(v) }
             else if let v = a.v, Host.isKidsCall(v) { actPublisher.send(TabAction(tab: "kids", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
+            else if let v = a.v, v.hasPrefix("cmb.") { cmbAct(v) }
+            else if let v = a.v, v.hasPrefix("cm.") || v.hasPrefix("pk.") || v.hasPrefix("tp.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("cc.") || v.hasPrefix("nw.") || v.hasPrefix("ch.") || v == "saveId" || v == "clearId" || v.hasPrefix("pol.") || v.hasPrefix("pg.") || v == "errlog" { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
             else if let v = a.v, v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("bd.") || v.hasPrefix("wr.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
