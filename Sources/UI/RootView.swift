@@ -2,9 +2,8 @@ import SwiftUI
 
 struct RootView: View {
     @StateObject private var host = Host()
-    @Environment(\.colorScheme) private var scheme
     @AppStorage("theme") private var theme = ""
-    private var pal: Palette { theme == "dark" ? .dark : theme == "pastel" ? .light : (scheme == .dark ? .dark : .light) }
+    private var pal: Palette { theme == "dark" ? .dark : .light }          // 안드로이드 ShellCore.theme: dark 아니면 모두 파스텔(밝은 쪽) — 폰의 다크 모드를 따라가지 않는다
 
     var body: some View {
         if NodeDemo.on { NodeDemoView(pal: pal) } else { mainBody }
@@ -30,7 +29,7 @@ struct RootView: View {
         .background(pal.color("bg") ?? Color(.systemBackground))
         .kidsHubLayer(pal: pal)            // 반드시 environmentObject(host) 보다 안쪽(먼저) — 층이 Host 를 환경에서 읽는다
         .environmentObject(host)
-        .preferredColorScheme(theme == "dark" ? .dark : theme == "pastel" ? .light : nil)
+        .preferredColorScheme(theme == "dark" ? .dark : .light)
     }
 }
 
