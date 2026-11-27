@@ -259,6 +259,7 @@ struct SwipeSurface: UIViewRepresentable {
             g.delegate = self
             g.cancelsTouchesInView = false
             g.delaysTouchesBegan = false
+            g.delaysTouchesEnded = false
             g.isEnabled = p?.enabled ?? false
             w.addGestureRecognizer(g)
             pan = g; win = w

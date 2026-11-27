@@ -19,18 +19,22 @@ struct ScreenBody: View {
     let screen: Screen
     let pal: Palette
     var swipe: SwipeCfg? = nil
+    var onPull: (() -> Void)? = nil          // 아래로 당겨 새로고침(안드로이드: 노선도 버스 · 맛집만)
     @StateObject private var open = PostOpen()
+    @ViewBuilder private func pullable<C: View>(_ c: C) -> some View {
+        if let f = onPull { c.refreshable { f(); try? await Task.sleep(nanoseconds: 700_000_000) } } else { c }
+    }
     var body: some View {
         VStack(spacing: 0) {
             if !screen.head.isEmpty {
                 VStack(spacing: 0) { ForEach(screen.head) { NodeView(node: $0, pal: pal).environment(\.inHead, true) } }
             }
             SwipeArea(screen: screen, cfg: swipe) {
-                ScrollView {
+                pullable(ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(screen.body) { NodeView(node: $0, pal: pal) }
                     }.padding(.bottom, 24)
-                }
+                })
             }
             if !screen.foot.isEmpty {
                 VStack(spacing: 0) { ForEach(screen.foot) { NodeView(node: $0, pal: pal) } }

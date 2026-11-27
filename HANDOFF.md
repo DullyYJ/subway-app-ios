@@ -73,4 +73,8 @@
 - `ScreenBody`: 머리(head)는 위에 고정 · 꼬리(foot)는 아래에 고정 · 본문만 스크롤(전에는 머리가 같이 스크롤됐고 꼬리는 안 그려졌다).
 - `Sources/UI/ChipPick.swift`: 칩(cat)을 누르거나 밀어서 칸을 넘기면 새 화면 전에 그 칩을 먼저 켠다(안드로이드 pickChip/lightChip). 새 화면이 오면 거둔다. 경로 방식 탭(rh.tab.*) 먼저 켜기(pickRtab)는 아직.
 - 서버는 건드리지 않았다(사용자 지시 "서버는 최신이니까 건들지마").
+- 경로 탐색 로딩 카드(rload): 경로를 찾는 동안 가운데 카드(엔진 /screen/dlg kind:rload — 뛰어가는 캐릭터)를 띄우고 결과가 그려지면 닫는다(`HomeModel.rload`). 처음 한 번은 미리 받아 두고(prefetch), 못 받았으면 그때는 카드 없이.
+- 하차 7분 전 추천 시험(설정 > 하차 7분 전 추천 > 시험 알림 · 상태 확인): `pgs` 에 `arr` 추가, `pg.arr` → 하위 시트(엔진 p=arr), `arr.t.<morning|lunch|night|shop>` → `RecoFlow.testBody` 로 /reco-text 를 받아 알림(앱이 앞이어도 팝업이 아니라 알림), `arr.stat` → 마지막 발송 단계 · 남은 시간(RideLoop.recoInfo) 표시.
+- 아래로 당겨 새로고침: 맛집 · 노선도(버스) 본문(`ScreenBody(onPull:)` → `.refreshable`). 안드로이드는 스프링 모양이지만 iOS 표준 당기기를 쓴다.
+- 설정 화면은 '알림·편의 기능' 메뉴 모양이 아니라 예전 긴 화면 모양이다: 엔진이 notif+conv 가 pgs 에 있어야 메뉴 모양으로 그리는데, conv 팝업에 위젯 · 다른 앱 위에 표시 · 백그라운드 유지(안드로이드 전용) 줄이 고정으로 들어 있어 iOS 에서는 동작 없는 줄이 생긴다. 서버를 바꾸지 말라는 지시라 이대로 둔다(서버가 pgs 로 conv 줄을 걸러 주게 되면 메뉴 모양으로).
 
