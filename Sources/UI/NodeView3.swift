@@ -35,6 +35,9 @@ struct InbarNode: View {
         let hasDot = !(node.str("dot") ?? "").isEmpty
         let noBtn = node.bool("nobtn")
         let label = node.str("btn") ?? ""
+        let bicon = node.str("bicon") ?? ""
+        let iconBtn = !bicon.isEmpty && bh >= 20                 // 둥근 아이콘 단추(실시간 대화 보내기): 금색 동그라미 + 흰 아이콘, 지름 bh(안드로이드 ScreenCore bicon)
+        let btnW = iconBtn ? bh : Typo.width(label, bsz, true) + bpx * 2
         let textX: CGFloat = hasDot ? 34 : 14
         let btnR = r > 0 ? r : 9
         let ifh = node.num("ifh", 0) > 0 ? CGFloat(node.num("ifh", 0)) : size + 2
@@ -62,14 +65,21 @@ struct InbarNode: View {
             if !noBtn {
                 Color.clear.frame(width: 8, height: 1)
                 Button { if !dim, let a = node.act { focused = false; host.handle(a) } } label: {
-                    HStack(spacing: 6) {
-                        if spin && dim { InbarSpin(color: ck.opacity(0.75)) }
-                        Text(label).font(Typo.font(bsz, bold: true)).foregroundColor(ck.opacity(dim ? 0.6 : 1)).lineLimit(1).fixedSize()
+                    if iconBtn {
+                        ZStack {
+                            Circle().fill(ac.opacity(dim ? 0.5 : 1))
+                            SVGIcon(d: bicon).fill(pal.color("white") ?? .white).frame(width: 17, height: 17)
+                        }.frame(width: btnW, height: bh)
+                    } else {
+                        HStack(spacing: 6) {
+                            if spin && dim { InbarSpin(color: ck.opacity(0.75)) }
+                            Text(label).font(Typo.font(bsz, bold: true)).foregroundColor(ck.opacity(dim ? 0.6 : 1)).lineLimit(1).fixedSize()
+                        }
+                        .frame(width: btnW, height: bh)
+                        .background(RoundedRectangle(cornerRadius: btnR).fill(ac.opacity(dim ? 0.5 : 1)))
                     }
-                    .frame(width: Typo.width(label, bsz, true) + bpx * 2, height: bh)
-                    .background(RoundedRectangle(cornerRadius: btnR).fill(ac.opacity(dim ? 0.5 : 1)))
                 }.buttonStyle(.plain)
-                .frame(width: Typo.width(label, bsz, true) + bpx * 2, height: bh)
+                .frame(width: btnW, height: bh)
             }
         }
         .frame(height: h)

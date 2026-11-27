@@ -713,9 +713,20 @@ struct DlgCard: View {
     @StateObject private var open = PostOpen()
     private var d: [String: Any] { screen.raw["dlg"] as? [String: Any] ?? [:] }
     private func n(_ k: String, _ def: Double, _ lo: Double, _ hi: Double) -> Double { min(hi, max(lo, (d[k] as? NSNumber)?.doubleValue ?? def)) }
+    /// 안내창 너비 맞춤(fit): 글 줄마다 (좌우 여백 + 줄 글 너비) 중 가장 큰 값 — 안드로이드 ScreenCore 의 L.fitW. 못 구하면 0.
+    private var fitW: CGFloat {
+        var fw: CGFloat = 0
+        for node in screen.head + screen.body + screen.foot where node.t == "text" {
+            let size = CGFloat(node.num("size", 14)), bold = node.bool("bold")
+            let lw = (node.str("s") ?? "").components(separatedBy: "\n").map { Typo.width($0, size, bold) }.max() ?? 0
+            fw = max(fw, CGFloat(node.pad.l + node.pad.r) + lw)
+        }
+        return fw
+    }
     var body: some View {
         GeometryReader { g in
-            let w = min(n("w", 320, 120, 480), g.size.width - 2 * n("mx", 16, 0, 80))
+            let w0 = min(n("w", 320, 120, 480), g.size.width - 2 * n("mx", 16, 0, 80))
+            let w = (d["fit"] as? Bool) == true && fitW > 0 ? min(w0, ceil(fitW) + 2) : w0
             ZStack {
                 Color.black.opacity(n("dim", 0.5, 0, 0.85)).ignoresSafeArea().onTapGesture { act(((d["tap"] as? [String: Any])?["v"] as? String) ?? "dl.close") }          // 바깥을 누르면 엔진이 정한 행동(dl.no …)
                 ScrollView {
@@ -730,6 +741,7 @@ struct DlgCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                     .background(pal.color((d["fill"] as? String) ?? "") ?? pal.color("card") ?? .black)
                     .clipShape(RoundedRectangle(cornerRadius: n("r", 16, 0, 40)))
+                    .overlay { if let lc = (d["line"] as? String), !lc.isEmpty, let c = pal.color(lc) { RoundedRectangle(cornerRadius: n("r", 16, 0, 40)).strokeBorder(c, lineWidth: 1) } }          // 카드 테두리(1dp) — 엔진이 line 을 줄 때만
                     .position(x: g.size.width / 2, y: g.size.height * n("top", 0.5, 0.1, 0.9))
             }
         }
