@@ -119,3 +119,5 @@
 - 뼈대 → 진짜 화면이 처음 올라올 때 흐림 0.35 → 1, 240ms(`Sources/UI/ArrivalFade.swift` — `.transition(.arrival)` + `.arrivalFade(화면 있나)`; 홈 · 쇼핑 · 소식 · 게시판 · 맛집 · 노선도). 옛 화면을 먼저 보인 경우와 소통방은 안 쓴다(안드로이드 fadeIn 과 같다).
 - 팝업처럼 내용 높이로 줄어드는 자리에서는 `ScreenBody(eager: true)`(게으른 쌓기가 높이를 못 재서 납작해진다). 시간표 팝업은 화면 62% 높이로 고정하고 목록이 그 안을 채운다(전에는 첫 줄만 보이고 잘렸다 — CI 캡처 screenshot-map-tt-1.png 로 발견).
 - 노선도(`maph|모드|지역|칩` · `mapb|모드|지역|칩[|주변/즐겨찾기|위치칸 0.001°≈110m]`)도 옛 화면을 먼저 보인다(`MapModel.useCache`). 방식 · 지역 · 칩 · 주변/즐겨찾기를 바꿀 때도 본 적 있는 칸이면 먼저 올린다. 버스 본문은 받은 지 10분 안일 때만(안드로이드 BUS_FRESH_MS), 정류장을 골라 펼친 화면 · 덜 받은 화면(info.bus.need 남음)은 안 담는다. 캐시 화면을 올릴 때 `readInfo` 도 다시 돌려 눌림 번호표(stops · rts · rs)를 맞춘다.
+- 커뮤니티 칩 줄(`cchips|방식`)과 설정(`settings|<저장값 지문>` — 안드로이드 settingsKey 와 같은 생각: facts 가 같을 때만 기억한 화면을 보인다)도 옛 화면을 먼저, 설정은 뼈대(list) · 떠오름까지.
+- 주의: `SwipeArea` 는 `Color.clear` 위에 내용을 얹는 틀이라 스스로 높이가 없다 → `fixedSize(vertical:)` 로 내용 높이에 맞추는 팝업에서 `ScreenBody` 를 그대로 쓰면 납작해진다. 팝업은 `ScreenBody(eager: true)`(SwipeArea 를 거치지 않음) 또는 DlgCard 처럼 직접 쌓는다. 시험 인자 `-mapStn 강남 [-mapTt 1]` 로 CI 가 역 팝업 · 시간표 캡처를 남긴다(screenshot-map-stn-1/2 · map-tt-1) — 놀이터(캐릭터) 장면도 거기서 확인.
