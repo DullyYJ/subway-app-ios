@@ -274,7 +274,7 @@ struct MapTab: View {
                     ZStack(alignment: .bottom) {
                         Color.black.opacity(0.5).ignoresSafeArea().onTapGesture { m.showStn = false }
                         Group {
-                            if let s = m.stnScreen { ScreenBody(screen: s, pal: pal) } else { ProgressView().frame(height: 120) }
+                            if let s = m.stnScreen { ScreenBody(screen: s, pal: pal, eager: !m.ttMode) } else { ProgressView().frame(height: 120) }
                         }
                         .frame(maxWidth: 520).frame(maxHeight: 520).fixedSize(horizontal: false, vertical: true)
                         .frame(height: m.ttMode ? UIScreen.main.bounds.height * 0.62 : nil, alignment: .top)

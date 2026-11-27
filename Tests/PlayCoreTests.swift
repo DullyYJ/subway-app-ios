@@ -88,7 +88,7 @@ final class PlayCoreTests: XCTestCase {
         }
         let fr = PlaySim.cut(sheet, 0.3)
         XCTAssertEqual(fr.count, 16)
-        XCTAssertEqual(fr[0].size.width, CGFloat(256 * 0.3), accuracy: 0.01)
+        XCTAssertEqual(fr[0].size.width, CGFloat(256 * 0.3), accuracy: 0.5)          // 화소 3배로 반올림되어 76.8 → 77
         XCTAssertTrue(PlaySim.cut(UIImage(), 0.3).isEmpty)
     }
 }

@@ -20,6 +20,7 @@ struct ScreenBody: View {
     let pal: Palette
     var swipe: SwipeCfg? = nil
     var onPull: (() -> Void)? = nil          // 아래로 당겨 새로고침(안드로이드: 노선도 버스 · 맛집만)
+    var eager = false                        // 팝업처럼 내용 높이로 줄어드는 자리: 게으른 쌓기는 높이를 못 재서 납작해지므로 한꺼번에 쌓는다
     @StateObject private var open = PostOpen()
     @ViewBuilder private func pullable<C: View>(_ c: C) -> some View {
         if let f = onPull { c.refreshable { f(); try? await Task.sleep(nanoseconds: 700_000_000) } } else { c }
@@ -31,9 +32,13 @@ struct ScreenBody: View {
             }
             SwipeArea(screen: screen, cfg: swipe) {
                 pullable(ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(screen.body) { NodeView(node: $0, pal: pal) }
-                    }.padding(.bottom, 24)
+                    if eager {
+                        VStack(spacing: 0) { ForEach(screen.body) { NodeView(node: $0, pal: pal) } }.padding(.bottom, 24)
+                    } else {
+                        LazyVStack(spacing: 0) {
+                            ForEach(screen.body) { NodeView(node: $0, pal: pal) }
+                        }.padding(.bottom, 24)
+                    }
                 })
             }
             .overlay(alignment: .bottom) { if let f = Fab(screen.raw["fab"] as? [String: Any]) { FabButton(fab: f, pal: pal) } }          // 떠 있는 단추(게시판 '제보 글쓰기')
