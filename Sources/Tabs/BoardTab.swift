@@ -16,6 +16,11 @@ final class BoardModel: ObservableObject {
     private var cmtAt: [String: Date] = [:]
     private let ud = UserDefaults.standard
 
+    /// 옛 화면을 먼저 보이고 새로 받으면 바꾼다(안드로이드 showCached — 탭을 오갈 때 빈 화면이 먼저 뜨지 않는다).
+    init() {
+        if let c = ScreenCache.shared.get("board") { screen = c; onScreen(c) }
+    }
+
     // 글쓰기 · 아이디 · 규칙 동의
     @Published var writeOpen = false
     @Published var writeScreen: Screen? = nil
@@ -149,7 +154,7 @@ final class BoardModel: ObservableObject {
                                 "arm": armK.isEmpty ? NSNull() : ["k": armK, "id": armId] as [String: Any],
                                 "rx": dict("bd_rx"), "rep": list("bd_rep"), "bk": list("bd_blk").count]
         let body = Json.text(["cap": Servers.cap, "f": f, "p": rs] as [String: Any])
-        do { let s = try await Net.screen("/screen/board", body: body); screen = s; error = nil; onScreen(s) }
+        do { let s = try await Net.screen("/screen/board", body: body); screen = s; error = nil; onScreen(s); ScreenCache.shared.put("board", s) }
         catch { self.error = error.localizedDescription }
     }
 

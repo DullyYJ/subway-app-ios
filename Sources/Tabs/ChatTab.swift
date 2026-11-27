@@ -22,6 +22,14 @@ final class ChatModel: ObservableObject {
     private var failed = false, loaded = false
     private var afterUgc: (() -> Void)? = nil
 
+    /// 옛 화면을 먼저 보이고 새로 받으면 바꾼다(안드로이드 cacheKey chat|방 — 방마다 따로).
+    init() {
+        if let c = ScreenCache.shared.get("chat|" + sel) {
+            screen = c
+            postLine = ((c.raw["info"] as? [String: Any])?["pl"] as? String) ?? ""
+        }
+    }
+
     var sel: String { let s = ud.string(forKey: "chat_sel") ?? "all"; return !s.isEmpty && s.count < 30 ? s : "all" }
     var me: String { ud.string(forKey: "comm_id") ?? "" }
     private var theme: String { ud.string(forKey: "theme") == "dark" ? "dark" : "pastel" }
@@ -92,6 +100,7 @@ final class ChatModel: ObservableObject {
         let s = sel
         guard let d = try? await Net.request("POST", Servers.base + "/screen/chat", body: requestBody(), timeout: 10), let sc = try? Screen.parse(d), s == sel else { return }
         screen = sc; screenTick += 1
+        ScreenCache.shared.put("chat|" + s, sc)
         postLine = ((sc.raw["info"] as? [String: Any])?["pl"] as? String) ?? ""
     }
 

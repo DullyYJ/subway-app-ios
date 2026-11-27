@@ -31,6 +31,13 @@ final class FoodModel: ObservableObject {
     private var seqPanel = 0
     @Published var revealKey: String? = nil
     private static let ttl: TimeInterval = 600
+    private var held = false                                // 옛 화면(캐시)을 보이는 중 — 새 원자료로 다시 그릴 때까지 '불러오는 중' 화면으로 갈아끼우지 않는다
+
+    /// 같은 동네(약 1km 칸)의 '전체' 화면을 기억한다(안드로이드 cacheKey food|동네).
+    private static func ckey(_ g: CLLocation) -> String { String(format: "food|%.2f,%.2f", g.coordinate.latitude, g.coordinate.longitude) }
+    init() {
+        if let g = LocationStore.shared.last, let c = ScreenCache.shared.get(Self.ckey(g)) { screen = c; held = true }
+    }
 
     private var gps: CLLocation? { LocationStore.shared.last }
     private var needData: Bool { ctr != nil && (!loaded || Date().timeIntervalSince(loadedAt) > Self.ttl) }
@@ -45,7 +52,7 @@ final class FoodModel: ObservableObject {
         return loaded ? "done" : "loading"
     }
 
-    func invalidate() { loaded = false; failed = false; alts = [:]; srv = []; pub = []; ctr = nil }
+    func invalidate() { held = false; loaded = false; failed = false; alts = [:]; srv = []; pub = []; ctr = nil }
 
     func load(force: Bool = false) async {
         if force { invalidate() }
@@ -108,7 +115,8 @@ final class FoodModel: ObservableObject {
             body.insert(contentsOf: pn, at: at + 1); d["body"] = body
             d["rev"] = ((d["rev"] as? String) ?? "") + "+" + openKey + ":" + String(pn.count)
         }
-        if let sc = screenFrom(d) { screen = sc }
+        if held && !loaded && openKey.isEmpty { return }
+        if let sc = screenFrom(d) { screen = sc; if loaded && openKey.isEmpty && flt == "전체" && !failed, let g = gps { ScreenCache.shared.put(Self.ckey(g), sc) } }
     }
 
     // ── 눌림 ──
@@ -211,7 +219,7 @@ final class FoodModel: ObservableObject {
         for pg in pages { if let r = Self.rows(pg) { rows += r; pubOk = true } }
         pub = rows
         failed = !srvOk || (pub.isEmpty && !pubOk)
-        loaded = true; loadedAt = Date()
+        loaded = true; loadedAt = Date(); held = false
         if let r = await post(), my == gen { apply(r) } else if my == gen { error = "맛집 화면을 받지 못했어요" }
     }
 
