@@ -109,6 +109,16 @@ jobs:
           sleep 34
           xcrun simctl io "$UDID" screenshot screenshot-tab-home-detail.png
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+          xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab map -map_mode subway -mapStn 강남
+          sleep 25
+          xcrun simctl io "$UDID" screenshot screenshot-map-stn-1.png
+          sleep 2.5
+          xcrun simctl io "$UDID" screenshot screenshot-map-stn-2.png
+          xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab map -map_mode subway -mapStn 강남 -mapTt 1
+          sleep 40
+          xcrun simctl io "$UDID" screenshot screenshot-map-tt-1.png
           for N in 1 2; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
             xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -nodeDemo $N

@@ -290,7 +290,14 @@ struct MapTab: View {
             }
         }
         .background(pal.color("bg") ?? Color(.systemBackground))
-        .task { LocationStore.shared.start(); await m.loadMetro(); await m.load() }
+        .task {
+            LocationStore.shared.start(); await m.loadMetro(); await m.load()
+            // 확인용(-mapStn 강남 [-mapTt 1]): 그 역의 팝업(과 시간표)을 자동으로 연다 — 캐릭터 놀이터 · 팝업 모양 확인
+            if let n = UserDefaults.standard.string(forKey: "mapStn"), !n.isEmpty {
+                m.tapStation(n)
+                if UserDefaults.standard.bool(forKey: "mapTt") { try? await Task.sleep(nanoseconds: 9_000_000_000); m.openTimetable() }
+            }
+        }
         .onReceive(host.actPublisher) { x in
             guard x.tab == "map" else { return }
             if x.a == "cat" { m.cat(x.v) } else if x.a == "call" { m.call(x.v, host: host) }
