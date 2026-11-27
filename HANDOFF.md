@@ -105,3 +105,11 @@
 - 팝업 → 시간표: `PlayHub.snap` 에 팝업이 0.5초마다·사라질 때 장면을 적어 두고, 시간표가 그대로 이어받는다(칸 크기가 달라도 위치는 비율).
 - 모션 줄이기(손쉬운 사용)가 켜져 있으면 움직이지 않고 첫 장면만 그린다(안드로이드 ANIMATOR_DURATION_SCALE==0 과 같다). 다크는 앱 테마(`theme`) 를 따른다.
 - 안드로이드와 다른 점: 놀이터 칸은 이름 노드 안에 겹쳐 그린다(안드로이드는 시트 위에 따로 얹은 View). 아래 줄(노선 알약)과 겹치는 4pt 는 알약 아래로 깔린다.
+
+## 버튼 줄 전환 연출 (안드로이드 ActRowCore / ScreenView.drawRowAnim)
+- row 노드의 `an:{k, ms, sq, bg, e:[x1,y1,x2,y2], o:{s, fill, tc}}` — 칸이 셋(모두 button)일 때만. k = push_in · push_out · slide_down · slide_up. `Sources/UI/RowAnim.swift`: `ActRowCore`(수식 · 시험 `RowAnimTests`) + `RowNode`(줄) + `RowAnimOverlay`(최종 모양 위에 가리개 색 `bg` 를 깔고 네 조각 A·B·C·O 를 움직인다. 눌림은 아래 단추가 받는다).
+- `sq`(엔진 시계)가 방금(2.5초 안)일 때만 그린다 — 옛 전환은 최종 모양만. 시작 시각은 `sq` 에서 이미 지난 만큼 앞당긴다(안드로이드와 같다). 옛 칸 O 는 셋째 단추 모양에 `o.s`·`o.fill`·`o.tc` 만 바꾼다.
+
+## 내 위치 공유 GIF (안드로이드 ShareAnim / ShareArt.gif / GifEnc)
+- 마커를 뺀 카드 그림(`ShareCardView.hideMarker`) 위에서 마커가 깜박이고(물결 · 점), 친구 한 마리(무작위)가 노선선 위를 오간다. 98프레임 · 프레임당 0.07초 · 반복. 계획 `Sources/Core/ShareAnim.swift`(시험 `ShareAnimTests`), 그리기·GIF 쓰기 `Sources/Ride/ShareGif.swift`(ImageIO). 못 만들면 정지 그림으로 보낸다.
+- 공유창에는 글 + GIF 파일(임시 폴더 `gildongmu_<ts>.gif`)을 실어 보낸다. 마커 자리는 `ShareCardView.markerPos`.
