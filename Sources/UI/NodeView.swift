@@ -97,7 +97,8 @@ struct NodeView: View {
         let al = node.str("align")
         let c = pal.color(node.str("cc")) ?? col("color", "text")
         if node.bool("mq"), node.num("rw") > 0 {          // 놀이터 칸을 남기고 한 줄로 흐르는 이름(지도 역 카드)
-            MarqueeLabel(text: node.str("s") ?? "", size: f("size", 12), bold: node.bool("bold"), color: c, height: f("size", 12) * f("lh", 1.35), reserve: f("rw", 0))
+            MarqueeLabel(text: node.str("s") ?? "", size: f("size", 12), bold: node.bool("bold"), color: c, height: f("size", 12) * f("lh", 1.35), reserve: f("rw", 0),
+                         play: .popup, padTop: CGFloat(node.pad.t), padBottom: CGFloat(node.pad.b))
                 .opacity(node.d["alpha"] != nil ? node.num("alpha", 1) : 1)
         } else {
             LinedText(s: node.str("s") ?? "", size: f("size", 12), bold: node.bool("bold"), lh: f("lh", 1.35), color: c,
@@ -185,7 +186,8 @@ struct NodeView: View {
         let ss = Text(sub).font(Typo.font(13, bold: true)).foregroundColor(pal.color("gold") ?? .yellow).lineLimit(1).truncationMode(.tail).frame(height: 13 * 1.4)
         return HStack(alignment: .center, spacing: 8) {
             Group {
-                if flow { MarqueeLabel(text: title, size: 18, bold: true, color: col("tc", "text"), height: 18 * 1.4, reserve: f("rw", 0)) }
+                if flow { MarqueeLabel(text: title, size: 18, bold: true, color: col("tc", "text"), height: 18 * 1.4, reserve: f("rw", 0),
+                                         play: .tt, padTop: CGFloat(node.pad.t), padBottom: CGFloat(node.pad.b)) }
                 else if sub.isEmpty { tt }
                 else {
                     ViewThatFits(in: .horizontal) {
