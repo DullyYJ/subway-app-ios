@@ -20,7 +20,7 @@ struct ScreenBody: View {
     let pal: Palette
     var swipe: SwipeCfg? = nil
     var onPull: (() -> Void)? = nil          // 아래로 당겨 새로고침(안드로이드: 노선도 버스 · 맛집만)
-    var eager = false                        // 팝업처럼 내용 높이로 줄어드는 자리: 게으른 쌓기는 높이를 못 재서 납작해지므로 한꺼번에 쌓는다
+    var eager = false                        // 팝업처럼 내용 높이로 줄어드는 자리(fixedSize 안): SwipeArea · 게으른 쌓기는 높이를 못 재서 납작해지므로 쓰지 않고 한꺼번에 쌓는다
     @StateObject private var open = PostOpen()
     @ViewBuilder private func pullable<C: View>(_ c: C) -> some View {
         if let f = onPull { c.refreshable { f(); try? await Task.sleep(nanoseconds: 700_000_000) } } else { c }
@@ -30,18 +30,19 @@ struct ScreenBody: View {
             if !screen.head.isEmpty {
                 VStack(spacing: 0) { ForEach(screen.head) { NodeView(node: $0, pal: pal).environment(\.inHead, true) } }
             }
-            SwipeArea(screen: screen, cfg: swipe) {
-                pullable(ScrollView {
-                    if eager {
-                        VStack(spacing: 0) { ForEach(screen.body) { NodeView(node: $0, pal: pal) } }.padding(.bottom, 24)
-                    } else {
+            if eager {
+                // 팝업: 내용 높이로 줄어드는 자리라 SwipeArea(Color.clear 위에 얹는 틀 — 스스로 높이가 없다)를 거치지 않고 바로 스크롤을 둔다.
+                ScrollView { VStack(spacing: 0) { ForEach(screen.body) { NodeView(node: $0, pal: pal) } }.padding(.bottom, 24) }
+            } else {
+                SwipeArea(screen: screen, cfg: swipe) {
+                    pullable(ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(screen.body) { NodeView(node: $0, pal: pal) }
                         }.padding(.bottom, 24)
-                    }
-                })
+                    })
+                }
+                .overlay(alignment: .bottom) { if let f = Fab(screen.raw["fab"] as? [String: Any]) { FabButton(fab: f, pal: pal) } }          // 떠 있는 단추(게시판 '제보 글쓰기')
             }
-            .overlay(alignment: .bottom) { if let f = Fab(screen.raw["fab"] as? [String: Any]) { FabButton(fab: f, pal: pal) } }          // 떠 있는 단추(게시판 '제보 글쓰기')
             if !screen.foot.isEmpty {
                 VStack(spacing: 0) { ForEach(screen.foot) { NodeView(node: $0, pal: pal) } }
             }

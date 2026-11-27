@@ -53,8 +53,11 @@ final class ShareAnimTests: XCTestCase {
         }
         XCTAssertEqual(frames.count, 5)
         guard let d = ShareGif.encode(frames, delayCs: 7) else { return XCTFail("gif") }
-        XCTAssertEqual(String(data: d.prefix(6), encoding: .ascii), "GIF89a")
+        XCTAssertTrue((String(data: d.prefix(6), encoding: .ascii) ?? "").hasPrefix("GIF8"))          // ImageIO 는 GIF87a 로 쓸 때도 있다(움직임 확장은 그대로 들어간다)
         let src = CGImageSourceCreateWithData(d as CFData, nil)
         XCTAssertEqual(src.map { CGImageSourceGetCount($0) }, 5)
+        let gif = (src.flatMap { CGImageSourceCopyPropertiesAtIndex($0, 1, nil) } as? [String: Any])?[kCGImagePropertyGIFDictionary as String] as? [String: Any]
+        let delay = (gif?[kCGImagePropertyGIFDelayTime as String] as? NSNumber)?.doubleValue ?? -1
+        XCTAssertEqual(delay, 0.07, accuracy: 0.011)
     }
 }
