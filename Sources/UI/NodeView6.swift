@@ -11,7 +11,18 @@ private let cSoon = Color(red: 0xE7 / 255.0, green: 0x4C / 255.0, blue: 0x3C / 2
 struct BtogNode: View {
     let node: Node; let pal: Palette
     @EnvironmentObject var host: Host
+    @ObservedObject private var pick = ChipPick.shared
     private var items: [[String: Any]] { node.d["items"] as? [[String: Any]] ?? [] }
+    /// 누른 칸은 새 화면 전에 먼저 켠다(안드로이드 pickBtog).
+    private func isOn(_ it: [String: Any]) -> Bool {
+        if let p = pick.picks[ChipPick.rowKey(items)], let v = (it["act"] as? [String: Any])?["v"] as? String { return v == p }
+        return (it["on"] as? Bool) ?? false
+    }
+    private func tapItem(_ it: [String: Any]) {
+        guard let a = Action(it["act"] as? [String: Any]) else { return }
+        if let v = a.v { pick.pick(items: items, v: v) }
+        host.handle(a)
+    }
     var body: some View {
         let under = (node.str("v") ?? "p") == "u"
         let h = CGFloat(node.num("h", 38))
@@ -21,8 +32,8 @@ struct BtogNode: View {
             if under {
                 HStack(spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.offset) { _, it in
-                        let on = (it["on"] as? Bool) ?? false
-                        Button { if let a = Action(it["act"] as? [String: Any]) { host.handle(a) } } label: {
+                        let on = isOn(it)
+                        Button { tapItem(it) } label: {
                             Text(it["label"] as? String ?? "").font(Typo.font(14, bold: true))
                                 .foregroundColor(on ? c6(pal, "text", "text") : c6(pal, "sub", "sub"))
                                 .frame(maxWidth: .infinity).frame(height: h - 2)
@@ -37,8 +48,8 @@ struct BtogNode: View {
                 let th = min(36, h)
                 HStack(spacing: 8) {
                     ForEach(Array(items.enumerated()), id: \.offset) { _, it in
-                        let on = (it["on"] as? Bool) ?? false
-                        Button { if let a = Action(it["act"] as? [String: Any]) { host.handle(a) } } label: {
+                        let on = isOn(it)
+                        Button { tapItem(it) } label: {
                             Text(it["label"] as? String ?? "").font(Typo.font(13, bold: true))
                                 .foregroundColor(on ? .white : c6(pal, "sub", "sub")).lineLimit(1)
                                 .frame(maxWidth: .infinity).frame(height: th)

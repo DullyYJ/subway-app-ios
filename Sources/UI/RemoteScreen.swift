@@ -43,7 +43,8 @@ struct ScreenBody: View {
         }
         .background(pal.color(screen.bg) ?? pal.color("bg") ?? Color(.systemBackground))
         .environmentObject(open)
-        .onChange(of: "\(screen.name)|\(screen.raw["rev"] as? String ?? "")|\(screen.body.count)") { _ in ChipPick.shared.clear() }          // 새 화면이 오면 먼저 켠 칩을 거두고 그 화면 값을 따른다
+        .environment(\.curScreen, screen)
+        .onChange(of: "\(screen.name)|\(screen.raw["rev"] as? String ?? "")|\(screen.body.count)|\(ChipPick.sig(screen))") { _ in ChipPick.shared.clear() }          // 새 화면이 오면 먼저 켠 칩을 거두고 그 화면 값을 따른다
     }
 }
 

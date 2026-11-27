@@ -193,13 +193,13 @@ struct AliasCard: View {
             .padding(EdgeInsets(top: 20, leading: 18, bottom: 18, trailing: 18))
             .background(RoundedRectangle(cornerRadius: 16).fill(pal.color("card") ?? .black))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(pal.color("border") ?? .gray, lineWidth: 1))
-            .padding(.horizontal, 28).frame(maxWidth: 420)
+            .padding(.horizontal, 24).frame(maxWidth: 340 + 48)          // 안드로이드: 너비 min(340dp, 화면 − 48dp)
         }
         .onAppear { text = edit.cur }
     }
     private func btn(_ t: String, _ fg: Color, _ bg: Color?, _ w: CGFloat, _ a: @escaping () -> Void) -> some View {
         Button(action: a) {
-            Text(t).font(Typo.font(14, bold: true)).foregroundColor(fg).frame(maxWidth: .infinity).frame(height: 42)
+            Text(t).font(Typo.font(13, bold: true)).foregroundColor(fg).frame(maxWidth: .infinity).frame(height: 44)
                 .background(RoundedRectangle(cornerRadius: 10).fill(bg ?? .clear))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(bg == nil ? (pal.color("border2") ?? .gray) : .clear, lineWidth: 1))
         }.buttonStyle(.plain).layoutPriority(w)

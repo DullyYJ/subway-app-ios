@@ -28,7 +28,7 @@ struct NodeView: View {
         case "text": textNode
         case "spacer": Color.clear.frame(height: f("h", 8))
         case "divider": Rectangle().fill(pal.color(node.str("bg") == "border2" ? "border2" : "border") ?? .gray).frame(height: 1)
-        case "button": buttonNode
+        case "button": ButtonNode(node: node, pal: pal)
         case "box": boxNode
         case "panel": panelNode
         case "row": rowNode
@@ -103,21 +103,6 @@ struct NodeView: View {
     }
 
     // 넓은 단추: 높이 40 · 모서리 12 · 글 12 · 테두리 1(안쪽) · 글색 기본은 sub · 굵기는 bold 일 때만
-    private var buttonNode: some View {
-        let r = f("r", 12), left = node.str("al") == "left"
-        return Button { tap(node.act) } label: {
-            Text(node.str("s") ?? "")
-                .font(Typo.font(f("size", 12), bold: node.bool("bold")))
-                .foregroundColor(col("tc", "sub"))
-                .lineLimit(1).truncationMode(.tail)
-                .padding(.horizontal, left ? 11 : 8)
-                .frame(maxWidth: .infinity, alignment: left ? .leading : .center)
-                .frame(height: f("h", 40))
-                .background(RoundedRectangle(cornerRadius: r).fill(col("fill", "card")))
-                .overlay(RoundedRectangle(cornerRadius: r).strokeBorder(col("line", "border"), lineWidth: 1))
-        }.buttonStyle(PressStyle(radius: r))
-    }
-
     // 안내 상자: 안쪽 여백 기본 12·8·12·8 · 모서리 10 · 글 12 · 바탕/테두리는 정해 줄 때만
     private var boxNode: some View {
         let ip = (node.d["ip"] as? [Any])?.compactMap { ($0 as? NSNumber)?.doubleValue }

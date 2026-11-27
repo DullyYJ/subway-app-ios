@@ -78,3 +78,7 @@
 - 아래로 당겨 새로고침: 맛집 · 노선도(버스) 본문(`ScreenBody(onPull:)` → `.refreshable`). 안드로이드는 스프링 모양이지만 iOS 표준 당기기를 쓴다.
 - 설정 화면은 '알림·편의 기능' 메뉴 모양이 아니라 예전 긴 화면 모양이다: 엔진이 notif+conv 가 pgs 에 있어야 메뉴 모양으로 그리는데, conv 팝업에 위젯 · 다른 앱 위에 표시 · 백그라운드 유지(안드로이드 전용) 줄이 고정으로 들어 있어 iOS 에서는 동작 없는 줄이 생긴다. 서버를 바꾸지 말라는 지시라 이대로 둔다(서버가 pgs 로 conv 줄을 걸러 주게 되면 메뉴 모양으로).
 
+- 떠 있는 단추(fab): 화면의 `fab{s,icon,act}` 를 본문 아래 가운데에 금색 알약으로 그린다(게시판 '제보 글쓰기'; `ScreenBody` 의 `Fab`/`FabButton`). 안내창(DlgCard) 바깥을 누르면 엔진이 정한 `tap` 행동을 보낸다(없으면 dl.close).
+- 서버 지연 안내: 엔진이 HTTP 503 + `delayed:true,retry:[초…]` 화면을 주면 `Net.screen` 이 오류가 아니라 그릴 화면으로 돌려주고(쇼핑), `AutoRetry` 가 그 간격(1~120초, 6번까지)마다 뒤에서 다시 받는다. 단추 `gdm_retry` 는 `Host.handle` 이 받아 `reloadTick` 을 올린다(600ms 안 거듭 누름은 한 번). 통신 자체가 안 돼 탭이 비면 `RetryCard`(안드로이드 ShellCore.errorScreen 과 같은 문구 · 단추, 4·8·16·30초 자동 재시도). 시험: `Tests/RetryTests.swift`.
+- 경로 방식 탭(rh.tab.*)·두 칸 단추(btog)도 누르면 새 화면 전에 먼저 켠다(`ButtonNode`, `ChipPick.pickBtn` — 켜진 단추와 모양을 맞바꾸고 0.15초 섞는다; 밀어서 넘길 때도 `light`). 새 화면 판별은 `ChipPick.sig`(탭 · 칩 켜짐 모양)이 바뀔 때 거둔다. 시험: `Tests/ChipPickTests.swift`.
+- 정류장 이름 설정(AliasCard)은 이미 있었고 글꼴 13 · 단추 높이 44 · 너비 340 으로 안드로이드와 맞췄다.
