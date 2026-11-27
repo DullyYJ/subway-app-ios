@@ -3,6 +3,12 @@ import SwiftUI
 /// 칩 · 경로 방식 탭(rh.tab.*) · 두 칸 단추(btog)를 누르면(또는 밀어서 칸을 넘기면) 새 화면이 오기 전에 먼저 켜 보인다(안드로이드 ScreenView.pickChip · pickRtab · pickBtog · lightChip).
 /// 서버를 기다리지 않아 바로 바뀐다. 새 화면이 오면 그 화면의 값이 맞으니 지운다.
 
+private struct CurScreenKey: EnvironmentKey { static let defaultValue: Screen? = nil }
+extension EnvironmentValues {
+    /// 지금 그리는 엔진 화면(단추를 누르면 같은 줄의 켜진 단추를 찾아 먼저 맞바꾸려고 — 안드로이드 pickRtab). Screen 이 있는 쪽(UI)에 둔다 — Core/Typo.swift 는 키즈와 나눠 쓰는 파일이라 Screen 을 모른다.
+    var curScreen: Screen? { get { self[CurScreenKey.self] } set { self[CurScreenKey.self] = newValue } }
+}
+
 /// 단추 한 개의 모양(바탕 · 테두리 · 글 색 이름) — 켜진 단추와 눌린 단추가 서로 맞바꾼다.
 struct BtnStyle: Equatable {
     var fill: String?, line: String?, tc: String?

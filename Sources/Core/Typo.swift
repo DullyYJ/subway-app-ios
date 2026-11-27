@@ -163,10 +163,7 @@ struct PressStyle: ButtonStyle {
 }
 
 private struct InHeadKey: EnvironmentKey { static let defaultValue = false }
-private struct CurScreenKey: EnvironmentKey { static let defaultValue: Screen? = nil }
 extension EnvironmentValues {
     /// 머리 노드인가(머리의 칩 줄은 가로로 밀고, 본문의 칩 줄은 줄바꿈한다 — 안드로이드와 같다).
     var inHead: Bool { get { self[InHeadKey.self] } set { self[InHeadKey.self] = newValue } }
-    /// 지금 그리는 엔진 화면(단추를 누르면 같은 줄의 켜진 단추를 찾아 먼저 맞바꾸려고 — 안드로이드 pickRtab).
-    var curScreen: Screen? { get { self[CurScreenKey.self] } set { self[CurScreenKey.self] = newValue } }
 }
