@@ -27,6 +27,14 @@ final class ScreenCache {
         return String(h, radix: 16) + ".json"
     }
 
+    /// 담은 지 몇 초 됐나(이번 실행에서 받았으면 그때부터, 아니면 파일 수정 시각부터). 없으면 nil.
+    func age(_ key: String) -> TimeInterval? {
+        if let t = at[key] { return Date().timeIntervalSince(t) }
+        let u = dir.appendingPathComponent(ScreenCache.fileName(key))
+        guard let m = (try? u.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate else { return nil }
+        return Date().timeIntervalSince(m)
+    }
+
     func get(_ key: String) -> Screen? {
         if let s = mem[key] { return s }
         let u = dir.appendingPathComponent(ScreenCache.fileName(key))

@@ -12,6 +12,34 @@ final class MapModel: ObservableObject {
     @Published var loading = false
 
     private let ud = UserDefaults.standard
+
+    // 화면 기억(안드로이드 mapKey/showCached): 머리 · 본문을 모드 · 지역 · 칩(버스는 주변/즐겨찾기 · 위치 칸 약 110m)마다 따로 담아 두고, 탭을 열거나 방식을 바꿀 때 옛 화면을 먼저 보인다.
+    // 버스 본문은 도착 시각이 들어 있어 받은 지 10분 안(BUS_FRESH_MS)일 때만 쓴다.
+    private func hKey() -> String { "maph|" + mode + "|" + reg + "|" + flt }
+    private func bKey() -> String? {
+        var k = "mapb|" + mode + "|" + reg + "|" + flt
+        if mode == "bus" {
+            k += "|" + busView
+            if busView == "near" { guard let g = gps else { return nil }; k += "|" + String(format: "%.3f,%.3f", g.0, g.1) }
+        }
+        return k
+    }
+    private func cachedBody() -> Screen? {
+        guard let k = bKey(), let b = ScreenCache.shared.get(k) else { return nil }
+        if mode == "bus" && (ScreenCache.shared.age(k) ?? .infinity) > 600 { return nil }
+        return b
+    }
+    private func restore(_ s: Screen) {
+        if let d = try? JSONSerialization.data(withJSONObject: s.raw) { readInfo(d) }
+        view = ((s.raw["info"] as? [String: Any])?["view"] as? String) ?? ""
+    }
+    /// 지금 모드 · 지역 · 칩에 맞는 기억이 있으면 그 머리 · 본문을 올린다(없으면 그대로 둔다).
+    private func useCache() {
+        if let h = ScreenCache.shared.get(hKey()) { head = h }
+        if let b = cachedBody() { body = b; restore(b) }
+    }
+    init() { useCache() }
+
     var mode: String { ud.string(forKey: "map_mode") == "subway" ? "subway" : "bus" }
     var reg: String { let r = ud.string(forKey: "map_reg") ?? "seoul"; return ["seoul", "busan", "daegu", "gwangju", "daejeon"].contains(r) ? r : "seoul" }
     var flt: String { let f = ud.string(forKey: "map_flt") ?? "ALL"; return !f.isEmpty && f.count < 12 ? f : "ALL" }
@@ -173,7 +201,7 @@ final class MapModel: ObservableObject {
         async let h: Data? = try? await Net.request("POST", Servers.base + "/screen/map", body: headBody(), timeout: 8)
         let hd = await h
         if my != seq { return }
-        if let hd = hd, let s = try? Screen.parse(hd) { head = s }
+        if let hd = hd, let s = try? Screen.parse(hd) { head = s; ScreenCache.shared.put(hKey(), s) }
         var last: Data? = nil
         for round in 0..<8 {
             guard let d = try? await Net.request("POST", Servers.base + "/screen/map", body: bodyBody(), timeout: 10) else { break }
@@ -195,6 +223,7 @@ final class MapModel: ObservableObject {
         body = s; error = nil
         readInfo(d)
         view = ((((try? JSONSerialization.jsonObject(with: d)) as? [String: Any])?["info"] as? [String: Any])?["view"] as? String) ?? ""
+        if busSel < 0, busPin == nil, readNeed(d).isEmpty, let k = bKey() { ScreenCache.shared.put(k, s) }          // 정류장을 골라 펼친 화면 · 아직 덜 받은 화면은 담지 않는다
     }
 
     /// 엔진 답의 info.bus.need: [{k, url}] — 받아 올 주소(최대 64).
@@ -227,12 +256,13 @@ final class MapModel: ObservableObject {
         else if v.hasPrefix("r:") { ud.set(String(v.dropFirst(2)), forKey: "map_reg"); ud.set("ALL", forKey: "map_flt") }
         else if v.hasPrefix("f:") { ud.set(String(v.dropFirst(2)), forKey: "map_flt") }
         else { return }
+        useCache()          // 본 적 있는 칸이면 그 화면을 먼저(새로 받으면 바꾼다)
         Task { await load() }
     }
     func call(_ v: String, host: Host) {
         if v == "mp.vw.near" || v == "mp.vw.fav" {
             let nv = String(v.dropFirst(6)); if nv == busView { return }
-            ud.set(nv, forKey: "map_busvw"); busSel = -1; Task { await load() }
+            ud.set(nv, forKey: "map_busvw"); busSel = -1; useCache(); Task { await load() }
         } else if v == "mp.rf" || v == "mp.loc" || v == "mp.rt" {
             busPin = nil
             LocationStore.shared.start(); busRes = [:]; busSel = -1; Task { await load() }
