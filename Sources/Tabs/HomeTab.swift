@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import CoreLocation
 
 /// 홈 탭 — 안드로이드 HomeCore + ShellActivity 홈 흐름과 같은 순서(계산·문구·모양은 모두 엔진, 앱은 입력 상태를 실어 보내고 그리기만):
 ///  ① 입력 상태(출발·도착 글자 · 고른 장소 · 눌린 칸 · 후보 원자료)를 POST /screen/home 에 보낸다.
@@ -501,8 +502,50 @@ final class HomeModel: ObservableObject {
             commit(txt, seq: my, host: host)
         }
     }
+    // 경로 이탈 확인(안드로이드 ShellActivity.rerouteAsk): 엔진이 확정한 경로를 크게 벗어났다고 알리면(RideLoop.offAt) 한 번 묻는다.
+    //   카드 글 · 단추는 엔진(/screen/dlg kind:offroute) — [역까지 이동]=dl.bp.0(역 이름이 있을 때만) · [다시 찾기]=dl.bp.1 · [계속 안내]=닫기.
+    private var offAskedAt: Int64 = 0, offCtx: String? = nil
+    /// at = RideLoop.$offAt 이 막 알린 값(@Published 는 값이 들어가기 전에 알리므로 RideLoop.offAt 을 지금 읽지 않는다).
+    func rerouteAsk(host: Host, at: Int64) {
+        guard riding, RideLoop.shared.running, at > 0, at != offAskedAt, dlg == nil, offCtx == nil else { return }
+        offAskedAt = at
+        Task {
+            let stn = RideLoop.shared.offStn                                       // 이 줄이 돌 때는 값이 이미 들어가 있다
+            let body = "{\"cap\":\(Servers.cap),\"f\":{\"kind\":\"offroute\",\"stn\":\(Json.q(stn))}}"
+            let sc = try? await Net.screen("/screen/dlg", body: body)
+            guard RideLoop.shared.running, RideLoop.shared.offAt == at, dlg == nil, offCtx == nil else { return }
+            if let sc = sc { offCtx = stn; dlg = sc } else { offAskedAt = 0 }          // 카드를 못 받았다 — 같은 이탈을 다음 걸음에 다시 묻는다
+        }
+    }
+    private func offAnswer(_ v: String, stn: String, host: Host) {
+        if v == "dl.bp.0", !stn.isEmpty { RideLoop.shared.act("detour"); host.say("\(stn)까지 안내할게요") }
+        else if v == "dl.bp.1" { rerouteFromHere(host: host) }
+    }
+    /// [다시 찾기]: 지금 위치를 출발지로 같은 도착지까지 새로 찾는다(자동 확정은 하지 않는다). 위치를 못 잡으면 안내를 그대로 둔다.
+    private func rerouteFromHere(host: Host) {
+        guard riding, let dest = loc[1], dest.ok else { host.say("도착지를 찾지 못해 다시 찾을 수 없어요"); return }
+        host.say("지금 위치에서 경로를 다시 찾는 중이에요")
+        Task {
+            let store = LocationStore.shared
+            store.start()
+            var fix: CLLocation? = nil
+            for _ in 0..<12 {                                                      // 최대 6초 — 30초 안에 잡은 위치면 바로 쓴다
+                if let l = store.last, abs(l.timestamp.timeIntervalSinceNow) < 30 { fix = l; break }
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+            guard let l = fix, riding else { host.say("현재 위치를 찾지 못해 지금 안내를 그대로 이어가요"); return }
+            RideLoop.shared.stop(); rideSeq = -1                                   // 지난 안내를 조용히 끝낸다
+            routeRaw = ""; baseMs = -1
+            var p = HLoc(type: "gps", name: "내 위치", line: "", qname: "내 위치", lat: l.coordinate.latitude, lng: l.coordinate.longitude)
+            p.qname = "내 위치"
+            loc[0] = p; text[0] = "내 위치"; candQ[0] = "내 위치"; fetchedQ[0] = "내 위치"; pkU = []; active = -1
+            host.tab = "home"
+            await goRoute(host: host)
+        }
+    }
     /// 카드의 눌림: dl.bp.N → N 번째 버스로 다시 시작 · dl.ok → 경로 시각대로 시작 · 그 밖(dl.close · 바깥)은 취소.
     func dlgAct(_ v: String, host: Host) {
+        if let stn = offCtx { offCtx = nil; dlg = nil; offAnswer(v, stn: stn, host: host); return }
         guard let c = pickCtx else { dlg = nil; return }
         dlg = nil; pickCtx = nil
         if v.hasPrefix("dl.bp."), let i = Int(v.dropFirst(6)), i >= 0, i < c.ms.count {
@@ -577,6 +620,7 @@ struct HomeTab: View {
                 else { m.call(x.v, host: host) }
             }
         }
+        .onReceive(RideLoop.shared.$offAt) { at in m.rerouteAsk(host: host, at: at) }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
     }
 }

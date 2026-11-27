@@ -18,6 +18,7 @@ struct RootView: View {
             // 본문: 켜진 탭
             ZStack(alignment: .bottom) {
                 TabContent(tab: host.tab, pal: pal)
+                if let p = host.pop { DlgCard(screen: p, pal: pal) { _ in host.pop = nil } }
                 if let t = host.toast {
                     Text(t).font(Typo.font(12)).foregroundColor(.white).padding(10).background(Color.black.opacity(0.8)).cornerRadius(10).padding(.bottom, 12)
                 }

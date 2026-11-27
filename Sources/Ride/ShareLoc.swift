@@ -6,7 +6,7 @@ import UIKit
 enum ShareLoc {
     @MainActor
     static func present(host: Host) {
-        guard let sh = RideLoop.shared.share else { host.say("경로를 먼저 탐색해 주세요"); return }
+        guard let sh = RideLoop.shared.share else { host.showPop("경로를 먼저 탐색해 주세요", "탐색한 경로의 내 위치와 도착 예정을\n친구에게 보낼 수 있어요"); return }
         let text = sh["text"] as? String ?? ""
         let card = ShareCardView(d: ShareCardData(sh))
         let r = ImageRenderer(content: card)

@@ -12,6 +12,18 @@ final class Host: ObservableObject {
     /// 입력칸 글을 비운다(보낸 뒤) — 칸 화면에도 알려 글자를 지운다.
     func clearField(_ k: String) { UserDefaults.standard.removeObject(forKey: "field." + k); fieldClear[k, default: 0] += 1 }
     @Published var sheet: SheetRoute? = nil
+    /// 잠깐 떴다 사라지는 작은 안내 카드(엔진 /screen/dlg kind:pop — 안드로이드 ShellActivity.dlgPopSh). 2.8초 뒤 닫히고, 눌러도 닫힌다. 카드를 못 받으면 토스트로 대신한다.
+    @Published var pop: Screen? = nil
+    func showPop(_ msg: String, _ sub: String, cls: String = "sh") {
+        Task {
+            let body = "{\"cap\":\(Servers.cap),\"f\":{\"kind\":\"pop\",\"msg\":\(Json.q(msg)),\"sub\":\(Json.q(sub)),\"cls\":\(Json.q(cls))}}"
+            guard let sc = try? await Net.screen("/screen/dlg", body: body) else { say(msg); return }
+            pop = sc
+            let mine = sc.raw["rev"] as? String
+            try? await Task.sleep(nanoseconds: 2_800_000_000)
+            if (pop?.raw["rev"] as? String) == mine { pop = nil }
+        }
+    }
     /// 분류 칩(cat) · 글 펼침(tog) 같은 탭 안의 행동: 켜진 탭이 받아 자기 화면을 다시 그린다.
     struct TabAction { let tab: String; let a: String; let v: String; let id: String; let key: String; var t: String = ""; var on: Bool = false }
     let actPublisher = PassthroughSubject<TabAction, Never>()

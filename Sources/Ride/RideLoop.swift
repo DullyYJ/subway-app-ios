@@ -19,6 +19,9 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published private(set) var share: [String: Any]? = nil
     var hasShare: Bool { share != nil }
     @Published var note = ""
+    /// 엔진이 알린 경로 이탈(응답 off:{at, stn}) — 이탈이 시작된 시각(없으면 0)과 그때 경로의 첫 지하철역 이름. 홈 탭이 한 번 묻는다(안드로이드 RideCore.offAt / offStn).
+    @Published private(set) var offAt: Int64 = 0
+    @Published private(set) var offStn = ""
     /// 결과 카드에 실어 보낼 탑승 사실(안드로이드 RideCore.rideJson / lvJson). 엔진이 준 값을 그대로 옮겨 담을 뿐이다.
     @Published private(set) var rideJson = ""
     @Published private(set) var lvJson = ""
@@ -59,7 +62,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         mgr.stopUpdatingLocation()
         running = false
         LivePosStore.shared.set("")
-        rideJson = ""; lvJson = ""
+        rideJson = ""; lvJson = ""; offAt = 0; offStn = ""
         LiveRide.shared.end(); share = nil
     }
 
@@ -83,6 +86,8 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     /// 경로 카드 오른쪽 칸([탑승] · [환승])을 눌렀다 — 다음 걸음에 act 로 엔진에 알린다(안드로이드 pendingAct).
     func press() { pendingAct = "press" }
+    /// 엔진에 알릴 행동 한 번(press · undo · open · close · pill · detour — 안드로이드 RideCore.queueAct 와 같다).
+    func act(_ a: String) { if ["press", "undo", "open", "close", "pill", "detour"].contains(a) { pendingAct = a } }
     var rowSlot: String { ((try? JSONSerialization.jsonObject(with: Data(rowJson.utf8))) as? [String: Any])?["slot"] as? String ?? "" }
     var rowCan: Bool { (((try? JSONSerialization.jsonObject(with: Data(rowJson.utf8))) as? [String: Any])?["can"] as? Bool) ?? false }
 
@@ -101,6 +106,9 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let on = m["ongoing"] as? [String: Any], let t = on["text"] as? String { text = t }
         if let rw = m["row"] as? [String: Any] { rowJson = js(rw) } else { rowJson = "" }
         if let c = m["curIdx"] as? NSNumber { cur = c.intValue }
+        let off = m["off"] as? [String: Any]
+        offStn = String(((off?["stn"] as? String) ?? "").prefix(24))          // 역 이름을 먼저 — offAt 을 받아 보는 쪽이 둘을 함께 읽는다
+        offAt = (off?["at"] as? NSNumber)?.int64Value ?? 0
         posJson = (m["pos"] as? [String: Any]).map { js($0) } ?? "null"
         arrJson = (m["arr"] as? [Any]).map { js($0) } ?? "null"
         dtJson = (m["dt"] as? [String: Any]).map { js($0) } ?? ""
