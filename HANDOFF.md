@@ -88,8 +88,8 @@
 - 안내창(DlgCard): `fit`(가장 긴 글 줄에 맞춰 너비를 줄임) · `line`(카드 테두리 1pt — 엔진이 줄 때만).
 - 흐르는 이름(`text`/`bar` 의 `mq`+`rw`): 지도 역 카드 이름 · 시간표 제목이 오른쪽에 놀이터 칸(rw)을 남기고 한 줄로 흐른다 — 멈춤 1.2초 · 초당 30pt · 끝에서 1.2초 멈췄다 되돌아옴(`Marquee.swift`).
 - 지도 2초 꾹 누르기(`tmap.hold:'mp.lp'` · `hms`): 버스 '내 주변' 지도를 움직이지 않고 2초 누르면 `mp.lp.<위도>_<경도>` 를 보내고(`TmapNode.holdBegin`), `MapModel.busPin` 이 정류장 요청의 `bus.pin:[위도,경도]` 로 실어 엔진이 그 주변 100m 정류장을 찾는다. 📍 · 새로고침(`mp.loc/rf/rt`)은 핀을 버린다.
-- 안드로이드가 읽는데 iOS 가 아직 안 읽는 화면 값(2026-11-27 점검): `an`(경로 카드 탑승·환승·도착 칸 전환 연출 — 안내 중에만), `anchor`(소통방 아래 붙임; ChatTab 이 따로 처리), `fit/fmin/fmax/frh/fo`(엔진이 안 보냄), `ffill/fd/fk`(안 보냄), `grp`(안 보냄), `ix`(뉴스 순번 보조), `lp`(3초 꾹 — 키즈 장소 등록).
-- 화면 기억 · 뼈대: `Sources/UI/ScreenCache.swift` — 받은 엔진 화면을 메모리 + 기기 캐시 폴더(7일)에 담아 두었다가 쇼핑 · 소식은 탭을 열 때 옛 화면을 먼저 보이고 새로 받으면 바꾼다(안드로이드 cachePut/showCached). 첫 화면이 오기 전에는 빙글빙글 대신 뼈대(`SkelScreen`: 홈·쇼핑 cards · 노선도 map · 맛집/소식/게시판 list — 안드로이드 skeletonScreen). 홈 · 맛집 · 노선도 · 게시판은 눌림이 앞서 받은 상태(info)에 기대서 아직 기억하지 않는다(안드로이드 restoreState 에 해당하는 일이 먼저 필요).
+- 안드로이드가 읽는데 iOS 가 아직 안 읽는 화면 값(2026-11-27 점검): (`an` 은 RowAnim 으로 옮김 — 아래 '버튼 줄 전환'), `anchor`(소통방 아래 붙임; ChatTab 이 따로 처리), `fit/fmin/fmax/frh/fo`(엔진이 안 보냄), `ffill/fd/fk`(안 보냄), `grp`(안 보냄), `ix`(뉴스 순번 보조), `lp`(3초 꾹 — 키즈 장소 등록).
+- 화면 기억 · 뼈대: `Sources/UI/ScreenCache.swift` — 받은 엔진 화면을 메모리 + 기기 캐시 폴더(7일)에 담아 두었다가 쇼핑 · 소식은 탭을 열 때 옛 화면을 먼저 보이고 새로 받으면 바꾼다(안드로이드 cachePut/showCached). 첫 화면이 오기 전에는 빙글빙글 대신 뼈대(`SkelScreen`: 홈·쇼핑 cards · 노선도 map · 맛집/소식/게시판 list — 안드로이드 skeletonScreen). 게시판(`board`) · 소통방(`chat|방`) · 맛집(`food|동네칸` 약 1km, '전체' 칩만)도 같은 식으로 옛 화면을 먼저 보인다(맛집은 원자료가 다시 올 때까지 '불러오는 중' 화면으로 안 갈아끼움: FoodModel.held). 홈 · 노선도는 눌림이 앞서 받은 상태에 기대서 아직 기억하지 않는다(안드로이드 restoreState 에 해당하는 일이 먼저 필요).
 
 ## 탭 옮기기 · 다시 누르기 (안드로이드 showTab / tabSettle / Debounce.TAP_MS)
 - 탭을 옮기면 새 화면이 흐림 0.85 → 1, 아래 4pt → 제자리, 180ms, 곡선 (0.32, 0.72, 0, 1) 로 떠오른다(`TabFadeIn`). 소통방도 같다. 예전 0.35 → 1 은 안드로이드 fadeIn(새 화면이 캐시 없이 올 때)이라 탭 이동과는 다른 것.
