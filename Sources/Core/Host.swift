@@ -49,6 +49,23 @@ final class Host: ObservableObject {
             else { say(t) }
         }
     }
+    /// 위치 정보 이용 안내(엔진 설정 p=locd — 안드로이드 locGate): 처음 위치 권한을 묻기 전에 한 번. [동의]=locd.ok · [거부]=locd.no · 방침 줄=pol.privacy(방침을 보고 돌아오면 다시 안내).
+    @Published var locd: Screen? = nil
+    func locdOpen() async {
+        let url = Servers.base + "/screen/settings?cap=\(Servers.cap)&p=locd"
+        if let d = try? await Net.request("GET", url, timeout: 9), let sc = try? Screen.parse(d) { locd = sc }
+        else { FirstRun.answer(true) }                                       // 안내를 못 받으면 막지 않는다(기기 창으로 바로)
+    }
+    func locdAct(_ v: String) {
+        if v == "locd.ok" { locd = nil; FirstRun.answer(true) }
+        else if v == "locd.no" { locd = nil; FirstRun.answer(false); say("위치 정보 이용에 동의하지 않아 내 위치를 쓸 수 없어요") }
+        else if v == "pol.privacy" {
+            Task {
+                if let d = try? await Net.request("GET", Servers.base + "/screen/settings?cap=\(Servers.cap)&p=polp", timeout: 9), let sc = try? Screen.parse(d) { locd = sc }
+            }
+        }
+        else if v == "pg.back" { Task { await locdOpen() } }                 // 방침을 보다가 돌아오면 안내로
+    }
     func cmbAct(_ v: String) {
         cmb = nil
         if v == "cmb.go" { CommuteAlarm.startRoute(kind: cmbKind, host: self) }
@@ -94,7 +111,8 @@ final class Host: ObservableObject {
         case "sel", "web":
             actPublisher.send(TabAction(tab: "community", a: a.a, v: a.v ?? a.url ?? "", id: "", key: a.key ?? ""))
         case "call":
-            if let v = a.v, v.hasPrefix("dl."), reco != nil { recoAct(v) }
+            if let v = a.v, locd != nil, v.hasPrefix("locd.") || v == "pol.privacy" || v == "pg.back" { locdAct(v) }
+            else if let v = a.v, v.hasPrefix("dl."), reco != nil { recoAct(v) }
             else if let v = a.v, Host.isKidsCall(v) { actPublisher.send(TabAction(tab: "kids", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
             else if let v = a.v, v.hasPrefix("cmb.") { cmbAct(v) }
             else if let v = a.v, v.hasPrefix("cm.") || v.hasPrefix("pk.") || v.hasPrefix("tp.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }

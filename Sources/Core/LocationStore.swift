@@ -17,7 +17,10 @@ final class LocationStore: NSObject, ObservableObject, CLLocationManagerDelegate
         if let l = m.location { last = l }
     }
     func start() {
-        if m.authorizationStatus == .notDetermined { m.requestWhenInUseAuthorization() }
+        if m.authorizationStatus == .notDetermined {
+            // 안드로이드와 같이 처음 위치 권한을 묻기 전에 '위치 정보 이용 안내'(동의/거부)를 한 번 보인다
+            FirstRun.locGate { [weak self] ok in if ok { self?.m.requestWhenInUseAuthorization() } }
+        }
         else if m.authorizationStatus == .authorizedWhenInUse || m.authorizationStatus == .authorizedAlways { m.startUpdatingLocation() }
     }
     /// 소수점 한 자리로 뭉갠 좌표(쇼핑이 가까운 상점 순서를 정할 때만 쓴다 — 안드로이드와 같다).

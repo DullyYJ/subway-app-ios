@@ -111,6 +111,8 @@ final class HomeModel: ObservableObject {
     func tick() { if hcKey != hcKeyNow() { reloadSoon() } }
     @Published var dlg: Screen? = nil
     private var pickCtx: (facts: String, ms: [Int64], no: [String], startTxt: String, seq: Int)? = nil
+    private var legCtx: (ms: [Int64], no: [String], patch: [String: Any])? = nil          // s320: 중간 환승 버스 고르기 카드가 떠 있을 때(번호마다의 변경분)
+    private var legAsked = ""
     private var pending: Task<Void, Never>? = nil
 
     /// 화면 확인용 실행 인자: -homeDest 명동 → 도착지 칸에 글자를 넣고 시작 · -homeRoute 1 → 서울역→명동 경로까지 자동으로 찾는다
@@ -502,6 +504,36 @@ final class HomeModel: ObservableObject {
             commit(txt, seq: my, host: host)
         }
     }
+    // s320 (YJ: 중간에 버스로 환승할 때, 추천 버스와 5분 안에 오는 다른 번호가 있으면 사용자가 고르게): 환승 대기 · 승차 대기 중인 버스 구간을 한 번만 엔진에 묻는다(안드로이드 ShellActivity.legAsk · legOpen).
+    //   엔진이 고를 것이 있다고 하면(ask) 탈 버스 고르기 카드를 띄우고, 고른 번호의 변경분(엔진이 번호마다 만든 patch)을 달리는 안내에 끼운다. 앱은 계산하지 않는다.
+    //   b = RideLoop.$board 가 막 알린 값(@Published 는 값이 들어가기 전에 알리므로 RideLoop.board 를 지금 읽지 않는다).
+    func legAsk(host: Host, board b: RideLoop.Board) {
+        guard riding, RideLoop.shared.running, hasRoute, b.j >= 0, b.i >= 2, dlg == nil, offCtx == nil, legCtx == nil, pickCtx == nil, var f = resultFacts() else { return }
+        let key = "\(seqRoute)#\(b.j)"
+        guard key != legAsked else { return }
+        legAsked = key
+        if f.hasSuffix("}") {
+            f = String(f.dropLast()) + ",\"leg\":\(b.j),\"now\":\(nowMs())"
+            let arr = RideLoop.shared.arrText
+            if arr.count > 2, arr != "null" { f += ",\"arr\":\(arr)" }
+            f += "}"
+        }
+        let body = "{\"cap\":\(Servers.cap),\"r\":\(f)}"
+        let my = seqRoute
+        Task {
+            guard let d = try? await Net.request("POST", Servers.base + "/ride/buspick", body: body, timeout: 7), d.count > 2,
+                  let o = Json.obj(d) as? [String: Any], (o["ask"] as? Bool) == true,
+                  let patch = (o["leg"] as? [String: Any])?["patch"] as? [String: Any], !patch.isEmpty else { return }
+            guard my == seqRoute, riding else { return }
+            guard dlg == nil, offCtx == nil, legCtx == nil, pickCtx == nil else { legAsked = ""; return }          // 다른 카드가 떠 있었다 — 다음에 다시 묻는다
+            var ms: [Int64] = [], no: [String] = []
+            if let items = (o["info"] as? [String: Any])?["items"] as? [[String: Any]] {
+                for x in items { if let m = (x["ms"] as? NSNumber)?.int64Value { ms.append(m); no.append(x["no"].map { "\($0)" } ?? "") } }
+            }
+            guard !ms.isEmpty, (o["dlg"] as? [String: Any]) != nil, let sc = try? Screen.parse(d) else { return }
+            legCtx = (ms, no, patch); dlg = sc
+        }
+    }
     // 경로 이탈 확인(안드로이드 ShellActivity.rerouteAsk): 엔진이 확정한 경로를 크게 벗어났다고 알리면(RideLoop.offAt) 한 번 묻는다.
     //   카드 글 · 단추는 엔진(/screen/dlg kind:offroute) — [역까지 이동]=dl.bp.0(역 이름이 있을 때만) · [다시 찾기]=dl.bp.1 · [계속 안내]=닫기.
     private var offAskedAt: Int64 = 0, offCtx: String? = nil
@@ -545,6 +577,13 @@ final class HomeModel: ObservableObject {
     }
     /// 카드의 눌림: dl.bp.N → N 번째 버스로 다시 시작 · dl.ok → 경로 시각대로 시작 · 그 밖(dl.close · 바깥)은 취소.
     func dlgAct(_ v: String, host: Host) {
+        if let c = legCtx {                                                       // 중간 환승 버스 고르기: 고른 번호의 변경분을 달리는 안내에 끼운다(고르지 않으면 계획대로)
+            legCtx = nil; dlg = nil
+            if v.hasPrefix("dl.bp."), let i = Int(v.dropFirst(6)), i >= 0, i < c.ms.count, i < c.no.count, let p = c.patch[c.no[i]] as? [String: Any] {
+                if RideLoop.shared.busSwap(patch: p, pickMs: c.ms[i]) { host.say("\(c.no[i])번 버스를 따라갈게요") }
+            }
+            return
+        }
         if let stn = offCtx { offCtx = nil; dlg = nil; offAnswer(v, stn: stn, host: host); return }
         guard let c = pickCtx else { dlg = nil; return }
         dlg = nil; pickCtx = nil
@@ -621,6 +660,7 @@ struct HomeTab: View {
             }
         }
         .onReceive(RideLoop.shared.$offAt) { at in m.rerouteAsk(host: host, at: at) }
+        .onReceive(RideLoop.shared.$board) { b in m.legAsk(host: host, board: b) }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
     }
 }

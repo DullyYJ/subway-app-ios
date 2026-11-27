@@ -24,6 +24,12 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published private(set) var offStn = ""
     /// 결과 카드에 실어 보낼 탑승 사실(안드로이드 RideCore.rideJson / lvJson). 엔진이 준 값을 그대로 옮겨 담을 뿐이다.
     @Published private(set) var rideJson = ""
+    /// s320: 다음에 탈 버스 승차 노드 i · 몇 번째 버스 구간 j(없으면 -1) — 엔진 state 의 xw · wait · eta.nodes 를 읽을 뿐이다(안드로이드 RideCore.boardCalc).
+    struct Board: Equatable { var i = -1, j = -1 }
+    @Published private(set) var board = Board()
+    /// 칸별 도착 시각(중간 버스 질문 요청에 싣는다).
+    var arrText: String { arrJson }
+    private var pendingSwap = ""
     @Published private(set) var lvJson = ""
     private var text = "", rowJson = "", dtJson = "", cur = -1, posJson = "null", arrJson = "null", waitJson = ""
     private var pendingAct = ""
@@ -49,6 +55,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     func start(stateJson: String, text: String = "") {
         stop()
         self.stateJson = stateJson; fixes = []; lastSentTs = 0
+        pendingSwap = ""; board = Board()
         self.text = text; rowJson = ""; dtJson = ""; cur = -1; posJson = "null"; arrJson = "null"; waitJson = ""; pendingAct = ""; recoSent = false; recoLive = false; recoRetry = 0; rcRetry = false; pendingAd = nil; inFlightAd = nil; rcDisAny = false
         rebuild()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
@@ -66,7 +73,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         mgr.stopUpdatingLocation()
         running = false
         LivePosStore.shared.set("")
-        rideJson = ""; lvJson = ""; offAt = 0; offStn = ""
+        rideJson = ""; lvJson = ""; offAt = 0; offStn = ""; board = Board(); pendingSwap = ""
         LiveRide.shared.end(); share = nil
     }
 
@@ -146,6 +153,10 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: 걸음(5초마다)
     /// POST /ride-standby 본문 { nowMs, fixes, state } — 위치는 가장 새 sendFix 개만(안드로이드 RideCore.stepBody).
     func stepBody(now: Date = Date()) -> String? {
+        if !pendingSwap.isEmpty {                    // s320: 고른 버스의 변경분을 달리는 안내(state)에 끼운다 — 걸음이 도는 중에 바꾸면 그 답이 덮어쓰므로 다음 걸음을 보낼 때 끼운다
+            let sw = pendingSwap; pendingSwap = ""
+            if !stateJson.isEmpty { stateJson = RideLoop.applySwap(stateJson, sw) }
+        }
         let tail = Array(fixes.suffix(RideLoop.sendFix))
         if let ts = tail.last?.first as? Int64 { lastSentTs = ts }
         var b = RideLoopBody.make(nowMs: Int64(now.timeIntervalSince1970 * 1000), fixes: tail, state: stateJson)
@@ -187,6 +198,8 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         if inFlightAd != nil { pendingAd = nil; inFlightAd = nil }          // 엔진이 추천 줄을 받았다
         fixes.removeAll { (($0.first as? Int64) ?? 0) <= lastSentTs }          // 보낸 위치는 지운다(그 뒤 들어온 것은 남긴다)
         readFacts(m); rebuild()
+        let nb = Self.boardCalc(st)
+        if nb != board { board = nb }
         last = OvState.from(m["overlay"])
         share = Self.shareFrom((m["overlay"] as? [String: Any])?["share"])
         LiveRide.shared.apply(last)
@@ -210,6 +223,66 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
             if r.sent { self.recoSent = true; if let ad = r.ad { self.pendingAd = ad; self.rcDisAny = false } }
             else if self.recoRetry < 2 { self.recoRetry += 1; self.rcRetry = true }          // 못 받았으면(통신 실패) 다음 걸음에 엔진이 같은 추천을 다시 판정하게 한다
         }
+    }
+
+    // MARK: s320 중간 환승 버스 고르기 — 엔진이 번호마다 만든 변경분(patch)을 달리는 안내(state)에 끼운다(계산 없음)
+    /// 고른 번호의 변경분을 다음 걸음에 끼운다. pickMs 가 있으면 그 차를 따라가게 bl.pickMs 로 싣는다.
+    @discardableResult
+    func busSwap(patch: [String: Any], pickMs: Int64) -> Bool {
+        guard var bl = patch["bl"] as? [String: Any] else { return false }
+        if pickMs > 0 { bl["pickMs"] = pickMs }
+        var p = patch; p["bl"] = bl
+        let t = js(p)
+        if t.isEmpty { return false }
+        pendingSwap = t
+        return true
+    }
+    nonisolated private static func busNode(_ n: [String: Any]) -> Bool { (n["isBus"] as? Bool) == true && (n["isSub"] as? Bool) != true }
+    nonisolated private static func line(_ n: [String: Any]) -> String { "\(n["lineName"] ?? "null")" }
+    nonisolated static func boardCalc(_ st: [String: Any]) -> Board {
+        guard let eta = st["eta"] as? [String: Any], let nodes = eta["nodes"] as? [[String: Any]] else { return Board() }
+        var bi = -1
+        if let w = st["wait"] as? [String: Any], let i = (w["i"] as? NSNumber)?.intValue { bi = i }
+        else if let x = st["xw"] as? [String: Any], let i = (x["i"] as? NSNumber)?.intValue, (x["mode"] as? String) == "bus" { bi = i }
+        if bi < 1 || bi >= nodes.count || !busNode(nodes[bi]) { return Board() }
+        var j = -1
+        for k in 1...bi {
+            if !busNode(nodes[k]) { continue }
+            let pv = nodes[k - 1]
+            if k > 1, busNode(pv), line(pv) == line(nodes[k]), j >= 0 { continue }
+            j += 1
+        }
+        let pb = nodes[bi - 1]
+        if bi > 1, busNode(pb), line(pb) == line(nodes[bi]) { return Board() }          // 승차 노드가 아니다(같은 버스를 타는 중)
+        return Board(i: bi, j: j)
+    }
+    /// 변경분 patch {bl, nodes[{i,…}], stops[{i,…}], targets[{nodeIdx,…}]} 를 state 에 끼운다(안드로이드 RideCore.applySwap). 못 읽으면 그대로.
+    nonisolated static func applySwap(_ stateJson: String, _ patchJson: String) -> String {
+        guard var st = (try? JSONSerialization.jsonObject(with: Data(stateJson.utf8))) as? [String: Any],
+              let p = (try? JSONSerialization.jsonObject(with: Data(patchJson.utf8))) as? [String: Any],
+              var cfg = st["cfg"] as? [String: Any], var eta = st["eta"] as? [String: Any], let bl = p["bl"] as? [String: Any] else { return stateJson }
+        cfg["bl"] = bl
+        eta["nodes"] = mergeBy(eta["nodes"], p["nodes"], "i", byPos: true)
+        st["stops"] = mergeBy(st["stops"], p["stops"], "i", byPos: false)
+        cfg["targets"] = mergeBy(cfg["targets"], p["targets"], "nodeIdx", byPos: false)
+        st["cfg"] = cfg; st["eta"] = eta
+        if var sbl = st["bl"] as? [String: Any] { sbl.removeValue(forKey: "ms"); sbl.removeValue(forKey: "arr"); st["bl"] = sbl }          // 지난 구간에서 따라간 차 기록은 버린다 — 고른 차를 따라가게
+        guard let d = try? JSONSerialization.data(withJSONObject: st), let s = String(data: d, encoding: .utf8) else { return stateJson }
+        return s
+    }
+    /// 목록(dst)의 칸을 변경분(src) 항목의 key 값과 같은 것에 덮어쓴다. byPos 면 key 값을 목록 위치로 본다(노드는 번호 = 위치).
+    nonisolated private static func mergeBy(_ dst: Any?, _ src: Any?, _ key: String, byPos: Bool) -> Any? {
+        guard var d = dst as? [Any], let s = src as? [Any] else { return dst }
+        for x in s {
+            guard let m = x as? [String: Any], let kv = (m[key] as? NSNumber)?.intValue else { continue }
+            var at = -1
+            if byPos { if kv >= 0 && kv < d.count && d[kv] is [String: Any] { at = kv } }
+            else { for (n, y) in d.enumerated() { if let ym = y as? [String: Any], (ym[key] as? NSNumber)?.intValue == kv { at = n; break } } }
+            guard at >= 0, var hit = d[at] as? [String: Any] else { continue }
+            for (k, v) in m where k != key { hit[k] = v }
+            d[at] = hit
+        }
+        return d
     }
 
     /// 엔진 alert {key, type, title, body, vib} → 알림(같은 key 는 한 번만).

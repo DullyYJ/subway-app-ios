@@ -23,6 +23,7 @@ struct RootView: View {
                 if let c = host.cmPop {          // 출·퇴근 시각 고르기 팝업(바깥을 누르면 취소)
                     DlgCard(screen: c, pal: pal) { _ in host.actPublisher.send(Host.TabAction(tab: "community", a: "call", v: "tp.cancel", id: "", key: "")) }
                 }
+                if let l = host.locd { DlgCard(screen: l, pal: pal) { _ in } }          // 위치 정보 이용 안내(바깥을 눌러도 닫히지 않는다 — 동의/거부로만)
                 if let b = host.cmb { DlgCard(screen: b, pal: pal) { _ in host.cmbAct("cmb.ok") } }          // 출퇴근 브리핑 창(알림을 누르면)
                 if let t = host.toast {
                     Text(t).font(Typo.font(12)).foregroundColor(.white).padding(10).background(Color.black.opacity(0.8)).cornerRadius(10).padding(.bottom, 12)
@@ -35,7 +36,7 @@ struct RootView: View {
         .background(pal.color("bg") ?? Color(.systemBackground))
         .kidsHubLayer(pal: pal)            // 반드시 environmentObject(host) 보다 안쪽(먼저) — 층이 Host 를 환경에서 읽는다
         .environmentObject(host)
-        .onAppear { RideLoop.shared.host = host; CommuteAlarm.attach(host) }
+        .onAppear { RideLoop.shared.host = host; CommuteAlarm.attach(host); FirstRun.host = host; FirstRun.begin() }
         .onChange(of: phase) { p in if p == .active { CommuteAlarm.refresh() } }          // 앱이 앞으로 올 때마다 출퇴근 알림 4주 창을 다시 민다(안드로이드 onCreate 의 rescheduleAsync)
         .preferredColorScheme(theme == "dark" ? .dark : .light)
     }

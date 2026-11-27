@@ -59,7 +59,7 @@ jobs:
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl privacy "$UDID" grant location com.dullyyj.subway.ios || true
           xcrun simctl location "$UDID" set 37.5547,126.9707 || true
-          xcrun simctl launch "$UDID" com.dullyyj.subway.ios
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup
           sleep 15
           xcrun simctl io "$UDID" screenshot screenshot-1.png
           xcrun simctl ui "$UDID" appearance dark
@@ -71,49 +71,49 @@ jobs:
           for T in home map community shop food; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
             xcrun simctl privacy "$UDID" grant location com.dullyyj.subway.ios || true
-            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab $T
+            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab $T
             sleep 22
             xcrun simctl io "$UDID" screenshot screenshot-tab-$T.png
           done
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
-          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab map -map_mode subway
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab map -map_mode subway
           sleep 22
           xcrun simctl io "$UDID" screenshot screenshot-tab-map-subway.png
           for CM in set board chat; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
-            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab community -ccMode $CM
+            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab community -ccMode $CM
             sleep 22
             xcrun simctl io "$UDID" screenshot screenshot-tab-community-$CM.png
           done
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
-          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab community -ccMode news -newsDetail 1
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab community -ccMode news -newsDetail 1
           sleep 26
           xcrun simctl io "$UDID" screenshot screenshot-tab-community-newsdetail.png
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
-          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab food -foodOpen 1
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab food -foodOpen 1
           sleep 40
           xcrun simctl io "$UDID" screenshot screenshot-tab-food-open.png
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
-          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab home -homeDest 명동
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab home -homeDest 명동
           sleep 22
           xcrun simctl io "$UDID" screenshot screenshot-tab-home-search.png
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
-          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab home -homeRoute 1
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab home -homeRoute 1
           sleep 30
           xcrun simctl io "$UDID" screenshot screenshot-tab-home-route.png
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
-          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -tab home -homeRoute 1 -homeDetail 1
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab home -homeRoute 1 -homeDetail 1
           sleep 34
           xcrun simctl io "$UDID" screenshot screenshot-tab-home-detail.png
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
           for N in 1 2; do
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
-            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -nodeDemo $N
+            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -nodeDemo $N
             sleep 6
             xcrun simctl io "$UDID" screenshot screenshot-nodedemo-$N.png
           done
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
-          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -nodeDemo 3
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -nodeDemo 3
           sleep 3
           for R in 1 2 3 4 5 6; do
             xcrun simctl io "$UDID" screenshot screenshot-runner-$R.png
@@ -125,7 +125,7 @@ jobs:
             xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
             xcrun simctl uninstall "$UDID" com.dullyyj.subway.ios || true
             xcrun simctl install "$UDID" "$APP"
-            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -demoRide $K
+            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -demoRide $K
             sleep 6
             xcrun simctl launch "$UDID" com.apple.mobilesafari || true
             sleep 4
@@ -135,7 +135,7 @@ jobs:
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
           xcrun simctl uninstall "$UDID" com.dullyyj.subway.ios || true
           xcrun simctl install "$UDID" "$APP"
-          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -demoRide journey
+          xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -demoRide journey
           sleep 4
           xcrun simctl io "$UDID" screenshot screenshot-journey-1-before.png
           for N in 2 3 4 5; do

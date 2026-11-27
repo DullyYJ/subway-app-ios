@@ -121,6 +121,7 @@ final class SettingsModel: ObservableObject {
                 ud.set(id, forKey: "comm_id"); host.say("아이디가 저장되었어요: " + id); Task { await load() }
             case "clearId":
                 ud.set("", forKey: "comm_id"); host.clearField("cid"); host.say("아이디가 삭제되었어요"); Task { await load() }
+            case "pg.back": subOpen = false
             case "pol.privacy": openSub("polp")
             case "pol.location": openSub("poll")
             case "pol.opensource": openSub("polo")
