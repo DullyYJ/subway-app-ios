@@ -36,6 +36,7 @@ struct ScreenBody: View {
                     }.padding(.bottom, 24)
                 })
             }
+            .overlay(alignment: .bottom) { if let f = Fab(screen.raw["fab"] as? [String: Any]) { FabButton(fab: f, pal: pal) } }          // 떠 있는 단추(게시판 '제보 글쓰기')
             if !screen.foot.isEmpty {
                 VStack(spacing: 0) { ForEach(screen.foot) { NodeView(node: $0, pal: pal) } }
             }
@@ -43,6 +44,34 @@ struct ScreenBody: View {
         .background(pal.color(screen.bg) ?? pal.color("bg") ?? Color(.systemBackground))
         .environmentObject(open)
         .onChange(of: "\(screen.name)|\(screen.raw["rev"] as? String ?? "")|\(screen.body.count)") { _ in ChipPick.shared.clear() }          // 새 화면이 오면 먼저 켠 칩을 거두고 그 화면 값을 따른다
+    }
+}
+
+/// 화면이 준 떠 있는 단추 {s, icon(SVG path), act}: 본문 아래 가운데 · 높이 40 · 금색 알약 · 아래 여백 16(안드로이드 ScreenView.drawFab).
+struct Fab {
+    let s: String, icon: String, act: Action
+    init?(_ m: [String: Any]?) {
+        guard let m = m, let s = m["s"] as? String, !s.isEmpty, let a = Action(m["act"] as? [String: Any]) else { return nil }
+        self.s = String(s.prefix(24)); icon = String(((m["icon"] as? String) ?? "").prefix(900)); act = a
+    }
+}
+struct FabButton: View {
+    let fab: Fab
+    let pal: Palette
+    @EnvironmentObject var host: Host
+    var body: some View {
+        let gold = pal.color("gold") ?? .orange, on = pal.color("ongold") ?? .white
+        Button { host.handle(fab.act) } label: {
+            HStack(spacing: 6) {
+                if !fab.icon.isEmpty { SVGIcon(d: fab.icon).fill(on).frame(width: 14, height: 14) }
+                Text(fab.s).font(Typo.font(13, bold: true)).foregroundColor(on).lineLimit(1)
+            }
+            .padding(.horizontal, 24).frame(height: 40)
+            .background(Capsule().fill(gold))
+            .shadow(color: gold.opacity(0.35), radius: 7, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 16)
     }
 }
 

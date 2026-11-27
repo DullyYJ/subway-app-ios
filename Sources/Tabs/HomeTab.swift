@@ -717,7 +717,7 @@ struct DlgCard: View {
         GeometryReader { g in
             let w = min(n("w", 320, 120, 480), g.size.width - 2 * n("mx", 16, 0, 80))
             ZStack {
-                Color.black.opacity(n("dim", 0.5, 0, 0.85)).ignoresSafeArea().onTapGesture { act("dl.close") }
+                Color.black.opacity(n("dim", 0.5, 0, 0.85)).ignoresSafeArea().onTapGesture { act(((d["tap"] as? [String: Any])?["v"] as? String) ?? "dl.close") }          // 바깥을 누르면 엔진이 정한 행동(dl.no …)
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(screen.head) { NodeView(node: $0, pal: pal) }
