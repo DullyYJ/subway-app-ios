@@ -152,7 +152,10 @@ final class Host: ObservableObject {
         say("call ‘\(v)’ 는 아직 연결되지 않았어요")
     }
 
+    /// 안드로이드는 하단 토스트를 껐다(ShellActivity.toast() 본문이 비어 있다 — 사용자 지시): 호출은 그대로 두고 삼킨다. 되돌리려면 toastOn 만 true 로.
+    static let toastOn = false
     func say(_ m: String) {
+        guard Host.toastOn else { NSLog("[say] %@", m); return }
         toast = m
         Task { try? await Task.sleep(nanoseconds: 2_500_000_000); if self.toast == m { self.toast = nil } }
     }
