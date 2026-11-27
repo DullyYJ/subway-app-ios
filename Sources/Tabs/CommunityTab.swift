@@ -12,15 +12,18 @@ final class CommunityModel: ObservableObject {
         mode = CommunityModel.modes.contains(m) ? m : "news"
         let a = CommandLine.arguments
         if let i = a.firstIndex(of: "-ccMode"), i + 1 < a.count, CommunityModel.modes.contains(a[i + 1]) { mode = a[i + 1] }
+        head = ScreenCache.shared.get("cchips|" + mode)          // 옛 칩 줄을 먼저(안드로이드 cacheKey cchips|방식) — 받은 뒤 본문이 아래로 밀리지 않게
     }
     func setMode(_ m: String) {
         guard CommunityModel.modes.contains(m), m != mode else { return }
         mode = m; UserDefaults.standard.set(m, forKey: "cc_mode")
+        if let c = ScreenCache.shared.get("cchips|" + m) { head = c }
         Task { await loadHead() }
     }
     func loadHead() async {
-        let body = "{\"cap\":\(Servers.cap),\"f\":{\"mode\":\(Json.q(mode))}}"
-        if let d = try? await Net.request("POST", Servers.base + "/screen/cchips", body: body, timeout: 8), let s = try? Screen.parse(d) { head = s }
+        let md = mode
+        let body = "{\"cap\":\(Servers.cap),\"f\":{\"mode\":\(Json.q(md))}}"
+        if let d = try? await Net.request("POST", Servers.base + "/screen/cchips", body: body, timeout: 8), let s = try? Screen.parse(d), md == mode { head = s; ScreenCache.shared.put("cchips|" + md, s) }
     }
 }
 

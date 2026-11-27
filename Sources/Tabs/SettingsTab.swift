@@ -12,6 +12,15 @@ final class SettingsModel: ObservableObject {
     private let ud = UserDefaults.standard
     static let notif = ["arrive", "transfer", "arrive_reco"]
 
+    /// 설정 화면 기억 열쇠: 스위치 · 글자 모양이 기기에 저장된 값(facts)에서 나오므로 그 값의 지문을 열쇠에 넣는다 — 값이 바뀌면 열쇠가 달라져
+    /// 옛 화면이 뜨지 않고, 같은 값일 때만 기억한 화면을 바로 보인다(안드로이드 ShellCore.settingsKey).
+    static func skey(_ f: String) -> String {
+        var h: UInt64 = 5381
+        for b in f.utf8 { h = (h &* 33) &+ UInt64(b) }
+        return "settings|" + String(h, radix: 16)
+    }
+    init() { screen = ScreenCache.shared.get(Self.skey(facts())) }
+
     var theme: String { ud.string(forKey: "theme") ?? "pastel" }
     func facts() -> String {
         let np = SettingsModel.notif.map { "\(Json.q($0)):\(ud.string(forKey: "np_" + $0) == "0" ? 0 : 1)" }.joined(separator: ",")
@@ -29,10 +38,11 @@ final class SettingsModel: ObservableObject {
     func load() async {
         loadSeq += 1
         let my = loadSeq
+        let key = Self.skey(facts())
         do {
             let d = try await Net.request("GET", url(), timeout: 9)
             let sc = try Screen.parse(d)
-            if my == loadSeq { screen = sc; error = nil }          // 더 새 요청이 나갔으면 늦게 온 옛 답은 버린다(글자를 칠 때마다 다시 받는다)
+            if my == loadSeq { screen = sc; error = nil; ScreenCache.shared.put(key, sc) }          // 더 새 요청이 나갔으면 늦게 온 옛 답은 버린다(글자를 칠 때마다 다시 받는다)
         }
         catch { if screen == nil { self.error = "설정을 받지 못했어요" } }
     }
@@ -192,8 +202,8 @@ struct SettingsView: View {
     }
     var body: some View {
         ZStack {
-            if let s = m.screen { ScreenBody(screen: withKids(s), pal: pal) }
-            else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
+            if let s = m.screen { ScreenBody(screen: withKids(s), pal: pal).transition(.arrival) }
+            else { SkelScreen(kind: "list", pal: pal).transition(.identity) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if m.subOpen {
                 ZStack(alignment: .bottom) {
@@ -213,6 +223,7 @@ struct SettingsView: View {
                 }.transition(.move(edge: .bottom))
             }
         }
+        .arrivalFade(m.screen != nil)
         .task { await m.load(); kids.refreshLink() }
         .onReceive(host.actPublisher) { x in if x.tab == "community" { m.handle(x, host: host) } }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
