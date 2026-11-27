@@ -1,0 +1,65 @@
+name: iOS IPA (unsigned, for sideloading)
+
+# 실제 아이폰용 .ipa 를 만든다(서명 없음). 받아서 Windows 의 Sideloadly 같은 도구로 내 Apple ID 로 서명해 설치한다.
+# 결과: GitHub 릴리스 'ios-latest' 에 Gildongmu-unsigned.ipa (위젯 확장 포함) 와 Gildongmu-noext.ipa (위젯 확장 뺀 것 — 확장 서명이 안 될 때) 가 올라간다.
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'Sources/**', 'Shared/**', 'Widget/**', 'Resources/**', 'project.yml', 'scripts/**', '.github/workflows/ipa.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-ipa
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: 글꼴 만들기 (안드로이드와 같은 Noto Sans KR)
+        run: |
+          pip3 install --quiet --break-system-packages fonttools || pip3 install --quiet fonttools
+          python3 scripts/make_fonts.py
+      - name: XcodeGen 설치 · 프로젝트 생성
+        run: |
+          brew install xcodegen
+          xcodegen
+      - name: 실기기용 빌드 (서명 없음)
+        run: |
+          xcodebuild -version
+          xcodebuild build -project Gildongmu.xcodeproj -scheme Gildongmu \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee build.log | tail -40
+          test ${PIPESTATUS[0]} -eq 0
+      - name: .ipa 묶기 (확장 포함 · 확장 뺀 것)
+        run: |
+          APP=$(find build/Build/Products -name 'Gildongmu.app' -maxdepth 3 | head -1)
+          echo "앱: $APP"; ls "$APP" | head -30; ls "$APP/PlugIns" 2>/dev/null || true
+          mkdir -p out/full/Payload out/noext/Payload
+          cp -R "$APP" out/full/Payload/
+          cp -R "$APP" out/noext/Payload/
+          rm -rf out/noext/Payload/Gildongmu.app/PlugIns
+          (cd out/full && zip -qry ../Gildongmu-unsigned.ipa Payload)
+          (cd out/noext && zip -qry ../Gildongmu-noext.ipa Payload)
+          ls -la out/*.ipa
+      - name: 릴리스 ios-latest 에 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          MSG=$(git log -1 --pretty=%s)
+          gh release delete ios-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create ios-latest out/Gildongmu-unsigned.ipa out/Gildongmu-noext.ipa --prerelease \
+            --title "iOS 시험용 IPA ($SHA)" \
+            --notes "서명 없는 .ipa 입니다. Sideloadly 로 내 Apple ID 서명 후 설치하세요(7일마다 다시). 커밋 $SHA — $MSG. Gildongmu-noext.ipa 는 위젯 확장(Live Activity)을 뺀 것으로, 확장 서명이 안 될 때 씁니다."
+      - name: 빌드 로그 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipa-build-log
+          path: build.log
