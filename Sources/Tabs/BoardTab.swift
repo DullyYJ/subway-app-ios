@@ -266,7 +266,7 @@ struct BoardTab: View {
     var body: some View {
         ZStack {
             if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "community", host: host)) }
-            else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
+            else { SkelScreen(kind: "list", pal: pal) }
             if m.writeOpen { WriteSheet(m: m, pal: pal) }
             if m.askId { IdCard(pal: pal, initial: m.commId, onSave: { m.saveId($0) { host.say($0) } }, onClose: { m.askId = false }) }
             if m.askUgc { UgcCard(pal: pal, onAgree: { m.agreeUgc { host.say($0) } }, onClose: { m.askUgc = false }) }

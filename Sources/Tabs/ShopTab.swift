@@ -11,6 +11,8 @@ final class ShopModel: ObservableObject {
     /// s481: 상품을 누르면 뜨는 확인 카드(엔진 /screen/dlg kind:shopgo). 예 → 쿠팡 주소를 연다 · 아니오 · 바깥 → 닫기. 못 받으면 예전처럼 바로 연다.
     @Published var dlg: Screen? = nil
     private var goUrl: String? = nil, asking = false
+    private var ckey: String { "shop|" + cat }
+    init() { screen = ScreenCache.shared.get("shop|" + cat) }          // 옛 화면을 먼저 보이고 새로 받으면 바꾼다(안드로이드 showCached)
 
     func ask(url: String, name: String, img: String) async {
         guard dlg == nil, !asking else { return }
@@ -27,7 +29,11 @@ final class ShopModel: ObservableObject {
     }
     private static func openLink(_ u: String) { if let url = URL(string: u), url.scheme == "https" { UIApplication.shared.open(url) } }
 
-    func setCat(_ c: String) { cat = c; UserDefaults.standard.set(c, forKey: "shop.cat"); Task { await load(fetch: false) } }
+    func setCat(_ c: String) {
+        cat = c; UserDefaults.standard.set(c, forKey: "shop.cat")
+        if let cached = ScreenCache.shared.get(ckey) { screen = cached }          // 그 분류를 본 적이 있으면 바로
+        Task { await load(fetch: false) }
+    }
 
     func load(fetch: Bool = true) async {
         if fetch || shopRaw == nil {
@@ -43,7 +49,7 @@ final class ShopModel: ObservableObject {
         body += ",\"shop\":\(shopText)"
         if let c = cfgRaw, let t = String(data: c, encoding: .utf8) { body += ",\"cfg\":\(t)" }
         body += "}"
-        do { screen = try await Net.screen("/screen/shop", body: body); error = nil }
+        do { let s = try await Net.screen("/screen/shop", body: body); screen = s; error = nil; ScreenCache.shared.put(ckey, s) }
         catch { self.error = error.localizedDescription }
     }
 }
@@ -55,7 +61,7 @@ struct ShopTab: View {
     var body: some View {
         ZStack {
             if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "shop", host: host)) }
-            else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
+            else { SkelScreen(kind: "cards", pal: pal) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0) } }
         }

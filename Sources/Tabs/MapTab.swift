@@ -266,7 +266,7 @@ struct MapTab: View {
             if let h = m.head { VStack(spacing: 0) { ForEach(h.head + h.body) { NodeView(node: $0, pal: pal) } } }
             ZStack {
                 if let s = m.body { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "map", host: host), onPull: m.mode == "bus" ? { host.reloadTick += 1 } : nil) }
-                else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
+                else { SkelScreen(kind: "map", pal: pal) }
                 if m.view == "metro", let md = m.metro {
                     MetroMapView(data: md, filter: md.filterIndex(m.flt)) { m.tapStation($0) }
                 }

@@ -657,7 +657,7 @@ struct HomeTab: View {
     var body: some View {
         ZStack {
             if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "home", host: host, ok: { m.swipeOK && m.dlg == nil && !m.showDetail && !m.showTimePick })) }
-            else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
+            else { SkelScreen(kind: "cards", pal: pal) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if m.showDetail { DetailSheet(m: m, pal: pal) }
             if m.showTimePick { TimePickCard(m: m, pal: pal) { m.commitBase(host: host) } }

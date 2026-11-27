@@ -12,6 +12,8 @@ final class NewsModel: ObservableObject {
     private var rows: [NewsRow] = []
     static let maxRows = 900
     var cat: String { UserDefaults.standard.string(forKey: "news_cat") ?? "전체" }
+    private var ckey: String { "news|" + cat }
+    init() { screen = ScreenCache.shared.get("news|" + cat) }          // 옛 화면을 먼저(기사를 누르는 건 새로 받은 뒤부터 먹는다)
 
     struct NewsDetail: Identifiable { let id = UUID(); var title = "", meta = "", body = "", notice = "", btn = "", cat = "", src = "", close = "닫기", link = ""; var bodyEmpty = false, open = false }
 
@@ -67,7 +69,7 @@ final class NewsModel: ObservableObject {
             build(da, db)
         }
         let body = "{\"cap\":\(Servers.cap),\"f\":{\"cat\":\(Json.q(cat))},\"n\":\(listJson())}"
-        do { screen = try await Net.screen("/screen/news", body: body); error = nil }
+        do { let s = try await Net.screen("/screen/news", body: body); screen = s; error = nil; ScreenCache.shared.put(ckey, s) }
         catch { if screen == nil { self.error = "소식을 받지 못했어요" } }
         if !autoDone, CommandLine.arguments.contains("-newsDetail"), let r = rows.first, let h = hostRef { autoDone = true; open(id: r.link.isEmpty ? r.title : r.link, title: r.title, host: h) }
     }
@@ -103,7 +105,7 @@ struct NewsView: View {
     var body: some View {
         ZStack {
             if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "community", host: host)) }
-            else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
+            else { SkelScreen(kind: "list", pal: pal) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if let d = m.detail { NewsDetailSheet(d: d, pal: pal) { m.detail = nil } }
         }
