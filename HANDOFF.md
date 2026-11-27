@@ -90,3 +90,10 @@
 - 지도 2초 꾹 누르기(`tmap.hold:'mp.lp'` · `hms`): 버스 '내 주변' 지도를 움직이지 않고 2초 누르면 `mp.lp.<위도>_<경도>` 를 보내고(`TmapNode.holdBegin`), `MapModel.busPin` 이 정류장 요청의 `bus.pin:[위도,경도]` 로 실어 엔진이 그 주변 100m 정류장을 찾는다. 📍 · 새로고침(`mp.loc/rf/rt`)은 핀을 버린다.
 - 안드로이드가 읽는데 iOS 가 아직 안 읽는 화면 값(2026-11-27 점검): `an`(경로 카드 탑승·환승·도착 칸 전환 연출 — 안내 중에만), `anchor`(소통방 아래 붙임; ChatTab 이 따로 처리), `fit/fmin/fmax/frh/fo`(엔진이 안 보냄), `ffill/fd/fk`(안 보냄), `grp`(안 보냄), `ix`(뉴스 순번 보조), `lp`(3초 꾹 — 키즈 장소 등록).
 - 화면 기억 · 뼈대: `Sources/UI/ScreenCache.swift` — 받은 엔진 화면을 메모리 + 기기 캐시 폴더(7일)에 담아 두었다가 쇼핑 · 소식은 탭을 열 때 옛 화면을 먼저 보이고 새로 받으면 바꾼다(안드로이드 cachePut/showCached). 첫 화면이 오기 전에는 빙글빙글 대신 뼈대(`SkelScreen`: 홈·쇼핑 cards · 노선도 map · 맛집/소식/게시판 list — 안드로이드 skeletonScreen). 홈 · 맛집 · 노선도 · 게시판은 눌림이 앞서 받은 상태(info)에 기대서 아직 기억하지 않는다(안드로이드 restoreState 에 해당하는 일이 먼저 필요).
+
+## 탭 옮기기 · 다시 누르기 (안드로이드 showTab / tabSettle / Debounce.TAP_MS)
+- 탭을 옮기면 새 화면이 흐림 0.85 → 1, 아래 4pt → 제자리, 180ms, 곡선 (0.32, 0.72, 0, 1) 로 떠오른다(`TabFadeIn`). 소통방도 같다. 예전 0.35 → 1 은 안드로이드 fadeIn(새 화면이 캐시 없이 올 때)이라 탭 이동과는 다른 것.
+- 이미 켜진 탭을 다시 누르면 안드로이드는 showTab 을 다시 돌아 그 탭을 새로 받고 다시 떠오른다 → `Host.call("tab.x")` 가 같은 탭이면 `reloadTick`·`settleTick` 을 올린다.
+- 같은 탭 버튼 350ms 안의 거듭 누름은 한 번으로(`TapGate`, 시험 `TapGateTests`).
+- 안드로이드의 TAB_GAP_MS(120ms 새로 받기 미루기)는 iOS 에서는 탭을 옮기면 화면이 새로 올라오고 앞 화면의 통신 작업이 취소되므로 따로 두지 않는다.
+- 쇼핑 '최근에 보여 준 상품'(ShopRecent)은 이미 `RecoFlow.recentNames/recentAdd/inject` 로 들어 있다(추천 요청에 `shopRecent` 를 싣고, 답의 `shopItem.n` 을 기억).

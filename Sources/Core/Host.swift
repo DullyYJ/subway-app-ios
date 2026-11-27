@@ -9,6 +9,9 @@ final class Host: ObservableObject {
     @Published var toast: String? = nil
     @Published var reloadTick = 0
     private var lastRetry = Date.distantPast
+    private var gate = TapGate()
+    /// 이미 켜진 탭을 다시 누르면 올라오는 신호 — 탭 화면이 살짝 다시 떠오른다(안드로이드 showTab → tabSettle).
+    @Published var settleTick = 0
     @Published var fieldClear: [String: Int] = [:]
     /// 입력칸 글을 비운다(보낸 뒤) — 칸 화면에도 알려 글자를 지운다.
     func clearField(_ k: String) { UserDefaults.standard.removeObject(forKey: "field." + k); fieldClear[k, default: 0] += 1 }
@@ -144,7 +147,10 @@ final class Host: ObservableObject {
     func call(_ v: String) {
         if v.hasPrefix("tab.") {
             let t = String(v.dropFirst(4))
-            if Host.tabNames.contains(t) { tab = t }
+            guard Host.tabNames.contains(t) else { return }
+            guard gate.pass("tab:" + v, now: Int64(Date().timeIntervalSince1970 * 1000)) else { return }          // 같은 탭 버튼 연타는 한 번으로(안드로이드 Debounce.TAP_MS)
+            if t == tab { reloadTick += 1; settleTick += 1 }          // 켜진 탭을 다시 누르면 그 탭을 새로 받고 다시 떠오른다(안드로이드는 showTab 을 다시 돈다)
+            else { tab = t }
             return
         }
         if v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: "", key: "")); return }

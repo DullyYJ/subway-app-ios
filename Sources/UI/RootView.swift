@@ -66,22 +66,33 @@ struct TabContent: View {
     var body: some View {
         Group {
             switch tab {
-            case "community": CommunityTab(pal: pal)          // 소통방은 흐릿하게 떠오르지 않고 바로 또렷하게(안드로이드 s286)
-            case "shop": ShopTab(pal: pal).modifier(TabFadeIn())
-            case "food": FoodTab(pal: pal).modifier(TabFadeIn())
-            case "home": HomeTab(pal: pal).modifier(TabFadeIn())
-            case "map": MapTab(pal: pal).modifier(TabFadeIn())
+            case "community": CommunityTab(pal: pal)
+            case "shop": ShopTab(pal: pal)
+            case "food": FoodTab(pal: pal)
+            case "home": HomeTab(pal: pal)
+            case "map": MapTab(pal: pal)
             default: DevExplorer(pal: pal, title: tab + " (다음 단계에서 연결)", start: "/screen/settings?cap=8")
             }
         }
+        .modifier(TabFadeIn())
         .id(tab)
     }
 }
 
-/// 탭을 옮기면 새 화면이 살짝 떠오른다: 흐림 0.35 → 1, 240ms, 감속(안드로이드 ShellActivity.fadeIn).
+/// 탭을 옮기면(켜진 탭을 다시 눌러도) 새 화면이 살짝 떠올라 자리잡는다: 흐림 0.85 → 1, 아래 4pt → 제자리, 180ms,
+/// 곡선 (0.32, 0.72, 0, 1) — 안드로이드 ShellActivity.tabSettle. 소통방도 같다.
 struct TabFadeIn: ViewModifier {
-    @State private var a = 0.35
+    @EnvironmentObject private var host: Host
+    @State private var a = 0.85
+    @State private var y: CGFloat = 4
     func body(content: Content) -> some View {
-        content.opacity(a).onAppear { withAnimation(.easeOut(duration: 0.24)) { a = 1 } }
+        content.opacity(a).offset(y: y)
+            .onAppear { settle() }
+            .onChange(of: host.settleTick) { _ in
+                var t = Transaction(); t.disablesAnimations = true
+                withTransaction(t) { a = 0.85; y = 4 }
+                DispatchQueue.main.async { settle() }
+            }
     }
+    private func settle() { withAnimation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.18)) { a = 1; y = 0 } }
 }
