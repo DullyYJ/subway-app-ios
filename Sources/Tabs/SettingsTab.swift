@@ -194,7 +194,7 @@ struct SettingsView: View {
         ZStack {
             if let s = m.screen { ScreenBody(screen: withKids(s), pal: pal) }
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
-            if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
+            if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if m.subOpen {
                 ZStack(alignment: .bottom) {
                     Color.black.opacity(0.5).ignoresSafeArea().onTapGesture { m.subOpen = false }

@@ -56,7 +56,7 @@ struct ShopTab: View {
         ZStack {
             if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "shop", host: host)) }
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
-            if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
+            if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0) } }
         }
         .task { LocationStore.shared.start(); await m.load() }
@@ -67,5 +67,6 @@ struct ShopTab: View {
             else if x.a == "call", x.v.hasPrefix("dl.") { m.dlgAct(x.v) }
         }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
+        .modifier(AutoRetry(delays: m.screen?.retryHint))          // 엔진이 준 "서버 연결 지연" 안내가 떠 있으면 엔진이 정한 간격으로 뒤에서 다시 받는다
     }
 }

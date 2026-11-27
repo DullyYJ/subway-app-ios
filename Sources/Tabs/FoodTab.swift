@@ -257,7 +257,7 @@ struct FoodTab: View {
         ZStack {
             if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "food", host: host), onPull: { host.reloadTick += 1 }) }
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
-            if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
+            if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
         }
         .task { LocationStore.shared.start(); await m.load(); try? await Task.sleep(nanoseconds: 1_500_000_000); m.autoOpen(host: host) }
         .onChange(of: loc.last?.coordinate.latitude) { _ in Task { await m.gpsChanged() } }

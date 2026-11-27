@@ -658,7 +658,7 @@ struct HomeTab: View {
         ZStack {
             if let s = m.screen { ScreenBody(screen: s, pal: pal, swipe: SwipeCfg(tab: "home", host: host, ok: { m.swipeOK && m.dlg == nil && !m.showDetail && !m.showTimePick })) }
             else { (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea(); ProgressView() }
-            if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
+            if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
             if m.showDetail { DetailSheet(m: m, pal: pal) }
             if m.showTimePick { TimePickCard(m: m, pal: pal) { m.commitBase(host: host) } }
             if let d = m.dlg { DlgCard(screen: d, pal: pal) { m.dlgAct($0, host: host) } }

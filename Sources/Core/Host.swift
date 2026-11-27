@@ -8,6 +8,7 @@ final class Host: ObservableObject {
     @Published var tab: String = UserDefaults.standard.string(forKey: "tab") ?? "home" { didSet { UserDefaults.standard.set(tab, forKey: "tab") } }
     @Published var toast: String? = nil
     @Published var reloadTick = 0
+    private var lastRetry = Date.distantPast
     @Published var fieldClear: [String: Int] = [:]
     /// 입력칸 글을 비운다(보낸 뒤) — 칸 화면에도 알려 글자를 지운다.
     func clearField(_ k: String) { UserDefaults.standard.removeObject(forKey: "field." + k); fieldClear[k, default: 0] += 1 }
@@ -111,6 +112,11 @@ final class Host: ObservableObject {
         case "sel", "web":
             actPublisher.send(TabAction(tab: "community", a: a.a, v: a.v ?? a.url ?? "", id: "", key: a.key ?? ""))
         case "call":
+            if a.v == "gdm_retry" {                                        // 서버 지연 안내의 [다시 시도] — 지금 다시 받는다(안드로이드 RETRY_ACT, 600ms 안의 거듭 누름은 한 번으로)
+                let now = Date()
+                if now.timeIntervalSince(lastRetry) > 0.6 { lastRetry = now; reloadTick += 1 }
+                return
+            }
             if let v = a.v, locd != nil, v.hasPrefix("locd.") || v == "pol.privacy" || v == "pg.back" { locdAct(v) }
             else if let v = a.v, v.hasPrefix("dl."), reco != nil { recoAct(v) }
             else if let v = a.v, Host.isKidsCall(v) { actPublisher.send(TabAction(tab: "kids", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }

@@ -270,7 +270,7 @@ struct BoardTab: View {
             if m.writeOpen { WriteSheet(m: m, pal: pal) }
             if m.askId { IdCard(pal: pal, initial: m.commId, onSave: { m.saveId($0) { host.say($0) } }, onClose: { m.askId = false }) }
             if m.askUgc { UgcCard(pal: pal, onAgree: { m.agreeUgc { host.say($0) } }, onClose: { m.askUgc = false }) }
-            if let e = m.error, m.screen == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
+            if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
         }
         .task { m.hostRef = host; await m.load() }
         .onReceive(host.actPublisher) { x in

@@ -277,7 +277,7 @@ struct MapTab: View {
                 if let ae = m.aliasEdit {
                     AliasCard(edit: ae, pal: pal, maxLen: m.aliasMax, onSave: { m.setAlias(ae.key, $0); m.aliasEdit = nil }, onClose: { m.aliasEdit = nil })
                 }
-                if let e = m.error, m.body == nil { Text(e).font(Typo.font(12)).foregroundColor(pal.color("sub") ?? .gray) }
+                if let e = m.error, m.body == nil { RetryCard(msg: e, pal: pal) }
             }
         }
         .background(pal.color("bg") ?? Color(.systemBackground))

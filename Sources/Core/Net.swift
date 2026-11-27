@@ -30,7 +30,15 @@ enum Net {
     }
 
     static func screen(_ path: String, method: String = "POST", body: String? = nil) async throws -> Screen {
-        let d = try await request(method, Servers.base + path, body: method == "POST" ? (body ?? "{\"cap\":\(Servers.cap)}") : nil)
+        guard let u = URL(string: Servers.base + path) else { throw Failure(msg: "주소가 올바르지 않아요") }
+        var r = URLRequest(url: u, timeoutInterval: 12)
+        r.httpMethod = method
+        if method == "POST" { r.httpBody = (body ?? "{\"cap\":\(Servers.cap)}").data(using: .utf8); r.setValue("application/json", forHTTPHeaderField: "content-type") }
+        let (d, resp) = try await URLSession.shared.data(for: r)
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 200
+        // 엔진이 HTTP 503 과 함께 주는 "서버 연결 지연" 안내 화면(delayed:true · retry:[초…])은 오류가 아니라 그릴 화면이다(안드로이드 fetchCond 와 같다)
+        if code == 503, let s = try? Screen.parse(d), s.retryHint != nil { return s }
+        if code >= 400 { throw Failure(msg: "서버 \(code)") }
         return try Screen.parse(d)
     }
 }
