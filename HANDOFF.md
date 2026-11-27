@@ -118,3 +118,4 @@
 - 맨 위 문구(`hdr`)와 아래 탭 막대(`tabs|탭`)도 `ScreenCache` 에 담아 옛 화면을 먼저 보인다(`RemoteScreenInline.cacheKey`). 탭 막대는 앱을 켜면 다른 탭 것도 미리 받아 두고(`RootView.prefetchTabBars`, 안드로이드 prefetchTabs), 이번 실행에서 10분 안에 받은 것은 다시 안 받는다(`ScreenCache.fresh`). 맨 위 문구는 켤 때 · 10분마다만 받는다(전에는 화면이 다시 그려질 때마다 받았다).
 - 뼈대 → 진짜 화면이 처음 올라올 때 흐림 0.35 → 1, 240ms(`Sources/UI/ArrivalFade.swift` — `.transition(.arrival)` + `.arrivalFade(화면 있나)`; 홈 · 쇼핑 · 소식 · 게시판 · 맛집 · 노선도). 옛 화면을 먼저 보인 경우와 소통방은 안 쓴다(안드로이드 fadeIn 과 같다).
 - 팝업처럼 내용 높이로 줄어드는 자리에서는 `ScreenBody(eager: true)`(게으른 쌓기가 높이를 못 재서 납작해진다). 시간표 팝업은 화면 62% 높이로 고정하고 목록이 그 안을 채운다(전에는 첫 줄만 보이고 잘렸다 — CI 캡처 screenshot-map-tt-1.png 로 발견).
+- 노선도(`maph|모드|지역|칩` · `mapb|모드|지역|칩[|주변/즐겨찾기|위치칸 0.001°≈110m]`)도 옛 화면을 먼저 보인다(`MapModel.useCache`). 방식 · 지역 · 칩 · 주변/즐겨찾기를 바꿀 때도 본 적 있는 칸이면 먼저 올린다. 버스 본문은 받은 지 10분 안일 때만(안드로이드 BUS_FRESH_MS), 정류장을 골라 펼친 화면 · 덜 받은 화면(info.bus.need 남음)은 안 담는다. 캐시 화면을 올릴 때 `readInfo` 도 다시 돌려 눌림 번호표(stops · rts · rs)를 맞춘다.
