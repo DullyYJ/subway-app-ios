@@ -93,13 +93,18 @@ struct NodeView: View {
     }
 
     // 글: 기본 12 · 줄 높이 1.35 · 가볍게(굵게는 bold) — 글 줄은 안드로이드 wrap 과 같게 나눈다
-    private var textNode: some View {
+    @ViewBuilder private var textNode: some View {
         let al = node.str("align")
         let c = pal.color(node.str("cc")) ?? col("color", "text")
-        return LinedText(s: node.str("s") ?? "", size: f("size", 12), bold: node.bool("bold"), lh: f("lh", 1.35), color: c,
-                         align: al == "center" ? .center : al == "right" ? .trailing : .leading,
-                         maxLines: Int(node.num("lines", 0)), hl: hlRanges)
-            .opacity(node.d["alpha"] != nil ? node.num("alpha", 1) : 1)
+        if node.bool("mq"), node.num("rw") > 0 {          // 놀이터 칸을 남기고 한 줄로 흐르는 이름(지도 역 카드)
+            MarqueeLabel(text: node.str("s") ?? "", size: f("size", 12), bold: node.bool("bold"), color: c, height: f("size", 12) * f("lh", 1.35), reserve: f("rw", 0))
+                .opacity(node.d["alpha"] != nil ? node.num("alpha", 1) : 1)
+        } else {
+            LinedText(s: node.str("s") ?? "", size: f("size", 12), bold: node.bool("bold"), lh: f("lh", 1.35), color: c,
+                      align: al == "center" ? .center : al == "right" ? .trailing : .leading,
+                      maxLines: Int(node.num("lines", 0)), hl: hlRanges)
+                .opacity(node.d["alpha"] != nil ? node.num("alpha", 1) : 1)
+        }
     }
 
     // 넓은 단추: 높이 40 · 모서리 12 · 글 12 · 테두리 1(안쪽) · 글색 기본은 sub · 굵기는 bold 일 때만
@@ -175,11 +180,13 @@ struct NodeView: View {
     // 머리줄: 제목 18 굵게 + 금색 작은 글 13 굵게(한 줄에 들어가면 옆에, 아니면 아래) + 오른쪽 알약 단추 12
     private var barNode: some View {
         let title = node.str("title") ?? "", sub = node.str("sub") ?? "", btn = node.str("btn") ?? ""
+        let flow = node.bool("mq") && node.num("rw") > 0 && sub.isEmpty          // 놀이터 칸을 남기고 제목이 흐른다(시간표 줄)
         let tt = Text(title).font(Typo.font(18, bold: true)).foregroundColor(col("tc", "text")).lineLimit(1).truncationMode(.tail).frame(height: 18 * 1.4)
         let ss = Text(sub).font(Typo.font(13, bold: true)).foregroundColor(pal.color("gold") ?? .yellow).lineLimit(1).truncationMode(.tail).frame(height: 13 * 1.4)
         return HStack(alignment: .center, spacing: 8) {
             Group {
-                if sub.isEmpty { tt }
+                if flow { MarqueeLabel(text: title, size: 18, bold: true, color: col("tc", "text"), height: 18 * 1.4, reserve: f("rw", 0)) }
+                else if sub.isEmpty { tt }
                 else {
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) { tt.fixedSize(); ss.fixedSize() }
