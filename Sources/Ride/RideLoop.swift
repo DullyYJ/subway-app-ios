@@ -27,6 +27,10 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published private(set) var lvJson = ""
     private var text = "", rowJson = "", dtJson = "", cur = -1, posJson = "null", arrJson = "null", waitJson = ""
     private var pendingAct = ""
+    /// 하차 추천: 한 여정에 한 번만 보낸다(통신이 실패하면 두 번까지 다시). 보낼 때는 엔진이 정한 reco 를 그대로 /reco-text 에 싣는다.
+    private var recoSent = false, recoLive = false, recoRetry = 0, rcRetry = false
+    private var pendingAd: RecoFlow.Ad? = nil, inFlightAd: RecoFlow.Ad? = nil, rcDisAny = false          // 엔진에 아직 못 알린 추천 줄 · 보내는 중인 줄 · 사용자가 처리한 추천
+    weak var host: Host? = nil
 
     private let mgr = CLLocationManager()
     private var stateJson = ""
@@ -45,7 +49,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     func start(stateJson: String, text: String = "") {
         stop()
         self.stateJson = stateJson; fixes = []; lastSentTs = 0
-        self.text = text; rowJson = ""; dtJson = ""; cur = -1; posJson = "null"; arrJson = "null"; waitJson = ""; pendingAct = ""
+        self.text = text; rowJson = ""; dtJson = ""; cur = -1; posJson = "null"; arrJson = "null"; waitJson = ""; pendingAct = ""; recoSent = false; recoLive = false; recoRetry = 0; rcRetry = false; pendingAd = nil; inFlightAd = nil; rcDisAny = false
         rebuild()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         mgr.requestWhenInUseAuthorization()
@@ -87,6 +91,8 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 경로 카드 오른쪽 칸([탑승] · [환승])을 눌렀다 — 다음 걸음에 act 로 엔진에 알린다(안드로이드 pendingAct).
     func press() { pendingAct = "press" }
     /// 엔진에 알릴 행동 한 번(press · undo · open · close · pill · detour — 안드로이드 RideCore.queueAct 와 같다).
+    /// 팝업·알림에서 추천을 처리했다 — 엔진이 오버레이의 추천 줄도 같이 지우게 한다(안드로이드 RideService.recoDone).
+    func recoDone() { if running { rcDisAny = true; pendingAd = nil } }
     func act(_ a: String) { if ["press", "undo", "open", "close", "pill", "detour"].contains(a) { pendingAct = a } }
     var rowSlot: String { ((try? JSONSerialization.jsonObject(with: Data(rowJson.utf8))) as? [String: Any])?["slot"] as? String ?? "" }
     var rowCan: Bool { (((try? JSONSerialization.jsonObject(with: Data(rowJson.utf8))) as? [String: Any])?["can"] as? Bool) ?? false }
@@ -106,6 +112,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let on = m["ongoing"] as? [String: Any], let t = on["text"] as? String { text = t }
         if let rw = m["row"] as? [String: Any] { rowJson = js(rw) } else { rowJson = "" }
         if let c = m["curIdx"] as? NSNumber { cur = c.intValue }
+        if let rc = m["reco"] as? [String: Any], let b = RecoFlow.body(rc) { fireReco(b, loc: Self.recoLoc(rc)) }
         let off = m["off"] as? [String: Any]
         offStn = String(((off?["stn"] as? String) ?? "").prefix(24))          // 역 이름을 먼저 — offAt 을 받아 보는 쪽이 둘을 함께 읽는다
         offAt = (off?["at"] as? NSNumber)?.int64Value ?? 0
@@ -143,6 +150,13 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let ts = tail.last?.first as? Int64 { lastSentTs = ts }
         var b = RideLoopBody.make(nowMs: Int64(now.timeIntervalSince1970 * 1000), fixes: tail, state: stateJson)
         if !pendingAct.isEmpty { b = String(b.dropLast()) + ",\"act\":\(q(pendingAct))}"; pendingAct = "" }
+        inFlightAd = pendingAd
+        if let ad = pendingAd {
+            let nFlag = ad.n ? ",\"n\":1" : ""
+            b = String(b.dropLast()) + ",\"rc\":{\"a\":\(q(ad.a)),\"b\":\(q(ad.b)),\"m\":\(q(ad.m)),\"go\":\(q(ad.go))\(nFlag)}}"
+        }
+        if rcDisAny { b = String(b.dropLast()) + ",\"rcDis\":-1}" }
+        if rcRetry { b = String(b.dropLast()) + ",\"rcRetry\":1}"; rcRetry = false }
         return b
     }
 
@@ -170,6 +184,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         guard let m = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], m["error"] == nil, let st = m["state"] as? [String: Any],
               let sd = try? JSONSerialization.data(withJSONObject: st), let ss = String(data: sd, encoding: .utf8) else { return nil }
         stateJson = ss
+        if inFlightAd != nil { pendingAd = nil; inFlightAd = nil }          // 엔진이 추천 줄을 받았다
         fixes.removeAll { (($0.first as? Int64) ?? 0) <= lastSentTs }          // 보낸 위치는 지운다(그 뒤 들어온 것은 남긴다)
         readFacts(m); rebuild()
         last = OvState.from(m["overlay"])
@@ -179,6 +194,22 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         if (m["done"] as? Bool) == true { stop(); return nil }
         let nx = (m["nextMs"] as? NSNumber)?.doubleValue ?? RideLoop.stepDefault * 1000
         return max(RideLoop.stepMin, min(RideLoop.stepMax, nx / 1000))
+    }
+
+    private static func recoLoc(_ rc: [String: Any]) -> (Double, Double)? {
+        guard let lo = rc["loc"] as? [String: Any], let la = (lo["lat"] as? NSNumber)?.doubleValue, let ln = (lo["lng"] as? NSNumber)?.doubleValue else { return nil }
+        return (la, ln)
+    }
+    private func fireReco(_ body: String, loc: (Double, Double)?) {
+        guard !recoSent, !recoLive, let host = host else { return }
+        recoLive = true
+        Task { [weak self] in
+            let r = await RecoFlow.send(body: body, host: host, loc: loc)
+            guard let self = self else { return }
+            self.recoLive = false
+            if r.sent { self.recoSent = true; if let ad = r.ad { self.pendingAd = ad; self.rcDisAny = false } }
+            else if self.recoRetry < 2 { self.recoRetry += 1; self.rcRetry = true }          // 못 받았으면(통신 실패) 다음 걸음에 엔진이 같은 추천을 다시 판정하게 한다
+        }
     }
 
     /// 엔진 alert {key, type, title, body, vib} → 알림(같은 key 는 한 번만).

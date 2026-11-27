@@ -14,6 +14,23 @@ final class Host: ObservableObject {
     @Published var sheet: SheetRoute? = nil
     /// 잠깐 떴다 사라지는 작은 안내 카드(엔진 /screen/dlg kind:pop — 안드로이드 ShellActivity.dlgPopSh). 2.8초 뒤 닫히고, 눌러도 닫힌다. 카드를 못 받으면 토스트로 대신한다.
     @Published var pop: Screen? = nil
+    /// 하차 추천 팝업(엔진 /screen/dlg kind:reco — 안드로이드 ShellActivity.recoPop). [맛집·쿠팡 보기]=dl.go → 추천 줄 열기 · [확인]=닫기. 못 띄우면 false(부르는 쪽이 알림으로 대신).
+    @Published var reco: Screen? = nil
+    private var recoAd: RecoFlow.Ad? = nil
+    func showReco(title: String, text: String, ad: RecoFlow.Ad?) async -> Bool {
+        guard reco == nil else { return false }
+        let go = (ad != nil && !(ad!.a.isEmpty)) ? ad!.go : ""
+        let body = "{\"cap\":\(Servers.cap),\"f\":{\"kind\":\"reco\",\"title\":\(Json.q(title)),\"body\":\(Json.q(text)),\"go\":\(Json.q(go)),\"ok\":\"확인\"}}"
+        guard let sc = try? await Net.screen("/screen/dlg", body: body) else { return false }
+        recoAd = ad; reco = sc
+        return true
+    }
+    func recoAct(_ v: String) {
+        let ad = recoAd
+        reco = nil; recoAd = nil
+        RideLoop.shared.recoDone()
+        if v == "dl.go" || v == "dl.ok", let ad = ad { RecoFlow.open(ad) }
+    }
     func showPop(_ msg: String, _ sub: String, cls: String = "sh") {
         Task {
             let body = "{\"cap\":\(Servers.cap),\"f\":{\"kind\":\"pop\",\"msg\":\(Json.q(msg)),\"sub\":\(Json.q(sub)),\"cls\":\(Json.q(cls))}}"
@@ -55,7 +72,8 @@ final class Host: ObservableObject {
         case "sel", "web":
             actPublisher.send(TabAction(tab: "community", a: a.a, v: a.v ?? a.url ?? "", id: "", key: a.key ?? ""))
         case "call":
-            if let v = a.v, Host.isKidsCall(v) { actPublisher.send(TabAction(tab: "kids", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
+            if let v = a.v, v.hasPrefix("dl."), reco != nil { recoAct(v) }
+            else if let v = a.v, Host.isKidsCall(v) { actPublisher.send(TabAction(tab: "kids", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
             else if let v = a.v, v.hasPrefix("cc.") || v.hasPrefix("nw.") || v.hasPrefix("ch.") || v == "saveId" || v == "clearId" || v.hasPrefix("pol.") || v.hasPrefix("pg.") || v == "errlog" { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "", t: a.t ?? "")) }
             else if let v = a.v, v.hasPrefix("fm.") { actPublisher.send(TabAction(tab: "food", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }
             else if let v = a.v, v.hasPrefix("bd.") || v.hasPrefix("wr.") { actPublisher.send(TabAction(tab: "community", a: "call", v: v, id: a.id ?? "", key: a.key ?? "")) }

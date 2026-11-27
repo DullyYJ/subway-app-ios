@@ -17,6 +17,7 @@ struct RootView: View {
             // 본문: 켜진 탭
             ZStack(alignment: .bottom) {
                 TabContent(tab: host.tab, pal: pal)
+                if let r = host.reco { DlgCard(screen: r, pal: pal) { host.recoAct($0) } }
                 if let p = host.pop { DlgCard(screen: p, pal: pal) { _ in host.pop = nil } }
                 if let t = host.toast {
                     Text(t).font(Typo.font(12)).foregroundColor(.white).padding(10).background(Color.black.opacity(0.8)).cornerRadius(10).padding(.bottom, 12)
@@ -29,6 +30,7 @@ struct RootView: View {
         .background(pal.color("bg") ?? Color(.systemBackground))
         .kidsHubLayer(pal: pal)            // 반드시 environmentObject(host) 보다 안쪽(먼저) — 층이 Host 를 환경에서 읽는다
         .environmentObject(host)
+        .onAppear { RideLoop.shared.host = host }
         .preferredColorScheme(theme == "dark" ? .dark : .light)
     }
 }
