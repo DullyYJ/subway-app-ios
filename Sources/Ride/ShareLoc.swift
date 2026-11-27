@@ -2,17 +2,35 @@ import SwiftUI
 import UIKit
 
 /// 내 위치 공유(안드로이드 ShellActivity.shareLoc + ShareArt.draw): 엔진이 overlay.share 로 준 재료를 카드 그림 + 글로 만들어 공유창(카카오톡 등)으로 보낸다.
-/// 그림은 안드로이드 ShareArt 의 정지 그림(360×214, 2배)과 같은 배치 — 움직이는 GIF 는 다음 단계.
+/// 그림은 안드로이드 ShareArt 와 같은 배치(360×214, 2배). 움직이는 그림(GIF — 마커 깜박임 + 친구가 노선선 위를 오감)은 ShareGif, 못 만들면 정지 그림.
 enum ShareLoc {
     @MainActor
     static func present(host: Host) {
         guard let sh = RideLoop.shared.share else { host.showPop("경로를 먼저 탐색해 주세요", "탐색한 경로의 내 위치와 도착 예정을\n친구에게 보낼 수 있어요"); return }
         let text = sh["text"] as? String ?? ""
-        let card = ShareCardView(d: ShareCardData(sh))
-        let r = ImageRenderer(content: card)
-        r.scale = 2
-        var items: [Any] = [text]
-        if let img = r.uiImage { items.append(img) }
+        let data = ShareCardData(sh)
+        // 정지 그림(PNG) — 움직이는 그림을 못 만들 때 이걸로 보낸다(안드로이드와 같다)
+        let still = ImageRenderer(content: ShareCardView(d: data)); still.scale = 2
+        let stillImg = still.uiImage
+        // 움직이는 그림(GIF): 마커를 뺀 카드 위에서 마커가 깜박이고 친구 한 마리가 노선선 위를 오간다
+        var bv = ShareCardView(d: data); bv.hideMarker = true
+        let br = ImageRenderer(content: bv); br.scale = 2
+        let base = br.uiImage, mk = ShareCardView.markerPos(data)
+        let ts = Int64(Date().timeIntervalSince1970 * 1000)
+        Task.detached(priority: .userInitiated) {
+            var gif: URL? = nil
+            if let b = base, let m = mk { gif = ShareGif.make(base: b, mk: m, seed: ts) }
+            let url = gif
+            await MainActor.run {
+                var items: [Any] = [text]
+                if let u = url { items.append(u) } else if let img = stillImg { items.append(img) }
+                sheet(items)
+            }
+        }
+    }
+
+    @MainActor
+    private static func sheet(_ items: [Any]) {
         let vc = UIActivityViewController(activityItems: items, applicationActivities: nil)
         guard let root = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first?.rootViewController else { return }
         var top = root
@@ -59,6 +77,8 @@ struct ShareCardData {
 
 struct ShareCardView: View {
     let d: ShareCardData
+    /// 움직이는 그림(GIF)의 바탕: 내 위치 마커는 그리지 않는다(프레임마다 따로 그린다).
+    var hideMarker = false
     private let W: CGFloat = 360, H: CGFloat = 214
     private let card = Color(red: 0x1C / 255.0, green: 0x1C / 255.0, blue: 0x1E / 255.0)
     private let border = Color(white: 1, opacity: 0.12)
@@ -86,8 +106,10 @@ struct ShareCardView: View {
                 } else {
                     let passed = sl < d.hit, isCur = sl == d.hit
                     if isCur {
+                        if !hideMarker {
                         Circle().fill(cur.opacity(0.22)).frame(width: 26, height: 26).position(x: x, y: ly)
                         Circle().fill(cur).frame(width: 16, height: 16).overlay(Circle().stroke(card, lineWidth: 2.5)).position(x: x, y: ly)
+                        }
                     } else {
                         Circle().fill(card).frame(width: 12, height: 12)
                             .overlay(Circle().stroke((passed ? sub.opacity(0.6) : acc), lineWidth: 2.5)).position(x: x, y: ly)
@@ -99,6 +121,14 @@ struct ShareCardView: View {
             t(d.foot, 10, false, sub).frame(width: W - 36, alignment: .leading).position(x: 18 + (W - 36) / 2, y: H - 18 - 3)
         }
         .frame(width: W, height: H)
+    }
+    /// 내 위치 마커의 자리(카드 좌표): 지금 역의 점. 지금 역이 칸에 없으면 nil.
+    static func markerPos(_ d: ShareCardData) -> CGPoint? {
+        let slots = ShareLoc.slots(d.names.count, d.hit)
+        guard let k = slots.firstIndex(of: d.hit), d.hit >= 0 else { return nil }
+        let x0: CGFloat = 18, x1: CGFloat = 360 - 18
+        let step = slots.count > 1 ? (x1 - x0 - 40) / CGFloat(slots.count - 1) : 0
+        return CGPoint(x: slots.count > 1 ? x0 + 20 + step * CGFloat(k) : (x0 + x1) / 2, y: 138)
     }
     private func t(_ s: String, _ size: CGFloat, _ bold: Bool, _ c: Color) -> some View {
         Text(s).font(Typo.font(size, bold: bold)).foregroundColor(c).lineLimit(1).minimumScaleFactor(0.6)

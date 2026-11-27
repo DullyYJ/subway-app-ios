@@ -31,7 +31,7 @@ struct NodeView: View {
         case "button": ButtonNode(node: node, pal: pal)
         case "box": boxNode
         case "panel": panelNode
-        case "row": rowNode
+        case "row": RowNode(node: node, pal: pal)
         case "toggle": ToggleRow(node: node, pal: pal)
         case "navrow": navRow
         case "chips": chipsNode
@@ -134,11 +134,6 @@ struct NodeView: View {
             .overlay(shape.strokeBorder(col("line", "border"), lineWidth: 1))
             .overlay(alignment: .leading) { if lb > 0 { Rectangle().fill(col("lc", "gold")).frame(width: lb) } }
             .clipShape(shape)
-    }
-
-    // 가로 줄: 같은 폭 칸으로 나란히(간격 기본 8)
-    private var rowNode: some View {
-        HStack(alignment: .top, spacing: f("gap", 8)) { ForEach(node.kids) { NodeView(node: $0, pal: pal).frame(maxWidth: .infinity, alignment: .topLeading) } }
     }
 
     // 오른쪽에 › 가 있는 줄: 글 13 · 위아래 11 · 작은 글 11 · › 13(오른쪽 14칸)
