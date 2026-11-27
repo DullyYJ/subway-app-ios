@@ -21,7 +21,7 @@ final class ImageStore: @unchecked Sendable {
     }
 
     /// 화면에 들어 있는 그림 주소(img: http…)를 뽑는다 — 최대 n 개.
-    nonisolated static func urls(in raw: Any, limit: Int = 240) -> [URL] {
+    static func urls(in raw: Any, limit: Int = 240) -> [URL] {
         var out: [URL] = [], seen = Set<String>()
         func walk(_ x: Any) {
             if out.count >= limit { return }
@@ -45,7 +45,7 @@ final class ImageStore: @unchecked Sendable {
             await withTaskGroup(of: Void.self) { g in
                 var it = todo.makeIterator(), running = 0
                 while let u = it.next() {
-                    if running >= 2 { await g.next(); running -= 1 }
+                    if running >= 2 { _ = await g.next(); running -= 1 }
                     g.addTask { _ = await self.load(u); self.finish(u) }
                     running += 1
                 }
