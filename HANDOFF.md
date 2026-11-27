@@ -97,3 +97,11 @@
 - 같은 탭 버튼 350ms 안의 거듭 누름은 한 번으로(`TapGate`, 시험 `TapGateTests`).
 - 안드로이드의 TAB_GAP_MS(120ms 새로 받기 미루기)는 iOS 에서는 탭을 옮기면 화면이 새로 올라오고 앞 화면의 통신 작업이 취소되므로 따로 두지 않는다.
 - 쇼핑 '최근에 보여 준 상품'(ShopRecent)은 이미 `RecoFlow.recentNames/recentAdd/inject` 로 들어 있다(추천 요청에 `shopRecent` 를 싣고, 답의 `shopItem.n` 을 기억).
+
+## 캐릭터 놀이터 (안드로이드 PlayCore.java / PlayView.java)
+- 지도 역 팝업의 이름(`text` mq+rw) 오른쪽, 시간표 머리줄(`bar` mq+rw) 제목 오른쪽 빈 칸에서 동물 2~3마리가 논다. 배경 8가지(낮·노을·풀밭·사탕·눈·바다·밤·오로라) 중 하나, 캐릭터별 놀이(강아지 킁킁·응가 / 고양이 나무타기·훌쩍 / 두더지 땅속·삽질 / 올챙이 웅덩이 / 독수리 날기).
+- 계산: `Sources/Core/PlayCore.swift`(순수 · 시험 `PlayCoreTests`), 그림: `Sources/UI/PlayView.swift`(`PlayField` = TimelineView 30fps + Canvas 두 겹: 배경은 좌우 20%·위 50% 지우개 mask, 캐릭터는 지우지 않음). 자리는 `MarqueeLabel` 안에서 `PlayCore.popupHost/ttHost` 로 정한다(이름이 길어 90pt 칸이 안 나오면 놀이터 없음).
+- 캐릭터 시트는 `RunnerArt`(경로 로딩 캐릭터와 같은 시트)를 쓰고, 16칸을 그릴 크기(화소 3배)로 한 번만 줄여 둔다(`PlaySim.cut`). 시트가 아직 안 읽혔으면 배경만 먼저 논다.
+- 팝업 → 시간표: `PlayHub.snap` 에 팝업이 0.5초마다·사라질 때 장면을 적어 두고, 시간표가 그대로 이어받는다(칸 크기가 달라도 위치는 비율).
+- 모션 줄이기(손쉬운 사용)가 켜져 있으면 움직이지 않고 첫 장면만 그린다(안드로이드 ANIMATOR_DURATION_SCALE==0 과 같다). 다크는 앱 테마(`theme`) 를 따른다.
+- 안드로이드와 다른 점: 놀이터 칸은 이름 노드 안에 겹쳐 그린다(안드로이드는 시트 위에 따로 얹은 View). 아래 줄(노선 알약)과 겹치는 4pt 는 알약 아래로 깔린다.
