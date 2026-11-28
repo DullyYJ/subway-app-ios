@@ -185,7 +185,7 @@ final class KidsHub: ObservableObject {
     /// 시험 전용(CI 화면 확인): 실행 인자 `-ccMode set` → 연결 팝업(kl.open)을, `-ccMode board` → 자녀 허브를 바로 띄운다. 평소 실행엔 영향 없음.
     func demoFromArgs() async {
         let a = CommandLine.arguments
-        guard let i = a.firstIndex(of: "-ccMode"), i + 1 < a.count else { return }
+        guard let i = a.firstIndex(of: "-ccMode"), i + 1 < a.count, !a.contains("-setPop") else { return }          // -setPop 은 설정 팝업 화면 확인용 — 연결 팝업이 덮지 않게
         try? await Task.sleep(nanoseconds: 6_000_000_000)
         if a[i + 1] == "set" { act("kl.open") } else if a[i + 1] == "board" { openHub() }
     }

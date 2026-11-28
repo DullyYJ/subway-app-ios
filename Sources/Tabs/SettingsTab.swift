@@ -167,7 +167,7 @@ final class SettingsModel: ObservableObject {
             if host.menuPop == nil { host.say("설정을 열지 못했어요"); popPage = "" }
         }
     }
-    private func reloadPop(host: Host) { if host.menuPop != nil { Task { await loadPop(host: host) } } }
+    func reloadPop(host: Host) { if host.menuPop != nil { Task { await loadPop(host: host) } } }
     func closePop(host: Host) { popPage = ""; popSeq += 1; host.menuPop = nil }
     /// 하위 화면을 닫는다 — 팝업에서 들어왔으면 그 팝업으로 돌아간다.
     func closeSub(host: Host) {
@@ -247,6 +247,7 @@ struct SettingsView: View {
     @StateObject private var m = SettingsModel()
     @ObservedObject private var kids = KidsHub.shared
     @EnvironmentObject var host: Host
+    @Environment(\.scenePhase) private var phase
     /// 길동무 키즈 줄(연결 전엔 '연결' 한 줄 · 연결 뒤엔 키즈 서버가 준 줄들)을 '개발자 도구' 카드 위에(없으면 '약관 및 정책' 위) 끼운다 — 안드로이드 ScreenCore.settingsExtra 와 같은 자리.
     private func withKids(_ s: Screen) -> Screen {
         var body = s.body
@@ -296,5 +297,6 @@ struct SettingsView: View {
         }
         .onReceive(host.actPublisher) { x in if x.tab == "community" { m.handle(x, host: host) } }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
+        .onChange(of: phase) { p in if p == .active { m.reloadPop(host: host) } }          // 기기 설정에서 실시간 현황 · 알림을 바꾸고 돌아오면 팝업 상태 글을 새로
     }
 }
