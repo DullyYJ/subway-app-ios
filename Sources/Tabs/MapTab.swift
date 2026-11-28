@@ -287,6 +287,10 @@ final class MapModel: ObservableObject {
     }
 }
 
+private struct StnTopKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
 private struct StnHKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
@@ -301,13 +305,14 @@ struct MapTab: View {
     @State private var stnGrow: CGFloat = 0         // 위로 끌어 늘어난 만큼
     @State private var stnDown: CGFloat = 0         // 아래로 끌려 내려간 만큼
     @State private var stnDragging = false
+    @State private var stnTop: CGFloat = 0          // 팝업 윗변의 화면 높이(끌기를 시작한 자리가 위쪽 띠인지 가릴 때)
     private func stnDrag(top: Bool) -> some Gesture {
         DragGesture(minimumDistance: 10, coordinateSpace: .global)
             .onChanged { g in
                 let dy = g.translation.height, dx = g.translation.width
                 if !stnDragging {
                     guard abs(dy) > abs(dx) * 1.2 else { return }                       // 세로로 끌려야 확정(단추 · 알약 누르기는 그대로)
-                    if m.ttMode && dy < 0 { return }                                    // 시간표 위로 끌기는 목록 스크롤
+                    if m.ttMode && (dy < 0 || g.startLocation.y - stnTop > 72) { return }          // 시간표: 위로 끌기는 목록 스크롤, 아래로 끌어 닫기는 윗부분(제목 띠)에서 시작했을 때만 — 목록 스크롤과 안 부딪친다
                     stnDragging = true
                 }
                 if dy < 0 && !m.ttMode { stnGrow = max(0, min(UIScreen.main.bounds.height * 0.62 - stnBaseH, -dy)); stnDown = 0 }
@@ -351,11 +356,13 @@ struct MapTab: View {
                         .fixedSize(horizontal: false, vertical: !m.ttMode && stnGrow == 0)
                         .background(GeometryReader { Color.clear.preference(key: StnHKey.self, value: m.ttMode || stnGrow > 0 ? 0 : $0.size.height) })
                         .onPreferenceChange(StnHKey.self) { if $0 > 0 { stnBaseH = $0 } }
+                        .background(GeometryReader { Color.clear.preference(key: StnTopKey.self, value: $0.frame(in: .global).minY) })
+                        .onPreferenceChange(StnTopKey.self) { if !stnDragging { stnTop = $0 } }
                         .animation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.3), value: m.ttMode)          // 시간표가 열리면 시트가 62% 높이까지 부드럽게(안드로이드 animSheetH 120~300ms)
                         .background(pal.color("card") ?? .black)
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
                         .offset(y: stnDown)
-                        .simultaneousGesture(stnDrag(top: false), including: m.ttMode ? .subviews : .all)
+                        .simultaneousGesture(stnDrag(top: false))
                         .sheetIn()
                     }
                 }
