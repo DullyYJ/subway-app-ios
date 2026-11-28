@@ -1,0 +1,300 @@
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/embeddedBinaryValidationUtility /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuLive.appex -info-plist-path /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/Info.plist
+
+AppIntentsSSUTraining (in target 'Gildongmu' from project 'Gildongmu')
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/Info.plist --temp-dir-path /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/Gildongmu.build/ssu --bundle-id com.dullyyj.subway.ios --product-path /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app --extracted-metadata-path /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/Metadata.appintents --metadata-file-list /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/Gildongmu.build/Gildongmu.DependencyMetadataFileList --source-file /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/Info.plist --archive-ssu-assets
+2026-11-28 07:16:55.068 appintentsnltrainingprocessor[2385:10820] Parsing options for appintentsnltrainingprocessor
+2026-11-28 07:16:55.069 appintentsnltrainingprocessor[2385:10820] Starting AppIntents SSU YAML Generation
+2026-11-28 07:16:55.069 appintentsnltrainingprocessor[2385:10820] No AppShortcuts found - Skipping.
+
+Ld /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest/GildongmuTests normal (in target 'GildongmuTests' from project 'Gildongmu')
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios16.2-simulator -bundle -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk -O0 -L/Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -L/Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator -L/Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F/Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -F/Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator -iframework /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks -iframework /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/Developer/Library/Frameworks -filelist /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/Objects-normal/arm64/GildongmuTests.LinkFileList -Xlinker -rpath -Xlinker /usr/lib/swift -Xlinker -rpath -Xlinker @loader_path/Frameworks -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -bundle_loader /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/Gildongmu -Xlinker -object_path_lto -Xlinker /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/Objects-normal/arm64/GildongmuTests_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -Xlinker -debug_variant -Xlinker -dependency_info -Xlinker /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/Objects-normal/arm64/GildongmuTests_dependency_info.dat -fobjc-link-runtime -fprofile-instr-generate -L/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphonesimulator -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/Objects-normal/arm64/GildongmuTests.swiftmodule @/Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/Objects-normal/arm64/GildongmuTests-linker-args.resp -Xlinker -needed_framework -Xlinker XCTest -framework XCTest -Xlinker -needed-lXCTestSwiftSupport -lXCTestSwiftSupport /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/Gildongmu.debug.dylib -o /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest/GildongmuTests
+
+ExtractAppIntentsMetadata (in target 'GildongmuTests' from project 'Gildongmu')
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.6.109.0.WjZkLb/Metal.xctoolchain --module-name GildongmuTests --sdk-root /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk --xcode-version 17F113 --platform-family iOS --deployment-target 16.2 --bundle-identifier com.dullyyj.GildongmuTests --output /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest --target-triple arm64-apple-ios16.2-simulator --binary-file /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest/GildongmuTests --dependency-file /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/Objects-normal/arm64/GildongmuTests_dependency_info.dat --stringsdata-file /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/Objects-normal/arm64/GildongmuTests.SwiftFileList --metadata-file-list /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/GildongmuTests.DependencyMetadataFileList --static-metadata-file-list /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/GildongmuTests.DependencyStaticMetadataFileList --swift-const-vals-list /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/Objects-normal/arm64/GildongmuTests.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
+2026-11-28 07:16:55.480 appintentsmetadataprocessor[2388:10831] Starting appintentsmetadataprocessor export
+2026-11-28 07:16:55.482 appintentsmetadataprocessor[2388:10831] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+
+CopySwiftLibs /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest (in target 'GildongmuTests' from project 'Gildongmu')
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    builtin-swiftStdLibTool --copy --verbose --scan-executable /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest/GildongmuTests --scan-folder /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest/Frameworks --scan-folder /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest/PlugIns --scan-folder /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest/SystemExtensions --scan-folder /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest/Extensions --platform iphonesimulator --toolchain /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.6.109.0.WjZkLb/Metal.xctoolchain --toolchain /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest/Frameworks --strip-bitcode --scan-executable /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib --strip-bitcode-tool /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Intermediates.noindex/Gildongmu.build/Debug-iphonesimulator/GildongmuTests.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+Ignoring --strip-bitcode because --sign was not passed
+
+RegisterExecutionPolicyException /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest (in target 'GildongmuTests' from project 'Gildongmu')
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    builtin-RegisterExecutionPolicyException /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest
+
+Touch /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest (in target 'GildongmuTests' from project 'Gildongmu')
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    /usr/bin/touch -c /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app/PlugIns/GildongmuTests.xctest
+
+RegisterExecutionPolicyException /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app (in target 'Gildongmu' from project 'Gildongmu')
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    builtin-RegisterExecutionPolicyException /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app
+
+Validate /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app (in target 'Gildongmu' from project 'Gildongmu')
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    builtin-validationUtility /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app -shallow-bundle -infoplist-subpath Info.plist
+
+Touch /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app (in target 'Gildongmu' from project 'Gildongmu')
+    cd /Users/runner/work/subway-app-ios/subway-app-ios
+    /usr/bin/touch -c /Users/runner/work/subway-app-ios/subway-app-ios/build/Build/Products/Debug-iphonesimulator/Gildongmu.app
+
+2026-11-28 07:19:01.340769+0000 Gildongmu[3536:17317] [General] Failed to send CA Event for app launch measurements for ca_event_type: 0 event_name: com.apple.app_launch_measurement.FirstFramePresentationMetric
+2026-11-28 07:19:01.477377+0000 Gildongmu[3536:17325] [General] Failed to send CA Event for app launch measurements for ca_event_type: 1 event_name: com.apple.app_launch_measurement.ExtendedLaunchMetrics
+IOSurfaceClientSetSurfaceNotify failed e00002c7
+2026-11-28 07:19:04.940019+0000 Gildongmu[3536:15580] fopen failed for data file: errno = 2 (No such file or directory)
+2026-11-28 07:19:04.940189+0000 Gildongmu[3536:15580] Errors found! Invalidating cache...
+2026-11-28 07:19:05.388286+0000 Gildongmu[3536:15580] fopen failed for data file: errno = 2 (No such file or directory)
+2026-11-28 07:19:05.388505+0000 Gildongmu[3536:15580] Errors found! Invalidating cache...
+2026-11-28 07:19:05.604485+0000 Gildongmu[3536:17471] [connection] nw_endpoint_flow_failed_with_error [C3.1.1.1 172.67.147.53:443 in_progress socket-flow (satisfied (Path is satisfied), interface: en0)] already failing, returning
+2026-11-28 07:19:05.606293+0000 Gildongmu[3536:17471] [connection] nw_endpoint_flow_failed_with_error [C3.1.1.2 104.21.47.110:443 in_progress socket-flow (satisfied (Path is satisfied), interface: en0)] already failing, returning
+2026-11-28 07:19:05.607811+0000 Gildongmu[3536:17471] [connection] nw_endpoint_flow_failed_with_error [C3.1.1.2 104.21.47.110:443 cancelled socket-flow ((null))] already failing, returning
+2026-11-28 07:19:05.626031+0000 Gildongmu[3536:17471] [connection] nw_endpoint_flow_failed_with_error [C4.1.1.1 172.67.147.53:443 in_progress socket-flow (satisfied (Path is satisfied), interface: en0)] already failing, returning
+2026-11-28 07:19:05.628933+0000 Gildongmu[3536:17471] [connection] nw_endpoint_flow_failed_with_error [C4.1.1.2 104.21.47.110:443 in_progress socket-flow (satisfied (Path is satisfied), interface: en0)] already failing, returning
+2026-11-28 07:19:05.687175+0000 Gildongmu[3536:17471] [connection] nw_endpoint_flow_failed_with_error [C4.1.1.2 104.21.47.110:443 cancelled socket-flow ((null))] already failing, returning
+2026-11-28 07:19:05.700419+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C3] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.702876+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C3] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.703185+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C3] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.703551+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C3] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.706686+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_connected_local_endpoint_block_invoke [C3] Client called nw_connection_copy_connected_local_endpoint on unconnected nw_connection
+2026-11-28 07:19:05.706872+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_connected_path_block_invoke [C3] Client called nw_connection_copy_connected_path on unconnected nw_connection
+2026-11-28 07:19:05.707811+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_connected_remote_endpoint_block_invoke [C3] Client called nw_connection_copy_connected_remote_endpoint on unconnected nw_connection
+2026-11-28 07:19:05.707946+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C3] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.708292+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C3] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.733898+0000 Gildongmu[3536:17471] [connection] nw_flow_add_write_request [C3 gildongmu-food.phg0643.workers.dev:443 failed parent-flow (satisfied (Path is satisfied), interface: en0)] cannot accept write requests
+2026-11-28 07:19:05.734111+0000 Gildongmu[3536:17471] [connection] nw_write_request_report [C3] Send failed with error "Socket is not connected"
+2026-11-28 07:19:05.734838+0000 Gildongmu[3536:17471] [connection] nw_connection_copy_metadata_block_invoke [C3] Client called nw_connection_copy_metadata on unconnected nw_connection
+2026-11-28 07:19:05.740284+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C4] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.740496+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C4] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.740574+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C4] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.740627+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C4] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.740675+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_connected_local_endpoint_block_invoke [C4] Client called nw_connection_copy_connected_local_endpoint on unconnected nw_connection
+2026-11-28 07:19:05.741287+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_connected_path_block_invoke [C4] Client called nw_connection_copy_connected_path on unconnected nw_connection
+2026-11-28 07:19:05.741690+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_connected_remote_endpoint_block_invoke [C4] Client called nw_connection_copy_connected_remote_endpoint on unconnected nw_connection
+2026-11-28 07:19:05.741878+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C4] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.742547+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_protocol_metadata_internal_block_invoke [C4] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+2026-11-28 07:19:05.742846+0000 Gildongmu[3536:17478] [connection] nw_flow_add_write_request [C4 gildongmu-shop.phg0643.workers.dev:443 failed parent-flow (satisfied (Path is satisfied), interface: en0)] cannot accept write requests
+2026-11-28 07:19:05.743592+0000 Gildongmu[3536:17478] [connection] nw_write_request_report [C4] Send failed with error "Socket is not connected"
+2026-11-28 07:19:05.743665+0000 Gildongmu[3536:17478] [connection] nw_connection_copy_metadata_block_invoke [C4] Client called nw_connection_copy_metadata on unconnected nw_connection
+Test Suite 'All tests' started at 2026-11-28 07:19:06.687.
+Test Suite 'GildongmuTests.xctest' started at 2026-11-28 07:19:06.689.
+Test Suite 'BusCdTests' started at 2026-11-28 07:19:06.690.
+Test Case '-[GildongmuTests.BusCdTests testArrGapAndKeys]' started.
+Test Case '-[GildongmuTests.BusCdTests testArrGapAndKeys]' passed (0.005 seconds).
+Test Case '-[GildongmuTests.BusCdTests testChangedValueRestartsFromNewValue]' started.
+Test Case '-[GildongmuTests.BusCdTests testChangedValueRestartsFromNewValue]' passed (0.004 seconds).
+Test Case '-[GildongmuTests.BusCdTests testSameValueKeepsRunningStart]' started.
+Test Case '-[GildongmuTests.BusCdTests testSameValueKeepsRunningStart]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.BusCdTests testScanFindsMinRemainAndStale]' started.
+Test Case '-[GildongmuTests.BusCdTests testScanFindsMinRemainAndStale]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.BusCdTests testSourceAgeCountsAlreadyElapsed]' started.
+Test Case '-[GildongmuTests.BusCdTests testSourceAgeCountsAlreadyElapsed]' passed (0.001 seconds).
+Test Suite 'BusCdTests' passed at 2026-11-28 07:19:06.864.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.015 (0.174) seconds
+Test Suite 'ChipPickTests' started at 2026-11-28 07:19:06.864.
+Test Case '-[GildongmuTests.ChipPickTests testLightFromSwipe]' started.
+Test Case '-[GildongmuTests.ChipPickTests testLightFromSwipe]' passed (0.003 seconds).
+Test Case '-[GildongmuTests.ChipPickTests testPressingOnTabDoesNothing]' started.
+Test Case '-[GildongmuTests.ChipPickTests testPressingOnTabDoesNothing]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.ChipPickTests testRtabSwapStyles]' started.
+Test Case '-[GildongmuTests.ChipPickTests testRtabSwapStyles]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.ChipPickTests testSigChangesWithOnTab]' started.
+Test Case '-[GildongmuTests.ChipPickTests testSigChangesWithOnTab]' passed (0.001 seconds).
+Test Suite 'ChipPickTests' passed at 2026-11-28 07:19:06.947.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.005 (0.083) seconds
+Test Suite 'CmCoreTests' started at 2026-11-28 07:19:06.948.
+Test Case '-[GildongmuTests.CmCoreTests testDayAndPresetActions]' started.
+Test Case '-[GildongmuTests.CmCoreTests testDayAndPresetActions]' passed (0.012 seconds).
+Test Case '-[GildongmuTests.CmCoreTests testDefaultsAndHm]' started.
+Test Case '-[GildongmuTests.CmCoreTests testDefaultsAndHm]' passed (0.003 seconds).
+Test Case '-[GildongmuTests.CmCoreTests testOccBodyShape]' started.
+Test Case '-[GildongmuTests.CmCoreTests testOccBodyShape]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.CmCoreTests testParsers]' started.
+Test Case '-[GildongmuTests.CmCoreTests testParsers]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.CmCoreTests testPlaceSaveAndBriefBody]' started.
+Test Case '-[GildongmuTests.CmCoreTests testPlaceSaveAndBriefBody]' passed (0.012 seconds).
+Test Case '-[GildongmuTests.CmCoreTests testSwitchAndTimePicker]' started.
+Test Case '-[GildongmuTests.CmCoreTests testSwitchAndTimePicker]' passed (0.005 seconds).
+Test Suite 'CmCoreTests' passed at 2026-11-28 07:19:09.555.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.035 (2.607) seconds
+Test Suite 'GwSimTests' started at 2026-11-28 07:19:09.555.
+Test Case '-[GildongmuTests.GwSimTests testBedThenAllAsleep]' started.
+Test Case '-[GildongmuTests.GwSimTests testBedThenAllAsleep]' passed (0.005 seconds).
+Test Case '-[GildongmuTests.GwSimTests testGeoHorizontalFitsWidget]' started.
+Test Case '-[GildongmuTests.GwSimTests testGeoHorizontalFitsWidget]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.GwSimTests testJRandomMatchesJava]' started.
+Test Case '-[GildongmuTests.GwSimTests testJRandomMatchesJava]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.GwSimTests testPickSetDiffersFromPrev]' started.
+Test Case '-[GildongmuTests.GwSimTests testPickSetDiffersFromPrev]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.GwSimTests testPlanEpisodeCountsAndOrder]' started.
+Test Case '-[GildongmuTests.GwSimTests testPlanEpisodeCountsAndOrder]' passed (0.015 seconds).
+Test Case '-[GildongmuTests.GwSimTests testSimStaysInsideAndDraws]' started.
+Test Case '-[GildongmuTests.GwSimTests testSimStaysInsideAndDraws]' passed (0.084 seconds).
+Test Suite 'GwSimTests' passed at 2026-11-28 07:19:09.719.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.107 (0.164) seconds
+Test Suite 'ImageUrlsTests' started at 2026-11-28 07:19:11.215.
+Test Case '-[GildongmuTests.ImageUrlsTests testUrlsInScreen]' started.
+Test Case '-[GildongmuTests.ImageUrlsTests testUrlsInScreen]' passed (0.008 seconds).
+Test Suite 'ImageUrlsTests' passed at 2026-11-28 07:19:11.223.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.008 (0.008) seconds
+Test Suite 'ParseTests' started at 2026-11-28 07:19:11.223.
+Test Case '-[GildongmuTests.ParseTests testActionSet]' started.
+Test Case '-[GildongmuTests.ParseTests testActionSet]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.ParseTests testCssColors]' started.
+Test Case '-[GildongmuTests.ParseTests testCssColors]' passed (0.005 seconds).
+Test Case '-[GildongmuTests.ParseTests testOkFalse]' started.
+Test Case '-[GildongmuTests.ParseTests testOkFalse]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.ParseTests testOverlayToLiveActivity]' started.
+Test Case '-[GildongmuTests.ParseTests testOverlayToLiveActivity]' passed (0.009 seconds).
+Test Case '-[GildongmuTests.ParseTests testScreenParse]' started.
+Test Case '-[GildongmuTests.ParseTests testScreenParse]' passed (0.003 seconds).
+Test Case '-[GildongmuTests.ParseTests testShopCardActionCarriesNameAndImage]' started.
+Test Case '-[GildongmuTests.ParseTests testShopCardActionCarriesNameAndImage]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.ParseTests testStepBodyShape]' started.
+Test Case '-[GildongmuTests.ParseTests testStepBodyShape]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.ParseTests testSvgPaths]' started.
+Test Case '-[GildongmuTests.ParseTests testSvgPaths]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.ParseTests testWrapLikeAndroid]' started.
+Test Case '-[GildongmuTests.ParseTests testWrapLikeAndroid]' passed (0.002 seconds).
+Test Suite 'ParseTests' passed at 2026-11-28 07:19:13.747.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.026 (2.524) seconds
+Test Suite 'PlayCoreTests' started at 2026-11-28 07:19:13.747.
+Test Case '-[GildongmuTests.PlayCoreTests testCutMakesSixteenFrames]' started.
+Test Case '-[GildongmuTests.PlayCoreTests testCutMakesSixteenFrames]' passed (0.034 seconds).
+Test Case '-[GildongmuTests.PlayCoreTests testEveryCharacterAloneRuns]' started.
+Test Case '-[GildongmuTests.PlayCoreTests testEveryCharacterAloneRuns]' passed (0.052 seconds).
+Test Case '-[GildongmuTests.PlayCoreTests testHostRects]' started.
+Test Case '-[GildongmuTests.PlayCoreTests testHostRects]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.PlayCoreTests testKinds]' started.
+Test Case '-[GildongmuTests.PlayCoreTests testKinds]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.PlayCoreTests testPlayStaysInsideTheBoxForALongTime]' started.
+Test Case '-[GildongmuTests.PlayCoreTests testPlayStaysInsideTheBoxForALongTime]' passed (0.189 seconds).
+Test Case '-[GildongmuTests.PlayCoreTests testRngStaysInUnitRange]' started.
+Test Case '-[GildongmuTests.PlayCoreTests testRngStaysInUnitRange]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.PlayCoreTests testScenesMatchOrder]' started.
+Test Case '-[GildongmuTests.PlayCoreTests testScenesMatchOrder]' passed (0.000 seconds).
+Test Case '-[GildongmuTests.PlayCoreTests testSnapContinuesTheSameScene]' started.
+Test Case '-[GildongmuTests.PlayCoreTests testSnapContinuesTheSameScene]' passed (0.001 seconds).
+Test Suite 'PlayCoreTests' passed at 2026-11-28 07:19:14.784.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.278 (1.037) seconds
+Test Suite 'RetryTests' started at 2026-11-28 07:19:14.784.
+Test Case '-[GildongmuTests.RetryTests testDelayedScreenParses]' started.
+Test Case '-[GildongmuTests.RetryTests testDelayedScreenParses]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.RetryTests testErrorScreen]' started.
+Test Case '-[GildongmuTests.RetryTests testErrorScreen]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.RetryTests testRetryHintFromEngine]' started.
+Test Case '-[GildongmuTests.RetryTests testRetryHintFromEngine]' passed (0.001 seconds).
+Test Suite 'RetryTests' passed at 2026-11-28 07:19:14.791.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.005 (0.007) seconds
+Test Suite 'RideSaveTests' started at 2026-11-28 07:19:15.236.
+Test Case '-[GildongmuTests.RideSaveTests testDeadlinePrefersFinThenLatestPlusTenMinutes]' started.
+Test Case '-[GildongmuTests.RideSaveTests testDeadlinePrefersFinThenLatestPlusTenMinutes]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.RideSaveTests testSavedRideRejectsBrokenAndClears]' started.
+Test Case '-[GildongmuTests.RideSaveTests testSavedRideRejectsBrokenAndClears]' passed (0.009 seconds).
+Test Case '-[GildongmuTests.RideSaveTests testSavedRideRestoresOnlyWhileFreshAndBeforeDeadline]' started.
+Test Case '-[GildongmuTests.RideSaveTests testSavedRideRestoresOnlyWhileFreshAndBeforeDeadline]' passed (0.004 seconds).
+Test Suite 'RideSaveTests' passed at 2026-11-28 07:19:15.250.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.013 (0.015) seconds
+Test Suite 'RideSwapTests' started at 2026-11-28 07:19:15.251.
+Test Case '-[GildongmuTests.RideSwapTests testApplySwapLeavesUnreadableState]' started.
+Test Case '-[GildongmuTests.RideSwapTests testApplySwapLeavesUnreadableState]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.RideSwapTests testApplySwapMergesAndDropsOldFollow]' started.
+Test Case '-[GildongmuTests.RideSwapTests testApplySwapMergesAndDropsOldFollow]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.RideSwapTests testBoardCalcFirstAndSecondBusLeg]' started.
+Test Case '-[GildongmuTests.RideSwapTests testBoardCalcFirstAndSecondBusLeg]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.RideSwapTests testBoardCalcRejects]' started.
+Test Case '-[GildongmuTests.RideSwapTests testBoardCalcRejects]' passed (0.001 seconds).
+Test Suite 'RideSwapTests' passed at 2026-11-28 07:19:15.356.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.003 (0.105) seconds
+Test Suite 'RowAnimTests' started at 2026-11-28 07:19:15.550.
+Test Case '-[GildongmuTests.RowAnimTests testEaseEndpointsAndMonotonic]' started.
+Test Case '-[GildongmuTests.RowAnimTests testEaseEndpointsAndMonotonic]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.RowAnimTests testFreshWindow]' started.
+Test Case '-[GildongmuTests.RowAnimTests testFreshWindow]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.RowAnimTests testPushInGrowsTheNewSlot]' started.
+Test Case '-[GildongmuTests.RowAnimTests testPushInGrowsTheNewSlot]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.RowAnimTests testSlidesMoveNewAndOldSlot]' started.
+Test Case '-[GildongmuTests.RowAnimTests testSlidesMoveNewAndOldSlot]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.RowAnimTests testSpecParsing]' started.
+Test Case '-[GildongmuTests.RowAnimTests testSpecParsing]' passed (0.131 seconds).
+Test Suite 'RowAnimTests' passed at 2026-11-28 07:19:15.690.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.137 (0.140) seconds
+Test Suite 'ScreenCacheTests' started at 2026-11-28 07:19:15.691.
+Test Case '-[GildongmuTests.ScreenCacheTests testFileNameStable]' started.
+Test Case '-[GildongmuTests.ScreenCacheTests testFileNameStable]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.ScreenCacheTests testPutGetRoundTripAndSkipsDelayed]' started.
+Test Case '-[GildongmuTests.ScreenCacheTests testPutGetRoundTripAndSkipsDelayed]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.ScreenCacheTests testSkeletonKinds]' started.
+Test Case '-[GildongmuTests.ScreenCacheTests testSkeletonKinds]' passed (0.001 seconds).
+Test Suite 'ScreenCacheTests' passed at 2026-11-28 07:19:15.712.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.022) seconds
+Test Suite 'SettingsPopTests' started at 2026-11-28 07:19:15.713.
+Test Case '-[GildongmuTests.SettingsPopTests testAdaptConvDropsBackgroundKeepRowAndKeepsTheRest]' started.
+Test Case '-[GildongmuTests.SettingsPopTests testAdaptConvDropsBackgroundKeepRowAndKeepsTheRest]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.SettingsPopTests testFactsAreValidJsonWithTheKeysTheEngineReads]' started.
+Test Case '-[GildongmuTests.SettingsPopTests testFactsAreValidJsonWithTheKeysTheEngineReads]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.SettingsPopTests testFrameMatchesAndroidDialog]' started.
+Test Case '-[GildongmuTests.SettingsPopTests testFrameMatchesAndroidDialog]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.SettingsPopTests testOverlayRowSpeaksLiveActivity]' started.
+Test Case '-[GildongmuTests.SettingsPopTests testOverlayRowSpeaksLiveActivity]' passed (0.032 seconds).
+Test Case '-[GildongmuTests.SettingsPopTests testOvlSwitchDefaultsOnAndRemembersOff]' started.
+Test Case '-[GildongmuTests.SettingsPopTests testOvlSwitchDefaultsOnAndRemembersOff]' passed (0.008 seconds).
+Test Case '-[GildongmuTests.SettingsPopTests testWidgetGuideHasBackButtonAndSteps]' started.
+Test Case '-[GildongmuTests.SettingsPopTests testWidgetGuideHasBackButtonAndSteps]' passed (0.001 seconds).
+Test Suite 'SettingsPopTests' passed at 2026-11-28 07:19:15.758.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.044 (0.046) seconds
+Test Suite 'ShareAnimTests' started at 2026-11-28 07:19:15.759.
+Test Case '-[GildongmuTests.ShareAnimTests testDifferentSeedsGiveDifferentPlans]' started.
+Test Case '-[GildongmuTests.ShareAnimTests testDifferentSeedsGiveDifferentPlans]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.ShareAnimTests testEncodeMakesAnimatedGif]' started.
+Test Case '-[GildongmuTests.ShareAnimTests testEncodeMakesAnimatedGif]' passed (0.008 seconds).
+Test Case '-[GildongmuTests.ShareAnimTests testLoopIsSeamless]' started.
+Test Case '-[GildongmuTests.ShareAnimTests testLoopIsSeamless]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.ShareAnimTests testMarkerPosition]' started.
+Test Case '-[GildongmuTests.ShareAnimTests testMarkerPosition]' passed (0.006 seconds).
+Test Case '-[GildongmuTests.ShareAnimTests testPlanIsDeterministicAndInRange]' started.
+Test Case '-[GildongmuTests.ShareAnimTests testPlanIsDeterministicAndInRange]' passed (0.003 seconds).
+Test Suite 'ShareAnimTests' passed at 2026-11-28 07:19:16.226.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.021 (0.468) seconds
+Test Suite 'SwipeCoreTests' started at 2026-11-28 07:19:16.227.
+Test Case '-[GildongmuTests.SwipeCoreTests testFires]' started.
+Test Case '-[GildongmuTests.SwipeCoreTests testFires]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.SwipeCoreTests testInfoParse]' started.
+Test Case '-[GildongmuTests.SwipeCoreTests testInfoParse]' passed (0.013 seconds).
+Test Case '-[GildongmuTests.SwipeCoreTests testNoteRideTabName]' started.
+Test Case '-[GildongmuTests.SwipeCoreTests testNoteRideTabName]' passed (0.002 seconds).
+Test Case '-[GildongmuTests.SwipeCoreTests testRubberBandShift]' started.
+Test Case '-[GildongmuTests.SwipeCoreTests testRubberBandShift]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.SwipeCoreTests testSkeletonKeepsTableAndOwnSwDropsIt]' started.
+Test Case '-[GildongmuTests.SwipeCoreTests testSkeletonKeepsTableAndOwnSwDropsIt]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.SwipeCoreTests testTablePickAndNote]' started.
+Test Case '-[GildongmuTests.SwipeCoreTests testTablePickAndNote]' passed (0.002 seconds).
+Test Suite 'SwipeCoreTests' passed at 2026-11-28 07:19:16.491.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.019 (0.264) seconds
+Test Suite 'TapGateTests' started at 2026-11-28 07:19:16.492.
+Test Case '-[GildongmuTests.TapGateTests testClockGoingBackwardsDoesNotLockForever]' started.
+Test Case '-[GildongmuTests.TapGateTests testClockGoingBackwardsDoesNotLockForever]' passed (0.001 seconds).
+Test Case '-[GildongmuTests.TapGateTests testPassesAfterWindowAndForOtherKeys]' started.
+Test Case '-[GildongmuTests.TapGateTests testPassesAfterWindowAndForOtherKeys]' passed (0.000 seconds).
+Test Case '-[GildongmuTests.TapGateTests testSecondTapInsideWindowIsBlocked]' started.
+Test Case '-[GildongmuTests.TapGateTests testSecondTapInsideWindowIsBlocked]' passed (0.000 seconds).
+Test Suite 'TapGateTests' passed at 2026-11-28 07:19:16.495.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'GildongmuTests.xctest' passed at 2026-11-28 07:19:16.759.
+	 Executed 77 tests, with 0 failures (0 unexpected) in 0.718 (10.070) seconds
+Test Suite 'All tests' passed at 2026-11-28 07:19:16.760.
+	 Executed 77 tests, with 0 failures (0 unexpected) in 0.718 (10.073) seconds
+2026-11-28 07:19:20.749 xcodebuild[1766:8800] [MT] IDETestOperationsObserverDebug: 144.114 elapsed -- Testing started completed.
+2026-11-28 07:19:20.750 xcodebuild[1766:8800] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-11-28 07:19:20.750 xcodebuild[1766:8800] [MT] IDETestOperationsObserverDebug: 144.114 sec, +144.114 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/runner/work/subway-app-ios/subway-app-ios/build/result.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started
