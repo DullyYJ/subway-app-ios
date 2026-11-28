@@ -56,7 +56,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     func start(stateJson: String, text: String = "") {
         stop()
-        self.stateJson = stateJson; fixes = []; lastSentTs = 0
+        self.stateJson = stateJson; fixes = []; lastSentTs = 0; wakeNow = false
         pendingSwap = ""; board = Board()
         self.text = text; rowJson = ""; dtJson = ""; cur = -1; posJson = "null"; arrJson = "null"; waitJson = ""; pendingAct = ""; recoSent = false; recoLive = false; recoRetry = 0; rcRetry = false; recoInfo = nil; pendingAd = nil; inFlightAd = nil; rcDisAny = false
         rebuild()
@@ -101,11 +101,20 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     /// 경로 카드 오른쪽 칸([탑승] · [환승])을 눌렀다 — 다음 걸음에 act 로 엔진에 알린다(안드로이드 pendingAct).
-    func press() { pendingAct = "press" }
+    func press() { act("press") }
     /// 엔진에 알릴 행동 한 번(press · undo · open · close · pill · detour — 안드로이드 RideCore.queueAct 와 같다).
     /// 팝업·알림에서 추천을 처리했다 — 엔진이 오버레이의 추천 줄도 같이 지우게 한다(안드로이드 RideService.recoDone).
-    func recoDone() { if running { rcDisAny = true; pendingAd = nil } }
-    func act(_ a: String) { if ["press", "undo", "open", "close", "pill", "detour"].contains(a) { pendingAct = a } }
+    func recoDone() { if running { rcDisAny = true; pendingAd = nil; wake() } }
+    /// 안드로이드 ovHost.act: 행동을 알리고 5초를 기다리지 않고 바로 한 걸음(탑승 · 되돌리기 · 시트 열고 닫기가 곧바로 먹는다).
+    func act(_ a: String) { if ["press", "undo", "open", "close", "pill", "detour"].contains(a) { pendingAct = a; wake() } }
+    private var wakeNow = false
+    private func wake() { wakeNow = true }
+    /// 다음 걸음까지 쉰다 — 0.2초 간격으로 깨어 보며, 행동이 들어오면(wake) 바로 끝낸다.
+    private func nap(_ sec: Double) async {
+        let end = Date().addingTimeInterval(sec)
+        while !Task.isCancelled && !wakeNow && Date() < end { try? await Task.sleep(nanoseconds: 200_000_000) }
+        wakeNow = false
+    }
     var rowSlot: String { ((try? JSONSerialization.jsonObject(with: Data(rowJson.utf8))) as? [String: Any])?["slot"] as? String ?? "" }
     var rowCan: Bool { (((try? JSONSerialization.jsonObject(with: Data(rowJson.utf8))) as? [String: Any])?["can"] as? Bool) ?? false }
 
@@ -188,7 +197,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
                     wait = apply(d) ?? wait
                 } catch { note = "엔진에 닿지 못했어요: \(error.localizedDescription)" }
             }
-            try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+            await nap(wait)
         }
     }
 

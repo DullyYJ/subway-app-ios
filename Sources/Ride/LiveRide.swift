@@ -11,9 +11,11 @@ final class LiveRide: ObservableObject {
     private var lastAlert = ""            // 마지막으로 펼쳐 알린 제목(같은 순간에 다시 펼치지 않는다)
 
     func apply(_ ov: OvState) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { note = "이 기기에서는 실시간 현황(Live Activity)이 꺼져 있어요"; return }
+        let enabled = ActivityAuthorizationInfo().areActivitiesEnabled
+        if ov.active { vibrate(ov) }          // 진동은 실시간 현황을 꺼 둬도 울린다(안드로이드 진동은 오버레이 표시와 따로)
+        guard enabled else { note = "이 기기에서는 실시간 현황(Live Activity)이 꺼져 있어요"; return }
         guard ov.active else { end(); return }
-        vibrate(ov)
+        adopt()
         let st = RideActivityAttributes.ContentState(ov)
         let content = ActivityContent(state: st, staleDate: Date().addingTimeInterval(120))
         if let a = activity {
@@ -41,9 +43,17 @@ final class LiveRide: ObservableObject {
         SceneHapticPlayer.shared.play(ov.alert == 1 ? "alert1" : "alert2")
     }
 
+    /// 앱이 꺼졌다 다시 켜져도(탑승 중) 남아 있는 실시간 현황은 이어 쓴다 — 새로 또 만들면 잠금화면에 같은 카드가 겹쳐 쌓인다. 둘 이상이면 나머지는 치운다.
+    private func adopt() {
+        let all = Activity<RideActivityAttributes>.activities
+        if activity == nil, let f = all.first(where: { $0.activityState == .active }) ?? all.first { activity = f }
+        for x in all where x.id != activity?.id { Task { await x.end(nil, dismissalPolicy: .immediate) } }
+    }
+
     func end() {
-        guard let a = activity else { return }
+        let all = Activity<RideActivityAttributes>.activities          // 이 객체가 모르는(앱 재시작 전의) 것까지 모두
         activity = nil; lastAlert = ""; lastVibeAt = 0
-        Task { await a.end(nil, dismissalPolicy: .immediate) }
+        guard !all.isEmpty else { return }
+        Task { for a in all { await a.end(nil, dismissalPolicy: .immediate) } }
     }
 }
