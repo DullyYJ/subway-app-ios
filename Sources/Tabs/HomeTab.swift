@@ -627,16 +627,50 @@ final class HomeModel: ObservableObject {
         }
         rideSeq = my
         RideLoop.shared.start(stateJson: Json.text(st), text: (o["text"] as? String) ?? "")
+        saveSnap()
         let secs = routeSec
         Task { await Rules.myLines(secs) }
         host.say("\(optName(resTab)) 경로로 확정했어요")
         if showDetail { closeDetail() }
         reloadSoon()
     }
+    // MARK: 앱이 꺼졌다 켜져도 탑승 안내 잇기 — 안드로이드 HomeCore.rideSnapshot · restoreRide + ShellActivity.restoreRideCard
+    static let snapKey = "ride.snap"
+    private var restoreTried = false
+    /// 확정한 경로 카드(경로 응답 · 고른 탭 · 출발/도착)를 적어 둔다. 안내 루프 쪽 저장본(RideLoop.savedRide)과 함께 있어야 되살린다.
+    private func saveSnap() {
+        guard hasRoute else { return }
+        var m: [String: Any] = ["raw": routeRaw, "tab": resTab, "a": resA, "b": resB, "bt": resBt, "rb": resRb]
+        if let d = loc[1], d.ok { m["dl"] = ["la": d.lat, "lo": d.lng, "n": d.name] as [String: Any] }
+        if let s = loc[0], s.ok { m["me"] = [s.lat, s.lng] }
+        UserDefaults.standard.set(Json.text(m), forKey: Self.snapKey)
+    }
+    /// 앱이 켜질 때 한 번: 안내가 아직 살아 있으면(30분 안 · 도착 예정 + 10분 안) 경로 카드와 안내 루프를 되살린다.
+    func restoreRideIfAny() {
+        guard !restoreTried else { return }
+        restoreTried = true
+        guard !hasRoute, !RideLoop.shared.running, let saved = RideLoop.savedRide(),
+              let snap = UserDefaults.standard.string(forKey: Self.snapKey), let m = Json.obj(Data(snap.utf8)) as? [String: Any],
+              let raw = m["raw"] as? String, raw.count > 2, raw.hasPrefix("{"), raw.hasSuffix("}"),
+              let tab = m["tab"] as? String, ["fast", "less", "cheap", "walk", "comfort"].contains(tab) else { return }
+        let a = (m["a"] as? String) ?? "", b = (m["b"] as? String) ?? ""
+        routeRaw = raw; resTab = tab; resA = a; resB = b
+        resBt = (m["bt"] as? NSNumber)?.int64Value ?? -1; resRb = (m["rb"] as? NSNumber)?.int64Value ?? 0; baseMs = resBt
+        if let d = m["dl"] as? [String: Any], let la = (d["la"] as? NSNumber)?.doubleValue, let lo = (d["lo"] as? NSNumber)?.doubleValue, let n = d["n"] as? String {
+            loc[1] = HLoc(type: "restored", name: n, line: "", qname: "", lat: la, lng: lo); text[1] = n
+        }
+        if let me = m["me"] as? [NSNumber], me.count == 2 {
+            loc[0] = HLoc(type: "restored", name: a.isEmpty ? "출발" : a, line: "", qname: "", lat: me[0].doubleValue, lng: me[1].doubleValue); text[0] = a.isEmpty ? "출발" : a
+        }
+        seqRoute += 1; rideSeq = seqRoute
+        RideLoop.shared.start(stateJson: saved.state, text: saved.text)
+        saveSnap()
+        reloadSoon()
+    }
     private func optName(_ t: String) -> String { ["fast": "최단시간", "less": "최소환승", "cheap": "최저요금", "walk": "최소도보", "comfort": "편한"][t] ?? "선택한" }
     /// 안내 종료 = 여정 종료 — 도착지를 넣기 전 첫 홈 화면으로(안드로이드 stopRide / endJourney).
     private func stopRide(host: Host) {
-        RideLoop.shared.stop()
+        RideLoop.shared.stop(); UserDefaults.standard.removeObject(forKey: Self.snapKey)
         rideSeq = -1; routeRaw = ""; text = ["", ""]; loc = [nil, nil]; active = -1
         busRaw = [[], []]; placeRaw = [[], []]; candQ = ["", ""]; fetchedQ = ["", ""]; pkU = []
         reloadSoon()

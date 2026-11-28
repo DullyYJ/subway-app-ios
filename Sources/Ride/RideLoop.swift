@@ -2,6 +2,9 @@ import Foundation
 import CoreLocation
 import UserNotifications
 
+private let rideSavedKey = "ride.saved"
+private let rideMaxAge: Int64 = 30 * 60 * 1000, rideEndGrace: Int64 = 10 * 60 * 1000          // 30분 넘게 갱신 안 된 저장본은 쓰지 않는다 · 도착 예정 + 10분이 지나면 안내를 끝낸다(안드로이드 RideCore.MAX_AGE_MS · END_GRACE_MS)
+
 /// 탑승 안내 루프(안드로이드 RideService + RideCore 의 iOS 판).
 /// ★ 원칙(YJ): "모든 계산은 엔진이 한다. 앱은 그림만 그린다."
 ///  - 앱은 모은 위치(fixes)와 엔진이 준 state 를 그대로 POST /ride-standby 에 보낸다. state 는 해석하지 않고 들고만 있다.
@@ -67,6 +70,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         mgr.showsBackgroundLocationIndicator = true
         mgr.startUpdatingLocation()
         running = true
+        save()
         task = Task { [weak self] in await self?.loop() }
     }
 
@@ -74,6 +78,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
     func demoShow(_ ov: OvState) { running = true; last = ov }
 
     func stop() {
+        Self.clearSaved()
         task?.cancel(); task = nil
         mgr.stopUpdatingLocation()
         running = false
@@ -156,6 +161,35 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
 
+    // MARK: 저장 · 되살림 — 안드로이드 RideService.save · RideCore.restore · deadlineMs
+    /// 이 안내를 끝내야 하는 시각(ms): 엔진 state.stops 의 마지막 정류장 도착 예정(fin 이 있으면 그 중 가장 늦은 것, 없으면 가장 늦은 시각) + 10분. 모르면 0(제한 없음).
+    nonisolated static func deadline(_ stateJson: String) -> Int64 {
+        guard let st = (try? JSONSerialization.jsonObject(with: Data(stateJson.utf8))) as? [String: Any], let stops = st["stops"] as? [[String: Any]] else { return 0 }
+        var fin: Int64 = 0, last: Int64 = 0
+        for q in stops {
+            guard let ms = (q["arrMs"] as? NSNumber)?.int64Value, ms > 0 else { continue }
+            if (q["fin"] as? Bool) == true { fin = max(fin, ms) }
+            last = max(last, ms)
+        }
+        let base = fin > 0 ? fin : last
+        return base > 0 ? base + rideEndGrace : 0
+    }
+    private func save() {
+        guard running, stateJson.count > 10 else { return }
+        UserDefaults.standard.set(js(["state": stateJson, "text": text, "at": Int64(Date().timeIntervalSince1970 * 1000)] as [String: Any]), forKey: rideSavedKey)
+    }
+    nonisolated static func clearSaved() { UserDefaults.standard.removeObject(forKey: rideSavedKey) }
+    /// 앱이 죽었다 다시 켜졌을 때 이어 갈 안내(30분 안 · 시한 안)가 저장돼 있으면 (엔진 state, 상주 글). 없거나 낡았으면 nil.
+    nonisolated static func savedRide(now: Date = Date()) -> (state: String, text: String)? {
+        guard let s = UserDefaults.standard.string(forKey: rideSavedKey), let m = (try? JSONSerialization.jsonObject(with: Data(s.utf8))) as? [String: Any],
+              let st = m["state"] as? String, st.count > 10, let at = (m["at"] as? NSNumber)?.int64Value else { return nil }
+        let nowMs = Int64(now.timeIntervalSince1970 * 1000)
+        if nowMs - at > rideMaxAge { return nil }
+        let dl = deadline(st)
+        if dl > 0 && nowMs > dl { return nil }
+        return (st, (m["text"] as? String) ?? "")
+    }
+
     // MARK: 위치 모으기
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locs: [CLLocation]) {
         let add: [[Any]] = locs.map { l in
@@ -190,6 +224,8 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     private func loop() async {
         while !Task.isCancelled {
+            let dl = Self.deadline(stateJson)          // 안드로이드 RideService: 경로 마지막 도착 예정 + 10분이 지났는데 안 끝났으면 스스로 끝낸다(GPS 를 계속 쓰지 않게)
+            if dl > 0 && Int64(Date().timeIntervalSince1970 * 1000) > dl { note = "안내 시간이 지나 안내를 끝냈어요"; stop(); return }
             var wait = RideLoop.stepDefault
             if let body = stepBody() {
                 do {
@@ -222,6 +258,7 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         LiveRide.shared.apply(last)
         if let a = m["alert"] as? [String: Any] { notify(a) }
         if (m["done"] as? Bool) == true { stop(); return nil }
+        save()          // 앱이 꺼졌다 켜져도 이어 가도록(안드로이드 RideService.save)
         let nx = (m["nextMs"] as? NSNumber)?.doubleValue ?? RideLoop.stepDefault * 1000
         return max(RideLoop.stepMin, min(RideLoop.stepMax, nx / 1000))
     }
