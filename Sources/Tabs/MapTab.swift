@@ -310,8 +310,10 @@ struct MapTab: View {
                         // 시간표는 화면 62% 높이로 고정하고 목록이 그 안을 채워 스크롤한다(안 그러면 목록이 첫 줄만 보이고 잘린다). 역 팝업은 내용 높이(최대 520).
                         .frame(minHeight: m.ttMode ? UIScreen.main.bounds.height * 0.62 : nil, maxHeight: m.ttMode ? UIScreen.main.bounds.height * 0.62 : 520, alignment: .top)
                         .fixedSize(horizontal: false, vertical: !m.ttMode)
+                        .animation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.3), value: m.ttMode)          // 시간표가 열리면 시트가 62% 높이까지 부드럽게(안드로이드 animSheetH 120~300ms)
                         .background(pal.color("card") ?? .black)
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
+                        .sheetIn()
                     }
                 }
                 if m.routeOpen { RouteSheet(route: m.route, pal: pal) { m.closeRoute() } }

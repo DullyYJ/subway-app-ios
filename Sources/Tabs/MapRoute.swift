@@ -155,6 +155,7 @@ struct RouteSheet: View {
             .background(pal.color("card") ?? .black)
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
             .padding(.top, 44)
+            .sheetIn()
         }
         .task {
             while !Task.isCancelled {

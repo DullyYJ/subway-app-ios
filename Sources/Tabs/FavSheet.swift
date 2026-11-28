@@ -128,7 +128,7 @@ struct FavSheet: View {
             .background(pal.color("card") ?? .black)
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
             .padding(.top, 10)
+            .sheetIn()
         }
-        .transition(.move(edge: .bottom))
     }
 }

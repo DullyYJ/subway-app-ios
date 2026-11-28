@@ -161,7 +161,7 @@ struct NewsDetailSheet: View {
             .fixedSize(horizontal: false, vertical: true)
             .background(pal.color("card") ?? .black)
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
+            .sheetIn()
         }
-        .transition(.move(edge: .bottom))
     }
 }

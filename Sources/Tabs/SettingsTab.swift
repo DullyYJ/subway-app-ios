@@ -220,7 +220,8 @@ struct SettingsView: View {
                     .background(pal.color("card") ?? .black)
                     .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
                     .padding(.top, 44)
-                }.transition(.move(edge: .bottom))
+                    .sheetIn()
+                }
             }
         }
         .arrivalFade(m.screen != nil)
