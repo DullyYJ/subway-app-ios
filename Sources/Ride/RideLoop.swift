@@ -70,6 +70,9 @@ final class RideLoop: NSObject, ObservableObject, CLLocationManagerDelegate {
         task = Task { [weak self] in await self?.loop() }
     }
 
+    /// 시험용(`-demoRs`): 엔진 없이 견본 overlay 로 탑승 시트를 띄운다.
+    func demoShow(_ ov: OvState) { running = true; last = ov }
+
     func stop() {
         task?.cancel(); task = nil
         mgr.stopUpdatingLocation()

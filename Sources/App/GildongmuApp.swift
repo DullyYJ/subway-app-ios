@@ -9,6 +9,13 @@ struct GildongmuApp: App {
         UNUserNotificationCenter.current().delegate = NotifRouter.shared          // 알림 배너를 앞에서도 보이고, 출퇴근 알림을 누르면 앱 안 브리핑 창을 연다
         // 시험용: `-demoRide moving` 으로 켜면 견본 overlay 로 다이내믹 아일랜드를 바로 띄운다(클라우드 맥 화면 확인용).
         let a = CommandLine.arguments
+        if let i = a.firstIndex(of: "-demoRs"), i + 1 < a.count {          // 시험용: `-demoRs rsboard|rswait|rsundo` 로 켜면 견본 값으로 탑승 시트를 띄운다
+            let kind = a[i + 1]
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                RideLoop.shared.demoShow(OvState.from(DemoOverlay.json(kind)))
+            }
+        }
         if let i = a.firstIndex(of: "-demoRide"), i + 1 < a.count {
             let kind = a[i + 1]
             Task { @MainActor in

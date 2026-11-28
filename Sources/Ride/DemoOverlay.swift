@@ -19,6 +19,9 @@ enum DemoOverlay {
         case "wait": o["moving"] = false; o["rs"] = ["st": "wait", "k": "승차 대기"]; o["pillTxt"] = "을지로입구 승차 대기 · 2분"
         case "alert2": o["alert"] = 2; o["banner"] = "2정거장 전"; o["cur"] = 4; o["pillTxt"] = "곧 내려요 · 충무로"
         case "alert1": o["alert"] = 1; o["banner"] = "1정거장 전"; o["cur"] = 5; o["pillTxt"] = "다음 정거장에서 내려요"
+        case "rsboard": o["moving"] = false; o["rs"] = ["st": "board", "bt": "탑승", "k": "승차 2분 전", "kick": "을지로입구 · 승차 2분 전", "nm": "시청 방면", "chip": "2호선", "cbg": "#00a84d", "cfg": "#ffffff", "mode": "sub", "bar": 0.6]
+        case "rswait": o["moving"] = false; o["rs"] = ["st": "wait", "k": "승차 대기", "nm": "2호선", "chip": "2호선"]
+        case "rsundo": o["rs"] = ["st": "undo", "k": "탑승으로 기록했어요", "bt": "되돌리기"]
         case "arrived": o["moving"] = false; o["cur"] = 5; o["pillTxt"] = "명동 도착"; o["rs"] = ["st": "board", "end": true, "bt": "안내 종료"]
         default: break
         }
