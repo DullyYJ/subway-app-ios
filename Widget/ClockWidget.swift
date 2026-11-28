@@ -69,12 +69,11 @@ extension View {
     }
 }
 
-struct GwClockWidget: Widget {
-    let kind: String; let white: Bool
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: GwProvider(white: white)) { e in GwEntryView(e: e) }
-            .configurationDisplayName(white ? "캐릭터 시계 · 흰 글씨" : "캐릭터 시계 · 검은 글씨")
-            .description("시계 위를 길동무 캐릭터들이 돌아다녀요. 쉴 땐 각자 집에서 잡니다.")
-            .supportedFamilies([.systemSmall, .systemMedium])
-    }
+private func gwClockConfig(kind: String, white: Bool) -> some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: GwProvider(white: white)) { e in GwEntryView(e: e) }
+        .configurationDisplayName(white ? "캐릭터 시계 · 흰 글씨" : "캐릭터 시계 · 검은 글씨")
+        .description("시계 위를 길동무 캐릭터들이 돌아다녀요. 쉴 땐 각자 집에서 잡니다.")
+        .supportedFamilies([.systemSmall, .systemMedium])
 }
+struct GwClockBlack: Widget { var body: some WidgetConfiguration { gwClockConfig(kind: "gdm.clock.black", white: false) } }
+struct GwClockWhite: Widget { var body: some WidgetConfiguration { gwClockConfig(kind: "gdm.clock.white", white: true) } }

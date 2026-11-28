@@ -6,8 +6,8 @@ import ActivityKit
 struct GildongmuLiveBundle: WidgetBundle {
     var body: some Widget {
         RideLiveActivity()
-        GwClockWidget(kind: "gdm.clock.black", white: false)
-        GwClockWidget(kind: "gdm.clock.white", white: true)
+        GwClockBlack()
+        GwClockWhite()
     }
 }
 
