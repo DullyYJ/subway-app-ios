@@ -6,6 +6,7 @@ struct RootView: View {
     @AppStorage("theme") private var theme = ""
     @Environment(\.scenePhase) private var phase
     @State private var hdrAt = Int(Date().timeIntervalSince1970 * 1000)          // 맨 위 문구를 받은 때(켤 때 · 10분마다만 바뀐다 — 안드로이드 loadHdr/hdrTick)
+    @State private var prefetchAt = Date()          // 탭 막대 · 탭 화면을 미리 받은 때
     private var pal: Palette { theme == "dark" ? .dark : .light }          // 안드로이드 ShellCore.theme: dark 아니면 모두 파스텔(밝은 쪽) — 폰의 다크 모드를 따라가지 않는다
 
     var body: some View {
@@ -70,13 +71,19 @@ struct RootView: View {
                 if UIApplication.shared.applicationState == .active { hdrAt = Int(Date().timeIntervalSince1970 * 1000) }
             }
         }
-        .onChange(of: phase) { p in if p == .active { CommuteAlarm.refresh() } }          // 앱이 앞으로 올 때마다 출퇴근 알림 4주 창을 다시 민다(안드로이드 onCreate 의 rescheduleAsync)
+        .onChange(of: phase) { p in          // 앱이 앞으로 올 때마다(안드로이드 onResume)
+            guard p == .active else { return }
+            CommuteAlarm.refresh()          // 출퇴근 알림 4주 창을 다시 민다(안드로이드 onCreate 의 rescheduleAsync)
+            let now = Date(), ms = Int(now.timeIntervalSince1970 * 1000)
+            if ms - hdrAt > 300_000 { hdrAt = ms }          // 맨 위 문구를 받은 지 5분이 넘었으면 새로(loadHdr)
+            if now.timeIntervalSince(prefetchAt) > 600 { prefetchAt = now; Task { await prefetchTabBars(); await prefetchScreens(delay: 0) } }          // 미리 받은 지 10분이 넘었으면 다시(prefetchTabs)
+        }
         .preferredColorScheme(theme == "dark" ? .dark : .light)
     }
 
     /// 켠 뒤 잠깐 있다가 아직 안 본 탭의 화면(쇼핑 · 소식 · 게시판)을 미리 받아 `ScreenCache` 에 둔다(안드로이드 prefetchTabs) — 처음 눌러도 빈 뼈대 없이 바로 뜬다.
-    @MainActor private func prefetchScreens() async {
-        try? await Task.sleep(nanoseconds: 4_000_000_000)
+    @MainActor private func prefetchScreens(delay: UInt64 = 4_000_000_000) async {
+        if delay > 0 { try? await Task.sleep(nanoseconds: delay) }
         if host.tab != "shop" { await ShopModel().load() }
         if host.tab != "community" { await NewsModel().load(); await BoardModel().load() }
     }
