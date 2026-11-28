@@ -287,10 +287,48 @@ final class MapModel: ObservableObject {
     }
 }
 
+private struct StnHKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
 struct MapTab: View {
     let pal: Palette
     @StateObject private var m = MapModel()
     @EnvironmentObject var host: Host
+    // 역 팝업 끌기(안드로이드 stnSheetBox · 웹 _nmDragDismiss): 위로 끌면 시간표가 손가락을 따라 자라 오르고, 아래로 끌면 시트가 손가락을 따라 내려가다 놓으면 닫힌다.
+    @State private var stnBaseH: CGFloat = 0        // 팝업이 가만히 있을 때 높이(끌기 기준)
+    @State private var stnGrow: CGFloat = 0         // 위로 끌어 늘어난 만큼
+    @State private var stnDown: CGFloat = 0         // 아래로 끌려 내려간 만큼
+    @State private var stnDragging = false
+    private func stnDrag(top: Bool) -> some Gesture {
+        DragGesture(minimumDistance: 10, coordinateSpace: .global)
+            .onChanged { g in
+                let dy = g.translation.height, dx = g.translation.width
+                if !stnDragging {
+                    guard abs(dy) > abs(dx) * 1.2 else { return }                       // 세로로 끌려야 확정(단추 · 알약 누르기는 그대로)
+                    if m.ttMode && dy < 0 { return }                                    // 시간표 위로 끌기는 목록 스크롤
+                    stnDragging = true
+                }
+                if dy < 0 && !m.ttMode { stnGrow = max(0, min(UIScreen.main.bounds.height * 0.62 - stnBaseH, -dy)); stnDown = 0 }
+                else if dy > 0 { stnDown = dy; stnGrow = 0 }
+            }
+            .onEnded { g in
+                guard stnDragging else { return }
+                stnDragging = false
+                let dy = g.translation.height, fling = g.predictedEndTranslation.height - dy          // 놓은 뒤 더 갈 만큼 ≈ 속도
+                if dy < 0 && !m.ttMode {
+                    if stnGrow >= 28 || fling < -150 { withAnimation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.3)) { m.openTimetable(); stnGrow = 0 } }
+                    else { withAnimation(.timingCurve(0, 0, 0.58, 1, duration: 0.18)) { stnGrow = 0 } }
+                } else if dy > 0 {
+                    if stnDown >= (m.ttMode ? 56 : 40) || fling > 130 {
+                        let h = max(1, stnBaseH), dur = 0.16 + 0.08 * max(0, 1 - Double(stnDown / h))
+                        withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: dur)) { stnDown = UIScreen.main.bounds.height }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + dur) { m.showStn = false; m.ttMode = false; stnDown = 0; stnGrow = 0 }
+                    } else { withAnimation(.timingCurve(0, 0, 0.58, 1, duration: 0.18)) { stnDown = 0 } }
+                }
+            }
+    }
     var body: some View {
         VStack(spacing: 0) {
             if let h = m.head { VStack(spacing: 0) { ForEach(h.head + h.body) { NodeView(node: $0, pal: pal) } } }
@@ -308,11 +346,16 @@ struct MapTab: View {
                         }
                         .frame(maxWidth: 520)
                         // 시간표는 화면 62% 높이로 고정하고 목록이 그 안을 채워 스크롤한다(안 그러면 목록이 첫 줄만 보이고 잘린다). 역 팝업은 내용 높이(최대 520).
-                        .frame(minHeight: m.ttMode ? UIScreen.main.bounds.height * 0.62 : nil, maxHeight: m.ttMode ? UIScreen.main.bounds.height * 0.62 : 520, alignment: .top)
-                        .fixedSize(horizontal: false, vertical: !m.ttMode)
+                        .frame(minHeight: m.ttMode ? UIScreen.main.bounds.height * 0.62 : (stnGrow > 0 ? stnBaseH + stnGrow : nil),
+                               maxHeight: m.ttMode ? UIScreen.main.bounds.height * 0.62 : (stnGrow > 0 ? stnBaseH + stnGrow : 520), alignment: .top)
+                        .fixedSize(horizontal: false, vertical: !m.ttMode && stnGrow == 0)
+                        .background(GeometryReader { Color.clear.preference(key: StnHKey.self, value: m.ttMode || stnGrow > 0 ? 0 : $0.size.height) })
+                        .onPreferenceChange(StnHKey.self) { if $0 > 0 { stnBaseH = $0 } }
                         .animation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.3), value: m.ttMode)          // 시간표가 열리면 시트가 62% 높이까지 부드럽게(안드로이드 animSheetH 120~300ms)
                         .background(pal.color("card") ?? .black)
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
+                        .offset(y: stnDown)
+                        .simultaneousGesture(stnDrag(top: false), including: m.ttMode ? .subviews : .all)
                         .sheetIn()
                     }
                 }
