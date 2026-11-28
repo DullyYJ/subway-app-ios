@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @StateObject private var host = Host()
+    @ObservedObject private var loop = RideLoop.shared          // 탑승 시트(RsSheet)가 엔진 overlay.rs 를 그린다
     @AppStorage("theme") private var theme = ""
     @Environment(\.scenePhase) private var phase
     @State private var hdrAt = Int(Date().timeIntervalSince1970 * 1000)          // 맨 위 문구를 받은 때(켤 때 · 10분마다만 바뀐다 — 안드로이드 loadHdr/hdrTick)
@@ -31,6 +32,9 @@ struct RootView: View {
                     }
                 }.animation(.timingCurve(0.4, 0, 0.8, 0.6, duration: 0.24), value: host.locd == nil)
                 if let b = host.cmb { DlgCard(screen: b, pal: pal) { _ in host.cmbAct("cmb.ok") } }          // 출퇴근 브리핑 창(알림을 누르면)
+                if loop.running && (loop.last.rsSt == "wait" || loop.last.rsSt == "undo") && loop.last.rsShown {
+                    RsFloat(ov: loop.last, pal: pal) { loop.act($0) }          // 하단 탭 위 14: 대기 알약 · 기록 직후 되돌리기
+                }
                 if let t = host.toast {
                     Text(t).font(Typo.font(12)).foregroundColor(.white).padding(10).background(Color.black.opacity(0.8)).cornerRadius(10).padding(.bottom, 12)
                 }
@@ -38,7 +42,17 @@ struct RootView: View {
             // 아래 탭 막대(서버 /screen/tabs)
             RemoteScreenInline(path: "/screen/tabs", payload: "{\"cap\":\(Servers.cap),\"f\":{\"tab\":\"\(host.tab)\"}}", pal: pal, cacheKey: "tabs|" + host.tab, ttl: 600)
                 .frame(height: 56)
+                .simultaneousGesture(DragGesture(minimumDistance: 20).onEnded { v in          // 웹 _rsInitSwipe: 탭 막대를 위로 쓸면 시트를 열고, 올라온 시트는 아래로 쓸면 닫는다
+                    guard loop.running, loop.last.rsShown, let a = RsCore.tabSwipe(loop.last.rsSt, v.translation.width, v.translation.height) else { return }
+                    loop.act(a)
+                })
+            if loop.running && loop.last.rsShown && loop.last.rsSt == "board" {          // 탑승 시트: 탭 막대 아래에서 올라오며 탭 · 본문이 함께 밀린다(0.46초)
+                RsBoardSheet(ov: loop.last, pal: pal) { loop.act($0) }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.46), value: loop.running && loop.last.rsShown && loop.last.rsSt == "board")
+        .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.4), value: loop.running && loop.last.rsShown ? loop.last.rsSt : "")
         .background(pal.color("bg") ?? Color(.systemBackground))
         .kidsHubLayer(pal: pal)            // 반드시 environmentObject(host) 보다 안쪽(먼저) — 층이 Host 를 환경에서 읽는다
         .environmentObject(host)

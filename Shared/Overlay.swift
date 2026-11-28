@@ -18,6 +18,9 @@ struct OvState {
     var bg = 0xFF1C1C1E, fg = 0xFFF2F2F7, sub = 0xFF8E8E93
     var rsSt = "hidden", rsBt = "", rsK = "", rsNm = ""
     var rsEnd = false
+    var rsKick = "", rsMode = "", rsChip = ""            // 앱 탑승 시트(RsSheet)가 그릴 값 — 모두 엔진이 정한다
+    var rsCbg = 0xFF0A84FF, rsCfg = 0xFFFFFFFF
+    var rsBar = -1.0                                      // 출발 뒤 줄어드는 막대(0~1), 없으면 -1
     var rowKind = 0, rowA = "", rowB = ""
 
     // 안드로이드 OvCore 상수: 승차 대기 주황 · 달리는 중 파랑 · 역에 서 있는 동안 노랑
@@ -78,6 +81,9 @@ struct OvState {
         if let r = m["rs"] as? [String: Any] {
             v.rsSt = str(r["st"], 10); v.rsBt = str(r["bt"], 12); v.rsK = str(r["k"], 40); v.rsNm = str(r["nm"], 24); v.rsEnd = flag(r["end"])
             if v.rsSt.isEmpty { v.rsSt = "hidden" }
+            v.rsKick = str(r["kick"], 48); v.rsMode = str(r["mode"], 4); v.rsChip = str(r["chip"], 16)
+            v.rsCbg = color(r["cbg"], v.rsCbg); v.rsCfg = color(r["cfg"], v.rsCfg)
+            if let n = r["bar"] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() { v.rsBar = max(-1, min(1, n.doubleValue)) }
         }
         if let g = m["getoff"] as? [String: Any], flag(g["on"]), !str(g["a"], 30).isEmpty {
             v.rowKind = 2; v.rowA = str(g["a"], 30); v.rowB = str(g["b"], 60)
@@ -96,6 +102,8 @@ struct OvState {
     }
     /// 지금 있는 역 이름(엔진이 칸에 준 현위치 칸 이름, 없으면 목적지) — 도착 때 함께 보인다.
     var station: String { cells.indices.contains(cur) && !cells[cur].n.isEmpty ? cells[cur].n : destName }
+    /// 앱 탑승 시트가 보일 상태인가(올라온 시트 · 기록 직후 되돌리기 · 대기 알약) — 안드로이드 OvCore.rsShown.
+    var rsShown: Bool { !rsEnd && (rsSt == "board" || rsSt == "wait" || rsSt == "undo") }
     var waiting: Bool { !rsEnd && (rsSt == "wait" || rsSt == "board") }
     var arrived: Bool { rsSt == "board" && rsEnd && !rsBt.isEmpty }
     /// 현재 칸 점 · 알약 점 색(안드로이드 stateRgb).
