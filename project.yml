@@ -60,6 +60,9 @@ targets:
       - path: Sources/Core/Typo.swift
       - path: Resources/Fonts
         optional: true
+      - path: Resources/chars3d
+        type: folder
+        buildPhase: resources
     info:
       path: Resources/Widget-Info.plist
       properties:

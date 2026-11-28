@@ -26,7 +26,9 @@ struct GildongmuApp: App {
         }
     }
     var body: some Scene {
-        WindowGroup { RootView() }
+        WindowGroup {
+            if CommandLine.arguments.contains("-gwPreview") { GwPreview() } else { RootView() }
+        }
     }
 }
 

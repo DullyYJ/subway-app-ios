@@ -4,7 +4,11 @@ import ActivityKit
 
 @main
 struct GildongmuLiveBundle: WidgetBundle {
-    var body: some Widget { RideLiveActivity() }
+    var body: some Widget {
+        RideLiveActivity()
+        GwClockWidget(kind: "gdm.clock.black", white: false)
+        GwClockWidget(kind: "gdm.clock.white", white: true)
+    }
 }
 
 /// 안드로이드 '알약' 오버레이의 iOS 판: 알약 상태에서는 다이내믹 아일랜드 안으로 들어가 [도착 · 이동중 · 대기]를 보인다.
