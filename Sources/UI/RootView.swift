@@ -38,6 +38,11 @@ struct RootView: View {
         .kidsHubLayer(pal: pal)            // 반드시 environmentObject(host) 보다 안쪽(먼저) — 층이 Host 를 환경에서 읽는다
         .environmentObject(host)
         .onAppear { RideLoop.shared.host = host; CommuteAlarm.attach(host); FirstRun.host = host; FirstRun.begin() }
+        // 위젯 · 라이브 액티비티가 앱을 열 때: gildongmu://tab/<탭이름> 이면 그 탭으로(안드로이드 위젯: 커뮤니티 탭)
+        .onOpenURL { u in
+            guard u.scheme == "gildongmu", u.host == "tab", let t = u.pathComponents.dropFirst().first, Host.tabNames.contains(t) else { return }
+            host.tab = t
+        }
         .task { await prefetchTabBars() }
         .task { await prefetchScreens() }
         .task {          // 맨 위 문구는 10분마다(앞에 있을 때만) 새로 받는다
