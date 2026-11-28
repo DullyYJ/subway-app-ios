@@ -143,3 +143,14 @@
 - 안내창(DlgCard) 열림: 바탕 페이드 + 카드 0.9→1 + 투명 0→1(150ms). 위치 안내(`host.locd`)는 slidePop — 위에서 -34pt→0(440ms, 0.22,1,0.36,1), 바탕 0.68, 닫힐 땐 아래 30pt + 흐림 240ms.
 - 역 팝업 끌기(MapTab `stnDrag`): 위로 끌면 팝업이 손가락을 따라 자라고(28pt↑ 또는 빠르게 놓으면 `openTimetable`), 아래로 끌면 따라 내려가다 40pt↑/빠르게 놓으면 닫힘(160~240ms, 0.4,0,0.2,1), 아니면 180ms 되돌림. **시간표(ttMode)에서의 아래로 끌어 닫기는 아직 없음**(목록 스크롤과 충돌 — 스크롤 맨 위일 때만 해야 해서 별도 작업).
 - 노선도 역 누름: 팝업(276pt)에 가려질 자리면 380ms 가운데로(`ensureVisible`).
+
+## 탑승 안내 이어가기 · 종료 시한 · 즉시 반응 · 위젯 메모리 (s485, 버그 점검)
+- **행동은 바로 먹는다**: `RideLoop.act/press/recoDone` 이 `wake()` — 안내 루프의 쉬는 시간(`nap`, 0.2초 간격으로 깨어 봄)을 끊고 곧바로 한 걸음(안드로이드 ovHost.act 의 `removeCallbacks+post`). 전에는 [탑승]·되돌리기·알약이 최대 5~8초 뒤에야 먹었다.
+- **앱이 꺼졌다 켜져도 안내가 이어진다**(안드로이드 `RideService.save` · `RideCore.restore` · `HomeCore.rideSnapshot/restoreRide` · `restoreRideCard`):
+  `RideLoop` 이 걸음마다 `{state,text,at}` 을 UserDefaults `ride.saved` 에, `HomeModel.saveSnap()` 이 확정한 경로 카드 `{raw,tab,a,b,bt,rb,dl,me}` 를 `ride.snap` 에 적는다. 앱을 켤 때 `RootView.onAppear → HomeModel.restoreRideIfAny()` 가 두 가지가 다 있고 마지막 갱신이 30분 안(`MAX_AGE_MS`)이며 도착 예정+10분 안일 때만 경로 카드와 루프를 되살린다. 끝나면(도착 done · 시한 · 사용자 종료) `RideLoop.stop()` 이 저장본을 지운다.
+  ★ iOS 는 안드로이드 포그라운드 서비스와 달리 위치 권한 "사용 중" 에서는 죽은 앱이 저절로 되살아나지 않는다 — 사용자가 다시 켰을 때 이어 주는 것까지가 한계.
+- **종료 시한**(안드로이드 `RideCore.deadlineMs` · `END_GRACE_MS`): 엔진 state.stops 의 마지막 정류장 도착 예정(fin) + 10분이 지나면 루프가 스스로 `stop()`(안 끝난 안내가 GPS 를 계속 쓰지 않게). `RideLoop.deadline(_:)`.
+- 라이브 액티비티: 앱이 재시작되면 남아 있는 것을 `adopt()` 로 이어 쓰고(둘 이상이면 나머지 종료), `end()` 는 `Activity.activities` 전부를 끝낸다. 경고 진동은 라이브 액티비티를 꺼 둬도 울린다.
+- 위젯 메모리: `GwSheets` 캐시를 시트 14장(칸 128px ≈ 14MB)까지만 두고 오래 안 쓴 것부터 내보낸다(15분치 장면에서 캐릭터 3마리씩 × 3번 × 시트 4~5장이 쌓여 약 30MB 한도를 넘을 수 있었다).
+- 시험: `Tests/RideSaveTests.swift`(시한 계산 · 저장본 30분/시한 판정 · 깨진 저장본).
+- 안드로이드에는 있지만 iOS 에는 없는 것(의도): `/screen/batch` 묶음 요청(시작 최적화 — iOS 는 탭별로 받음), 채팅 방 배경 순회 미리받기(chatBg), 오버레이 전용 `dismissedRsKey/AlertAt`(오버레이가 없으므로).
