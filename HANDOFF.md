@@ -121,3 +121,5 @@
 - 노선도(`maph|모드|지역|칩` · `mapb|모드|지역|칩[|주변/즐겨찾기|위치칸 0.001°≈110m]`)도 옛 화면을 먼저 보인다(`MapModel.useCache`). 방식 · 지역 · 칩 · 주변/즐겨찾기를 바꿀 때도 본 적 있는 칸이면 먼저 올린다. 버스 본문은 받은 지 10분 안일 때만(안드로이드 BUS_FRESH_MS), 정류장을 골라 펼친 화면 · 덜 받은 화면(info.bus.need 남음)은 안 담는다. 캐시 화면을 올릴 때 `readInfo` 도 다시 돌려 눌림 번호표(stops · rts · rs)를 맞춘다.
 - 커뮤니티 칩 줄(`cchips|방식`)과 설정(`settings|<저장값 지문>` — 안드로이드 settingsKey 와 같은 생각: facts 가 같을 때만 기억한 화면을 보인다)도 옛 화면을 먼저, 설정은 뼈대(list) · 떠오름까지.
 - 주의: `SwipeArea` 는 `Color.clear` 위에 내용을 얹는 틀이라 스스로 높이가 없다 → `fixedSize(vertical:)` 로 내용 높이에 맞추는 팝업에서 `ScreenBody` 를 그대로 쓰면 납작해진다. 팝업은 `ScreenBody(eager: true)`(SwipeArea 를 거치지 않음) 또는 DlgCard 처럼 직접 쌓는다. 시험 인자 `-mapStn 강남 [-mapTt 1]` 로 CI 가 역 팝업 · 시간표 캡처를 남긴다(screenshot-map-stn-1/2 · map-tt-1) — 놀이터(캐릭터) 장면도 거기서 확인.
+- 홈: 켠 직후 빈 홈(입력 없음 · 경로 없음 · 안내 아님)이면 마지막으로 받은 빈 홈(`home|idle`)을 먼저 보이고 새로 받으면 바꾼다(`HomeModel.idle`). 경로가 있거나 글자를 넣은 홈은 눌림이 그 상태에 기대므로 기억하지 않는다(안드로이드 restoreState 에 해당하는 일이 있어야 함).
+- 켠 뒤 4초 지나 아직 안 본 탭의 화면(쇼핑 · 소식 · 게시판)을 미리 받아 `ScreenCache` 에 둔다(`RootView.prefetchScreens`, 안드로이드 prefetchTabs). 맛집은 위치가 필요해서, 소통방은 롱폴이라 제외.
