@@ -154,3 +154,10 @@
 - 위젯 메모리: `GwSheets` 캐시를 시트 14장(칸 128px ≈ 14MB)까지만 두고 오래 안 쓴 것부터 내보낸다(15분치 장면에서 캐릭터 3마리씩 × 3번 × 시트 4~5장이 쌓여 약 30MB 한도를 넘을 수 있었다).
 - 시험: `Tests/RideSaveTests.swift`(시한 계산 · 저장본 30분/시한 판정 · 깨진 저장본).
 - 안드로이드에는 있지만 iOS 에는 없는 것(의도): `/screen/batch` 묶음 요청(시작 최적화 — iOS 는 탭별로 받음), 채팅 방 배경 순회 미리받기(chatBg), 오버레이 전용 `dismissedRsKey/AlertAt`(오버레이가 없으므로).
+
+## 설정 화면 메뉴 모드 · 알림/편의 기능 팝업 (s486)
+- `SettingsModel.facts()` 의 `pgs` 에 `notif`·`conv` 를 실어 엔진(`settings.js`)이 안드로이드와 같은 **menu 모드**로 첫 화면을 그린다(커뮤니티 아이디 → 출퇴근 브리핑 → 테마 → '알림 · 편의 기능'(줄 둘) → 길동무 패밀리 → 약관). 옛 긴 화면(알림 스위치 · 하차 추천 · 위젯 · 오버레이 카드가 줄줄이)은 더 이상 안 쓴다.
+- 줄을 누르면(`pg.notif` · `pg.conv`) 가운데 팝업 — `Host.menuPop`(RootView 가 `DlgCard` 로 그림: 너비 min(화면−44, 400) · r 20 · 바깥 흐림 0.68 · 바깥을 누르면 `pg.back`). 글 · 스위치는 엔진 `/screen/settings?p=notif|conv&f=<popFacts>` — 안드로이드 `ShellCore.popFacts` 와 같은 모양(`np · npd · ovl · gr · sup · sam · samw · ig · rl`). 같은 값이면 `ScreenCache` 로 바로 보이고 뒤에서 새로 받는다. `Sources/Tabs/SettingsPop.swift` = 팝업 사실 · 틀 · iOS 손질(`SetPop`).
+- **iOS 에 맞춘 점**: ① `bg`(백그라운드 유지 = 배터리 최적화)는 iOS 에 없어서 줄을 뺀다. ② `ovl`('다른 앱 위에 표시') = **실시간 현황(Live Activity)** 켜기/끄기 — 글은 '잠금 화면 · 다이내믹 아일랜드에 표시'로 바꾸고 UserDefaults `ovl_ios_off` 에 저장(기본 켜짐, 안드로이드는 기본 꺼짐 + 첫 설치 안내). `LiveRide.apply` 가 이 값을 따르고, 끄면 떠 있는 활동을 바로 끝낸다. 켰는데 기기 설정에서 막혀 있으면 토스트 + 설정 앱 열기(안드로이드 PG_NEEDPERM). ③ `pg.gw`(캐릭터 시계 위젯)는 앱이 위젯을 대신 올릴 수 없어 아이폰 방식 안내 화면(`SetPop.gwGuide`: 홈 화면 길게 → + → 길동무 → 작은=세로 · 중간=가로)을 하위 시트로 보인다. '돌아다니는 시간'은 위젯이 앱 설정을 읽을 수 없어(App Group 불가) 뺐다.
+- `pg.arr`(하차 7분 전 추천 시험) · `pg.gw` 는 팝업을 닫고 하위 시트를 연 뒤, 시트를 닫으면(`closeSub`) 그 팝업으로 돌아온다(안드로이드 setBack).
+- 시험: `Tests/SettingsPopTests.swift`(엔진 conv 화면 실제 출력으로 bg 줄 제거 · ovl 문구 · 사실 JSON · 틀 값 · 스위치 기본/기억 · 위젯 안내).
