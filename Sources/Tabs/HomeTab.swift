@@ -714,7 +714,10 @@ struct DlgCard: View {
     let screen: Screen
     let pal: Palette
     let act: (String) -> Void
+    var slide = false          // 처음 설치 안내(위치 · 배터리 …)처럼 위에서 미끄러져 내려앉는 창(안드로이드 slidePop)
     @StateObject private var open = PostOpen()
+    @State private var shown = false                                  // 열릴 때: 바탕이 서서히 어두워지고 카드가 0.9배에서 1배로 커지며 나타난다(안드로이드 Material 안내창 기본 움직임)
+    @Environment(\.accessibilityReduceMotion) private var reduce
     private var d: [String: Any] { screen.raw["dlg"] as? [String: Any] ?? [:] }
     private func n(_ k: String, _ def: Double, _ lo: Double, _ hi: Double) -> Double { min(hi, max(lo, (d[k] as? NSNumber)?.doubleValue ?? def)) }
     /// 안내창 너비 맞춤(fit): 글 줄마다 (좌우 여백 + 줄 글 너비) 중 가장 큰 값 — 안드로이드 ScreenCore 의 L.fitW. 못 구하면 0.
@@ -732,7 +735,7 @@ struct DlgCard: View {
             let w0 = min(n("w", 320, 120, 480), g.size.width - 2 * n("mx", 16, 0, 80))
             let w = (d["fit"] as? Bool) == true && fitW > 0 ? min(w0, ceil(fitW) + 2) : w0
             ZStack {
-                Color.black.opacity(n("dim", 0.5, 0, 0.85)).ignoresSafeArea().onTapGesture { act(((d["tap"] as? [String: Any])?["v"] as? String) ?? "dl.close") }          // 바깥을 누르면 엔진이 정한 행동(dl.no …)
+                Color.black.opacity(shown || reduce ? (slide ? 0.68 : n("dim", 0.5, 0, 0.85)) : 0).ignoresSafeArea().onTapGesture { act(((d["tap"] as? [String: Any])?["v"] as? String) ?? "dl.close") }          // 바깥을 누르면 엔진이 정한 행동(dl.no …)
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(screen.head) { NodeView(node: $0, pal: pal) }
@@ -746,9 +749,11 @@ struct DlgCard: View {
                     .background(pal.color((d["fill"] as? String) ?? "") ?? pal.color("card") ?? .black)
                     .clipShape(RoundedRectangle(cornerRadius: n("r", 16, 0, 40)))
                     .overlay { if let lc = (d["line"] as? String), !lc.isEmpty, let c = pal.color(lc) { RoundedRectangle(cornerRadius: n("r", 16, 0, 40)).strokeBorder(c, lineWidth: 1) } }          // 카드 테두리(1dp) — 엔진이 line 을 줄 때만
+                    .scaleEffect(shown || reduce || slide ? 1 : 0.9).opacity(shown || reduce ? 1 : 0).offset(y: shown || reduce || !slide ? 0 : -34)
                     .position(x: g.size.width / 2, y: g.size.height * n("top", 0.5, 0.1, 0.9))
             }
         }
+        .onAppear { withAnimation(slide ? .timingCurve(0.22, 1, 0.36, 1, duration: 0.44) : .easeOut(duration: 0.15)) { shown = true } }
     }
 }
 

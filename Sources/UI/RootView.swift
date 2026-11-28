@@ -24,7 +24,12 @@ struct RootView: View {
                 if let c = host.cmPop {          // 출·퇴근 시각 고르기 팝업(바깥을 누르면 취소)
                     DlgCard(screen: c, pal: pal) { _ in host.actPublisher.send(Host.TabAction(tab: "community", a: "call", v: "tp.cancel", id: "", key: "")) }
                 }
-                if let l = host.locd { DlgCard(screen: l, pal: pal) { _ in } }          // 위치 정보 이용 안내(바깥을 눌러도 닫히지 않는다 — 동의/거부로만)
+                Group {
+                    if let l = host.locd {          // 위치 정보 이용 안내(바깥을 눌러도 닫히지 않는다 — 동의/거부로만). 위에서 미끄러져 내려앉고(440ms), 닫힐 땐 아래로 흐려지며 사라진다(240ms)
+                        DlgCard(screen: l, pal: pal, act: { _ in }, slide: true)
+                            .transition(.asymmetric(insertion: .identity, removal: .opacity.combined(with: .offset(y: 30))))
+                    }
+                }.animation(.timingCurve(0.4, 0, 0.8, 0.6, duration: 0.24), value: host.locd == nil)
                 if let b = host.cmb { DlgCard(screen: b, pal: pal) { _ in host.cmbAct("cmb.ok") } }          // 출퇴근 브리핑 창(알림을 누르면)
                 if let t = host.toast {
                     Text(t).font(Typo.font(12)).foregroundColor(.white).padding(10).background(Color.black.opacity(0.8)).cornerRadius(10).padding(.bottom, 12)
