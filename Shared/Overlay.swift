@@ -12,6 +12,7 @@ struct OvState {
     var active = false, moving = false, pre = false, alertVibe = false
     var line1 = "", line2 = "", line3 = "", pill = "", pillTxt = "", banner = "", destName = ""
     var alert = 0, cur = 0, base = 0
+    var alertAt: Int64 = 0                  // 경고 단계가 켜진/바뀐 시각(ms, 엔진이 줌) — 새 경고인지 가리는 데 쓴다
     var cells: [OvCell] = []
     var hasTheme = false
     var bg = 0xFF1C1C1E, fg = 0xFFF2F2F7, sub = 0xFF8E8E93
@@ -57,6 +58,7 @@ struct OvState {
         v.moving = flag(m["moving"]); v.pre = flag(m["pre"])
         v.alert = max(0, min(2, int(m["alert"]) ?? 0))
         v.base = max(0, int(m["base"]) ?? 0)
+        if let n = m["alertAt"] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() { v.alertAt = n.int64Value }
         if let cs = m["cells"] as? [[String: Any]] {
             for cm in cs.prefix(150) {
                 var c = OvCell()
@@ -103,5 +105,32 @@ struct OvState {
 extension Color {
     init(argb: Int) {
         self.init(.sRGB, red: Double((argb >> 16) & 255) / 255, green: Double((argb >> 8) & 255) / 255, blue: Double(argb & 255) / 255, opacity: Double((argb >> 24) & 255) / 255)
+    }
+}
+
+/// 경고 테두리(안드로이드 OvCore.spinMs · glow · ringAlpha 와 같은 값). 한 바퀴 시간: 2정거장 전 6초 · 1정거장 전 1.1초.
+/// iOS 라이브 액티비티는 계속 돌며 그릴 수 없어서, 갱신될 때마다 빛의 머리가 그 시각만큼 옮겨 간 자리에 서도록 한다.
+enum OvRing {
+    static func spinMs(_ alert: Int) -> Double { alert == 1 ? 1100 : (alert == 2 ? 6000 : 0) }
+    static let glowTail = 0.34, glowBase = 0.30
+    static func glow(_ pos: Double, _ head: Double) -> Double {
+        var d = head - pos; d -= d.rounded(.down)
+        if d >= glowTail { return 0 }
+        let t = 1 - d / glowTail
+        return t * t
+    }
+    static func ringAlpha(_ pos: Double, _ head: Double) -> Double { glowBase + (1 - glowBase) * glow(pos, head) }
+    /// 시각 → 빛의 머리 위치(0~1).
+    static func head(_ alert: Int, at: Date) -> Double {
+        let ms = spinMs(alert); guard ms > 0 else { return 0 }
+        let t = at.timeIntervalSince1970 * 1000
+        return (t.truncatingRemainder(dividingBy: ms)) / ms
+    }
+    static let rainbow: [Int] = [0xFFFF3B30, 0xFFFF9500, 0xFFFFD60A, 0xFF34C759, 0xFF00C7BE, 0xFF0A84FF, 0xFFAF52DE, 0xFFFF2D92, 0xFFFF3B30]
+    static func rainbowAt(_ f: Double) -> Int {
+        let x = f * 8, i = min(7, max(0, Int(x))), t = x - Double(i)
+        let a = rainbow[i], b = rainbow[i + 1]
+        func ch(_ sh: Int) -> Int { Int((Double((a >> sh) & 255) * (1 - t) + Double((b >> sh) & 255) * t).rounded(.down)) }
+        return 0xFF000000 | ch(16) << 16 | ch(8) << 8 | ch(0)
     }
 }

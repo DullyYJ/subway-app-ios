@@ -29,6 +29,9 @@ enum SceneHaptics {
         "angry": Pat(timings: [0, 28, 40, 28, 40, 40], amps: [0, 210, 0, 230, 0, 255]),
         "splash": Pat(timings: [0, 26, 38, 16, 38, 10], amps: [0, 220, 0, 110, 0, 50]),
         "grin": Pat(timings: [0, 10, 50, 10], amps: [0, 90, 0, 140]),
+        // 하차 경고(안드로이드 RideOverlay.vibrateAlert): 1정거장 전 = 세 번 · 2정거장 전 = 두 번
+        "alert1": Pat(timings: [0, 300, 100, 300, 100, 300], amps: [0, 255, 0, 255, 0, 255]),
+        "alert2": Pat(timings: [0, 400, 150, 400], amps: [0, 255, 0, 255]),
     ]
     static func get(_ name: String) -> Pat? { TABLE[name] }
 }

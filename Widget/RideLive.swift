@@ -49,7 +49,7 @@ struct RideLiveActivity: Widget {
             } minimal: {
                 Dot(rgb: s.stateRgb, pulse: s.alert > 0)
             }
-            .keylineTint(Color(argb: s.stateRgb))
+            .keylineTint(s.alert > 0 ? Color(argb: OvRing.rainbowAt(OvRing.head(s.alert, at: s.at))) : Color(argb: s.stateRgb))
             .widgetURL(URL(string: "gildongmu://ride"))
         }
     }
@@ -117,5 +117,26 @@ private struct LockBanner: View {
             }
         }
         .padding(14)
+        // 경고 단계(2·1정거장 전): 카드 둘레에 무지개 — 안드로이드 오버레이의 도는 테두리. 라이브 액티비티는 계속 돌 수 없어서 갱신될 때마다 빛의 머리가 옮겨 간다.
+        .overlay { if s.alert > 0 { RainbowRing(alert: s.alert, at: s.at) } }
+    }
+}
+
+/// 둘레를 N조각으로 나눠 조각마다 무지개 색 · 진하기(빛 꼬리)를 준다(안드로이드 RideOverlay.Border 와 같은 식).
+private struct RainbowRing: View {
+    let alert: Int; let at: Date
+    private let n = 90
+    var body: some View {
+        let head = OvRing.head(alert, at: at)
+        ZStack {
+            ForEach(0..<n, id: \.self) { i in
+                let pos = (Double(i) + 0.5) / Double(n)
+                RoundedRectangle(cornerRadius: 20, style: .continuous).inset(by: 1.5)
+                    .trim(from: Double(i) / Double(n), to: min(1, Double(i + 1) / Double(n) + 0.004))
+                    .stroke(Color(argb: OvRing.rainbowAt(pos)).opacity(OvRing.ringAlpha(pos, head)),
+                            style: StrokeStyle(lineWidth: 2.5 * (1 + 0.3 * OvRing.glow(pos, head)), lineCap: .butt))
+            }
+        }
+        .allowsHitTesting(false)
     }
 }
