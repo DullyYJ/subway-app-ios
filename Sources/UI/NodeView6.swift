@@ -73,11 +73,60 @@ struct BtogNode: View {
     }
 }
 
+// MARK: 버스 도착 초 카운트다운 기억 — 안드로이드 ScreenView.cdState · markCountdowns · cdRem · cdAge
+/// 엔진이 준 남은 초(sec)를 받은 순간부터 1초마다 줄여 그린다. 열쇠 = 정류장|노선|방향|칸. 같은 원본 값(초 · 몇 번째전)이 다시 오면 흐르던 시작점을 이어 가서
+/// 숫자가 도로 늘지 않고(공공 API 값은 1분마다 한 번 바뀌는 스냅샷), 값이 바뀌어 온 새 실시간 값은 그 값에서 다시 센다. 노드 자리는 다시 받아도 같아서(`Node.id`) 화면 쪽 상태로는 못 이어 간다 — 그래서 따로 기억한다.
+final class BusCd: @unchecked Sendable {
+    static let shared = BusCd()
+    private struct St { var sec: Double; var t0: Date; var ph: String }
+    private var st: [String: St] = [:]
+    private var srcAge: TimeInterval = 0, srcUntil = Date.distantPast
+    private let lock = NSLock()
+    /// 다음에 올리는 화면이 받은 지 몇 초 된 것인지(기억해 둔 옛 화면은 그만큼 이미 흐른 것으로 친다 · 새로 받은 화면은 0).
+    func setSourceAge(_ s: TimeInterval) { lock.lock(); srcAge = max(0, s); srcUntil = Date().addingTimeInterval(1.5); lock.unlock() }
+    private func ensure(_ key: String, _ sec: Double, _ ph: String, _ now: Date) -> St {
+        if let s = st[key], s.sec == sec, s.ph == ph { return s }
+        let s = St(sec: sec, t0: now.addingTimeInterval(now < srcUntil ? -srcAge : 0), ph: ph)
+        st[key] = s
+        if st.count > 400 { st = st.filter { now.timeIntervalSince($0.value.t0) < 600 } }
+        return s
+    }
+    /// 지금 남은 초(0 이하면 '곧 도착' 이거나 이미 지나간 차).
+    func rem(_ key: String, sec: Double, ph: String, now: Date = Date()) -> Double {
+        lock.lock(); defer { lock.unlock() }
+        let s = ensure(key, sec, ph, now); return s.sec - now.timeIntervalSince(s.t0)
+    }
+    /// 이 칸의 값을 받은 지 몇 초인가.
+    func age(_ key: String, sec: Double, ph: String, now: Date = Date()) -> Double {
+        lock.lock(); defer { lock.unlock() }
+        return now.timeIntervalSince(ensure(key, sec, ph, now).t0)
+    }
+    static func key(_ stop: String, _ row: [String: Any], _ k: Int) -> String { stop + "|" + (row["no"] as? String ?? "") + "|" + (row["dir"] as? String ?? "") + "|" + String(k) }
+    /// 화면 본문의 모든 도착 칸: 가장 빨리 오는 차의 남은 초(없으면 nil) · 엔진이 정한 유통기한(ex)이 지나 '확인 중'이 된 칸이 있는지(안드로이드 minArrRemainSec · arrStale).
+    func scan(_ nodes: [Node], now: Date = Date()) -> (minRem: Double?, stale: Bool) {
+        var best: Double? = nil, stale = false
+        func walk(_ ns: [Node]) -> [Node] { ns.flatMap { $0.t == "bcard" ? [$0] : walk($0.kids) } }          // 카드가 묶음 안에 들어 있어도 찾는다
+        for n in walk(nodes) {
+            for r in n.d["rows"] as? [[String: Any]] ?? [] {
+                for (k, a) in (r["a"] as? [[String: Any]] ?? []).prefix(2).enumerated() {
+                    let sec = (a["sec"] as? NSNumber)?.doubleValue ?? 0
+                    guard sec > 0 else { continue }
+                    let key = Self.key(n.str("k") ?? "", r, k), ph = a["p"] as? String ?? ""
+                    let rem = self.rem(key, sec: sec, ph: ph, now: now)
+                    if best == nil || rem < best! { best = rem }
+                    let ex = (a["ex"] as? NSNumber)?.doubleValue ?? 0
+                    if ex > 0, age(key, sec: sec, ph: ph, now: now) > ex { stale = true }
+                }
+            }
+        }
+        return (best, stale)
+    }
+}
+
 // MARK: 버스 정류장 카드(bcard) — 안드로이드 bcardLayout / drawBcard 치수(머리 위 16 · 아래 12 · 노선 줄 위아래 11 · 모서리 18)
 struct BcardNode: View {
     let node: Node; let pal: Palette
     @EnvironmentObject var host: Host
-    @State private var born = Date()
 
     private func act(_ k: String) -> Action? { Action(node.d[k] as? [String: Any]) }
     private let bell = "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
@@ -144,7 +193,6 @@ struct BcardNode: View {
             // 노선 줄 / 안내 글
             if !rows.isEmpty {
                 TimelineView(.periodic(from: .now, by: 1)) { tl in
-                    let el = tl.date.timeIntervalSince(born)
                     VStack(spacing: 0) {
                         ForEach(Array(rows.enumerated()), id: \.offset) { _, r in
                             let arr = (r["a"] as? [[String: Any]] ?? []).prefix(2)
@@ -158,14 +206,18 @@ struct BcardNode: View {
                                 .frame(maxWidth: 150, alignment: .leading)
                                 Spacer(minLength: 4)
                                 VStack(alignment: .trailing, spacing: 3) {
-                                    ForEach(Array(arr.enumerated()), id: \.offset) { _, a in
+                                    ForEach(Array(arr.enumerated()), id: \.offset) { k, a in
                                         let sec = (a["sec"] as? NSNumber)?.doubleValue ?? 0
-                                        let rem = sec - el
-                                        let counting = sec > 0
-                                        let soon = counting ? rem <= 60 : ((a["soon"] as? NSNumber)?.intValue ?? 0) > 0
+                                        let counting = sec > 0, p = a["p"] as? String ?? ""
+                                        let ck = BusCd.key(node.str("k") ?? "", r, k)
+                                        let rem = counting ? BusCd.shared.rem(ck, sec: sec, ph: p, now: tl.date) : 0
+                                        // 엔진이 정한 유통기한(ex)이 지났으면 낡은 '곧 도착 4번째전' 대신 '확인 중'(옅게) — 안드로이드 s461
+                                        let ex = (a["ex"] as? NSNumber)?.doubleValue ?? 0, xs = a["xs"] as? String ?? ""
+                                        let staleNow = counting && ex > 0 && !xs.isEmpty && BusCd.shared.age(ck, sec: sec, ph: p, now: tl.date) > ex
+                                        let soon = staleNow ? false : counting ? rem <= 60 : ((a["soon"] as? NSNumber)?.intValue ?? 0) > 0
                                         HStack(spacing: 6) {
-                                            if let p = a["p"] as? String, !p.isEmpty { Text(p).font(Typo.font(11, bold: true)).foregroundColor(sub) }
-                                            Text(counting ? cd(rem) : (a["s"] as? String ?? "")).font(Typo.font(14, bold: true)).foregroundColor(soon ? cSoon : text)
+                                            if !p.isEmpty && !staleNow { Text(p).font(Typo.font(11, bold: true)).foregroundColor(sub) }
+                                            Text(staleNow ? xs : counting ? cd(rem) : (a["s"] as? String ?? "")).font(Typo.font(14, bold: true)).foregroundColor(staleNow ? sub : soon ? cSoon : text)
                                         }
                                         .frame(height: 14 * 1.3)
                                     }

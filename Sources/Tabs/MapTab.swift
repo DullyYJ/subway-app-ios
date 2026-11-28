@@ -36,7 +36,10 @@ final class MapModel: ObservableObject {
     /// 지금 모드 · 지역 · 칩에 맞는 기억이 있으면 그 머리 · 본문을 올린다(없으면 그대로 둔다).
     private func useCache() {
         if let h = ScreenCache.shared.get(hKey()) { head = h }
-        if let b = cachedBody() { body = b; restore(b) }
+        if let b = cachedBody() {
+            if mode == "bus", let k = bKey() { BusCd.shared.setSourceAge(ScreenCache.shared.age(k) ?? 0) }          // 기억해 둔 옛 도착 숫자는 그 뒤 흐른 만큼 이미 줄어든 것으로 친다
+            body = b; restore(b)
+        }
     }
     init() { useCache() }
 
@@ -195,11 +198,12 @@ final class MapModel: ObservableObject {
     }
 
     // MARK: 받기
-    func load() async {
+    func load(quiet: Bool = false) async {
         seq += 1; let my = seq
         loading = true; defer { if my == seq { loading = false } }
-        async let h: Data? = try? await Net.request("POST", Servers.base + "/screen/map", body: headBody(), timeout: 8)
-        let hd = await h
+        if quiet && mode == "bus" { stashArrivals() }          // 조용한 갱신: 보던 도착정보는 챙겨 두고 새로 받는다(못 받으면 되돌린다 — 비어 버린 채 "도착정보 없음"이 되지 않게)
+        var hd: Data? = nil
+        if !quiet { hd = try? await Net.request("POST", Servers.base + "/screen/map", body: headBody(), timeout: 8) }          // 조용한 갱신은 본문(도착정보)만 — 머리줄은 그대로
         if my != seq { return }
         if let hd = hd, let s = try? Screen.parse(hd) { head = s; ScreenCache.shared.put(hKey(), s) }
         var last: Data? = nil
@@ -216,14 +220,68 @@ final class MapModel: ObservableObject {
                 for await x in g { out.append(x) }
                 return out
             }
-            for (k, v) in got { busRes[k] = v }
+            for (k, v) in got {
+                if quiet, v.isEmpty, MapModel.isArrKey(k), let o = arrStash[k], Date().timeIntervalSince(arrStashAt) < 45 { busRes[k] = o }          // 공공 API 가 잠깐 비어 와도 45초 안에 받은 값은 그대로(안드로이드 KEEP_OLD_MS)
+                else { busRes[k] = v }
+            }
         }
         if my != seq { return }
-        guard let d = last, let s = try? Screen.parse(d) else { if body == nil { error = "노선도를 받지 못했어요" }; return }
+        guard let d = last, let s = try? Screen.parse(d) else {
+            if mode == "bus" { busFailAt = Date(); busRes.merge(arrStash) { cur, _ in cur }; arrStash = [:] }          // 받기가 실패했다 — 8초 뒤 다시(박자를 기다리지 않는다)
+            if body == nil { error = "노선도를 받지 못했어요" }; return
+        }
+        if mode == "bus" { BusCd.shared.setSourceAge(0); busAt = Date(); busFailAt = nil; busLL = gps; arrStash = [:] }
         body = s; error = nil
         readInfo(d)
         view = ((((try? JSONSerialization.jsonObject(with: d)) as? [String: Any])?["info"] as? [String: Any])?["view"] as? String) ?? ""
         if busSel < 0, busPin == nil, readNeed(d).isEmpty, let k = bKey() { ScreenCache.shared.put(k, s) }          // 정류장을 골라 펼친 화면 · 아직 덜 받은 화면은 담지 않는다
+    }
+
+    // MARK: 버스 도착정보 자동 갱신 — 안드로이드 busTick · busArrCheck · busLocCheck · busStaleKick · busRefresh
+    // s454/s461: 가장 빨리 오는 차가 가까울수록 자주 다시 받는다(2분 안 15초 · 5분 안 30초 · 그 밖 90초). 박자 확인은 5초마다 — 받기에 실패했거나 엔진이 정한 유통기한이 지난 숫자가 있으면 8초 뒤 곧바로 다시,
+    // 다른 탭을 다녀왔거나 앱을 다시 켰을 때 15초가 넘었으면 곧바로. 위치는 30초마다 재확인해 55m(0.0005°) 넘게 움직였으면 새 자리의 정류장 · 도착정보를 받는다. 받은 지 10분이 넘으면 무조건 새로.
+    // 타고 가는 중(탑승 확정 뒤)에는 멈춘다(서버 요청 0 — 승차 대기 중에는 계속).
+    private var busAt = Date.distantPast, busFailAt: Date? = nil, busLocAt = Date.distantPast
+    private var busLL: (Double, Double)? = nil
+    private var busRefreshing = false, busRefAt = Date.distantPast
+    private var arrStash: [String: String] = [:], arrStashAt = Date.distantPast
+    static let arrGapNear: TimeInterval = 15, arrGapMid: TimeInterval = 30, arrGapFar: TimeInterval = 90, arrRetry: TimeInterval = 8, arrResume: TimeInterval = 15, busFresh: TimeInterval = 600
+    static func arrGap(_ rem: Double) -> TimeInterval { rem <= 120 ? arrGapNear : rem <= 300 ? arrGapMid : arrGapFar }
+    /// 도착정보 열쇠(안드로이드 ARR_KEY [afgh][0-9]{1,3}).
+    static func isArrKey(_ k: String) -> Bool {
+        guard let f = k.first, "afgh".contains(f) else { return false }
+        let r = k.dropFirst(); return (1...3).contains(r.count) && r.allSatisfy { $0.isASCII && $0.isNumber }
+    }
+    private func stashArrivals() {
+        if arrStash.isEmpty { arrStash = busRes.filter { MapModel.isArrKey($0.key) }; arrStashAt = busAt }
+        for k in busRes.keys where MapModel.isArrKey(k) { busRes.removeValue(forKey: k) }
+    }
+    private var busAboard: Bool { RideLoop.shared.running && !RideLoop.shared.lvJson.contains("\"wait\"") }
+    private func busRefresh() {
+        if busRefreshing && Date().timeIntervalSince(busRefAt) < 20 { return }
+        busRefreshing = true; busRefAt = Date(); busAt = busRefAt
+        Task { await load(quiet: true); busRefreshing = false }
+    }
+    /// 5초마다(앞에 있을 때만) 부른다.
+    func busBeat() {
+        guard mode == "bus", body != nil, !loading, !busAboard else { return }
+        let now = Date()
+        if now.timeIntervalSince(busAt) > MapModel.busFresh { busRefresh(); return }
+        if busView == "near", busPin == nil, now.timeIntervalSince(busLocAt) >= 30 {          // 위치 재확인 — 그대로면 아무것도 받지 않는다(숫자는 기기에서 줄어들기만 한다)
+            busLocAt = now
+            if let g = gps, let o = busLL, abs(g.0 - o.0) > 0.0005 || abs(g.1 - o.1) > 0.0005 { busRes = [:]; busSel = -1; busRefresh(); return }
+        }
+        if let f = busFailAt, now.timeIntervalSince(f) >= MapModel.arrRetry { busRefresh(); return }
+        guard let b = body else { return }
+        let sc = BusCd.shared.scan(b.body, now: now)
+        if sc.stale && now.timeIntervalSince(busAt) >= MapModel.arrRetry { busRefresh(); return }
+        guard let r = sc.minRem else { return }          // 도착 숫자가 없으면 건너뛴다
+        if now.timeIntervalSince(busAt) >= MapModel.arrGap(r) { busRefresh() }
+    }
+    /// 앱이 앞으로 돌아왔을 때: 마지막으로 받은 지 15초가 넘었으면 박자를 기다리지 않고 곧바로 조용히 다시 받는다.
+    func busStaleKick() {
+        guard mode == "bus", body != nil, !loading, !busAboard, !busRefreshing, Date().timeIntervalSince(busAt) >= MapModel.arrResume else { return }
+        busRefresh()
     }
 
     /// 엔진 답의 info.bus.need: [{k, url}] — 받아 올 주소(최대 64).
@@ -300,6 +358,7 @@ struct MapTab: View {
     let pal: Palette
     @StateObject private var m = MapModel()
     @EnvironmentObject var host: Host
+    @Environment(\.scenePhase) private var phase
     // 역 팝업 끌기(안드로이드 stnSheetBox · 웹 _nmDragDismiss): 위로 끌면 시간표가 손가락을 따라 자라 오르고, 아래로 끌면 시트가 손가락을 따라 내려가다 놓으면 닫힌다.
     @State private var stnBaseH: CGFloat = 0        // 팝업이 가만히 있을 때 높이(끌기 기준)
     @State private var stnGrow: CGFloat = 0         // 위로 끌어 늘어난 만큼
@@ -388,5 +447,7 @@ struct MapTab: View {
             if x.a == "cat" { m.cat(x.v) } else if x.a == "call" { m.call(x.v, host: host) }
         }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
+        .task { while !Task.isCancelled { try? await Task.sleep(nanoseconds: 5_000_000_000); if UIApplication.shared.applicationState == .active { m.busBeat() } } }          // 버스 도착정보 자동 갱신(5초마다 판단)
+        .onChange(of: phase) { p in if p == .active { m.busStaleKick() } }
     }
 }
