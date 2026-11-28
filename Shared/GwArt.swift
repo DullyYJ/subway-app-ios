@@ -131,17 +131,23 @@ enum GwArt {
     }
 }
 
-/// 캐릭터 시트(256px 칸 4×4)를 한 번 읽어 칸마다 작게 줄여 둔다 — 위젯은 쓸 수 있는 메모리가 작아서 큰 시트는 바로 놓는다.
+/// 캐릭터 시트(256px 칸 4×4)를 한 번 읽어 칸마다 작게 줄여 둔다 — 위젯은 쓸 수 있는 메모리가 작아서(약 30MB) 큰 시트는 바로 놓고,
+/// 시트 14장(≈14MB)까지만 들고 있다가 오래 안 쓴 것부터 내보낸다(15분치 장면을 한꺼번에 그릴 때 장면마다 다른 캐릭터 3마리 × 시트 4~5장이 쌓이지 않게).
 enum GwSheets {
     private static var cache: [String: [CGImage]] = [:]
+    private static var order: [String] = []                // 오래 안 쓴 것이 앞
     private static let lock = NSLock()
-    static let cellPx = 160
+    static let cellPx = 128, maxSheets = 14
     static func file(_ id: String) -> String { id == "bbosong" ? "bbosong_0" : id }
     static func cell(_ id: String, _ frame: Int) -> CGImage? {
         lock.lock(); defer { lock.unlock() }
-        if let a = cache[id] { return a.indices.contains(frame) ? a[frame] : nil }
+        if let a = cache[id] {
+            if order.last != id { order.removeAll { $0 == id }; order.append(id) }
+            return a.indices.contains(frame) ? a[frame] : nil
+        }
         let arr = load(file(id))
-        cache[id] = arr
+        cache[id] = arr; order.append(id)
+        while order.count > maxSheets { cache[order.removeFirst()] = nil }
         return arr.indices.contains(frame) ? arr[frame] : nil
     }
     private static func load(_ name: String) -> [CGImage] {
