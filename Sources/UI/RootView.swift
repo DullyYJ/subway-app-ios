@@ -26,6 +26,9 @@ struct RootView: View {
                 if let c = host.cmPop {          // 출·퇴근 시각 고르기 팝업(바깥을 누르면 취소)
                     DlgCard(screen: c, pal: pal) { _ in host.actPublisher.send(Host.TabAction(tab: "community", a: "call", v: "tp.cancel", id: "", key: "")) }
                 }
+                if let m = host.menuPop {          // 설정 알림 · 편의 기능 팝업(바깥을 누르면 닫힘)
+                    DlgCard(screen: m, pal: pal) { _ in host.actPublisher.send(Host.TabAction(tab: "community", a: "call", v: "pg.back", id: "", key: "")) }
+                }
                 Group {
                     if let l = host.locd {          // 위치 정보 이용 안내(바깥을 눌러도 닫히지 않는다 — 동의/거부로만). 위에서 미끄러져 내려앉고(440ms), 닫힐 땐 아래로 흐려지며 사라진다(240ms)
                         DlgCard(screen: l, pal: pal, act: { _ in }, slide: true)
@@ -71,6 +74,7 @@ struct RootView: View {
                 if UIApplication.shared.applicationState == .active { hdrAt = Int(Date().timeIntervalSince1970 * 1000) }
             }
         }
+        .onChange(of: host.tab) { _ in if host.menuPop != nil { host.menuPop = nil } }          // 설정 팝업이 떠 있는 채 탭이 바뀌면 치운다
         .onChange(of: phase) { p in          // 앱이 앞으로 올 때마다(안드로이드 onResume)
             guard p == .active else { return }
             CommuteAlarm.refresh()          // 출퇴근 알림 4주 창을 다시 민다(안드로이드 onCreate 의 rescheduleAsync)

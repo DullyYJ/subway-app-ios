@@ -13,6 +13,7 @@ final class LiveRide: ObservableObject {
     func apply(_ ov: OvState) {
         let enabled = ActivityAuthorizationInfo().areActivitiesEnabled
         if ov.active { vibrate(ov) }          // 진동은 실시간 현황을 꺼 둬도 울린다(안드로이드 진동은 오버레이 표시와 따로)
+        guard SetPop.ovlOn() else { note = "설정에서 실시간 현황 표시를 꺼 두었어요"; end(); return }          // 설정 > 편의 기능 > 표시 스위치(안드로이드 '다른 앱 위에 표시')
         guard enabled else { note = "이 기기에서는 실시간 현황(Live Activity)이 꺼져 있어요"; return }
         guard ov.active else { end(); return }
         adopt()

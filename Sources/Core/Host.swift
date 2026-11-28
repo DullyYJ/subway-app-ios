@@ -40,6 +40,8 @@ final class Host: ObservableObject {
     private var cmbKind = "morn"
     /// 출·퇴근 시각 고르기 팝업(설정 p=cm sub=tp pop) — 설정 화면이 열고 닫는다.
     @Published var cmPop: Screen? = nil
+    /// 설정 '알림 · 편의 기능' 가운데 팝업(설정 화면이 열고 닫는다 — 안드로이드 openSetPage 의 notif · conv).
+    @Published var menuPop: Screen? = nil
     func cmbOpen(kind: String, title: String, body: String, fresh: Bool) {
         Task {
             var k = kind == "eve" ? "eve" : "morn", t = title, b = body
