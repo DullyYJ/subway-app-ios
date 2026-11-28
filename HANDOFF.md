@@ -135,3 +135,11 @@
   - ★ iOS 한계: 100ms 프레임 불가(타임라인 2~3초) · 투명 배경 불가(iOS 16) · 위젯 안 버튼은 iOS 17+ AppIntent 만 · 앱 설정(출퇴근 시각 등)을 위젯이 읽으려면 App Group 이 필요한데 무료 Apple ID 사이드로드에서는 불확실 → **출퇴근 응원 장면(말풍선 · [출근하기]/[퇴근하기])은 아직 없음.** 하려면 위젯 편집 화면(AppIntentConfiguration, iOS 17)으로 시각·요일을 받거나 App Group 이 되는지 먼저 확인해야 함. 엔진 `POST /commute-alarm {op:'wscene'}` 목록(WidgetSceneCore.java)·`/widget-say` 는 위젯이 직접 받아도 된다(서버는 건드리지 않는다).
   - 시험: `Tests/GwSimTests.swift`(자바 난수 일치 · 위젯 안에 머묾 · 잠자리 · 에피소드 길이) + 앱을 `-gwPreview` 로 켜면 위젯 장면을 화면에 띄워 CI 가 `screenshot-gw-preview.png` 를 남긴다.
 - 위젯·라이브 액티비티 열기: `gildongmu://tab/<탭>` (project.yml URL 스킴 `gildongmu` 추가, RootView `.onOpenURL`).
+
+## 앱 탑승 시트 · 안내창 움직임 · 역 팝업 끌기 (s484)
+- `Sources/UI/RsSheet.swift` — 안드로이드 RsSheetView·RsCore 포팅. 엔진 overlay.rs(`OvState.rsSt/rsBt/rsK/rsKick/rsNm/rsChip/rsCbg/rsCfg/rsMode/rsBar`, `rsShown`)를 그린다.
+  올라온 시트(board, 높이 83) = RootView VStack 맨 아래 칸(탭 막대와 본문이 함께 밀림, 0.46초 곡선 0.22,1,0.36,1) · 대기 알약(wait)·되돌리기 캡슐(undo) = 본문 ZStack 아래쪽 14pt 위에 뜸. 행동은 `RideLoop.act("press|undo|pill|open|close")`. 시트를 아래로 36pt+ 쓸면 close, 알약을 위로 28pt+ 쓸면 open, 탭 막대 쓸기(`RsCore.tabSwipe`)도 연결. 시험: `-demoRs rsboard|rswait|rsundo`(CI 화면 `screenshot-rs-*.png`).
+  미구현: 시트가 닫히며 오른쪽 아래 알약으로 줄어드는 연출(안드로이드 toWait), 대기 알약 높이 변화 시 sibling 연동.
+- 안내창(DlgCard) 열림: 바탕 페이드 + 카드 0.9→1 + 투명 0→1(150ms). 위치 안내(`host.locd`)는 slidePop — 위에서 -34pt→0(440ms, 0.22,1,0.36,1), 바탕 0.68, 닫힐 땐 아래 30pt + 흐림 240ms.
+- 역 팝업 끌기(MapTab `stnDrag`): 위로 끌면 팝업이 손가락을 따라 자라고(28pt↑ 또는 빠르게 놓으면 `openTimetable`), 아래로 끌면 따라 내려가다 40pt↑/빠르게 놓으면 닫힘(160~240ms, 0.4,0,0.2,1), 아니면 180ms 되돌림. **시간표(ttMode)에서의 아래로 끌어 닫기는 아직 없음**(목록 스크롤과 충돌 — 스크롤 맨 위일 때만 해야 해서 별도 작업).
+- 노선도 역 누름: 팝업(276pt)에 가려질 자리면 380ms 가운데로(`ensureVisible`).
