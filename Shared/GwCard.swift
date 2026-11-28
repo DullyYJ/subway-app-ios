@@ -18,7 +18,7 @@ struct GwCard: View {
         let dcol = Color(argb: f.white ? 0xFF6B6B73 : 0xFF9A9AA2)
         ZStack(alignment: .topLeading) {
             Text(f.dateText).font(Typo.font(f.dateSp)).foregroundColor(dcol).lineLimit(1).fixedSize()
-                .padding(.leading, f.dateL).padding(.top, f.dateT)
+                .padding(.leading, max(f.dateL, 12)).padding(.top, f.dateT + 5)          // iOS 위젯은 모서리가 둥글어 글자가 잘리지 않게 조금 안쪽으로
                 .frame(width: f.W, height: f.H, alignment: .topLeading)
             if f.vertical {
                 clockLine(f.hh, col).position(x: f.clkL + f.clkW / 2, y: f.clkT + f.lineH / 2 - 0.07 * f.textDp)
