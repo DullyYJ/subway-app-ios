@@ -246,9 +246,9 @@ final class MapModel: ObservableObject {
     private var busRefreshing = false, busRefAt = Date.distantPast
     private var arrStash: [String: String] = [:], arrStashAt = Date.distantPast
     static let arrGapNear: TimeInterval = 15, arrGapMid: TimeInterval = 30, arrGapFar: TimeInterval = 90, arrRetry: TimeInterval = 8, arrResume: TimeInterval = 15, busFresh: TimeInterval = 600
-    static func arrGap(_ rem: Double) -> TimeInterval { rem <= 120 ? arrGapNear : rem <= 300 ? arrGapMid : arrGapFar }
+    nonisolated static func arrGap(_ rem: Double) -> TimeInterval { rem <= 120 ? 15 : rem <= 300 ? 30 : 90 }          // = arrGapNear · Mid · Far
     /// 도착정보 열쇠(안드로이드 ARR_KEY [afgh][0-9]{1,3}).
-    static func isArrKey(_ k: String) -> Bool {
+    nonisolated static func isArrKey(_ k: String) -> Bool {
         guard let f = k.first, "afgh".contains(f) else { return false }
         let r = k.dropFirst(); return (1...3).contains(r.count) && r.allSatisfy { $0.isASCII && $0.isNumber }
     }
