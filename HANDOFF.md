@@ -123,3 +123,15 @@
 - 주의: `SwipeArea` 는 `Color.clear` 위에 내용을 얹는 틀이라 스스로 높이가 없다 → `fixedSize(vertical:)` 로 내용 높이에 맞추는 팝업에서 `ScreenBody` 를 그대로 쓰면 납작해진다. 팝업은 `ScreenBody(eager: true)`(SwipeArea 를 거치지 않음) 또는 DlgCard 처럼 직접 쌓는다. 시험 인자 `-mapStn 강남 [-mapTt 1]` 로 CI 가 역 팝업 · 시간표 캡처를 남긴다(screenshot-map-stn-1/2 · map-tt-1) — 놀이터(캐릭터) 장면도 거기서 확인.
 - 홈: 켠 직후 빈 홈(입력 없음 · 경로 없음 · 안내 아님)이면 마지막으로 받은 빈 홈(`home|idle`)을 먼저 보이고 새로 받으면 바꾼다(`HomeModel.idle`). 경로가 있거나 글자를 넣은 홈은 눌림이 그 상태에 기대므로 기억하지 않는다(안드로이드 restoreState 에 해당하는 일이 있어야 함).
 - 켠 뒤 4초 지나 아직 안 본 탭의 화면(쇼핑 · 소식 · 게시판)을 미리 받아 `ScreenCache` 에 둔다(`RootView.prefetchScreens`, 안드로이드 prefetchTabs). 맛집은 위치가 필요해서, 소통방은 롱폴이라 제외.
+
+## 시트 움직임 · 라이브 액티비티 경고 · 캐릭터 시계 위젯 (s483)
+- `Sources/UI/SheetMotion.swift` — `View.sheetIn()`: 안드로이드 slideIn(투명 0→1 · 아래 56pt→0 · 340ms · 곡선 0.32,0.72,0,1, 닫을 땐 즉시). 모든 시트 패널(Settings sub · Board 글쓰기 · News 상세 · Fav · Home 상세 · Map 경로 · 역 팝업)에 씀. 역 팝업→시간표 높이는 `.animation(timingCurve(0.32,0.72,0,1,0.3), value: m.ttMode)`.
+- 라이브 액티비티(`Widget/RideLive.swift`): 경고 단계(alert 1·2)에 잠금화면 카드 둘레 무지개 테두리(`RainbowRing`, 90조각, 안드로이드 RideOverlay.Border 와 같은 색·꼬리 식 — `OvRing` in `Shared/Overlay.swift`). iOS 라이브 액티비티는 계속 돌 수 없어서 갱신 시각(`at`)에 맞춰 빛의 머리 자리가 옮겨 간다. 섬 테두리색(keylineTint)도 같은 색.
+  진동: `LiveRide.vibrate` — alert>0 && alertVibe && 새 alertAt(20초 안)일 때 `SceneHaptics` "alert1"(300/100/300/100/300) · "alert2"(400/150/400). 앱이 앞에 있을 때만 울리고, 뒤에서는 `AlertConfiguration` 소리/진동이 대신한다. OvState 에 `alertAt` 추가.
+- 캐릭터 시계 위젯(홈 화면, `Widget/ClockWidget.swift` + `Shared/Gw*.swift`):
+  - `GwRandom`(JRandom: 자바 Random 과 같은 수열 — 같은 씨앗이면 안드로이드와 같은 걸음) · `GwGeo`(WidgetGeo 포팅) · `GwSim`(WidgetSim 포팅: 걷기·콩콩·시계 위 오르기·매달리기·응가·잠자리·인사·술래잡기 등 26가지 동작) · `GwArt`(WidgetArt 포팅 → `GwDraw` 목록) · `GwCard`(날짜 → 시계 → 캐릭터 층, SwiftUI) · `GwPlan.episode`(깨어남→돌아다님→잠자리→숨쉬며 잠을 시각표로 펼침).
+  - 위젯은 값만 든 `GwDraw` 목록을 타임라인 항목으로 갖고(그림은 `GwSheets` 가 시트를 칸마다 160px 로 줄여 캐시 — 위젯 메모리 한도 때문), 15분치를 한 번에 만든다(5분마다 한 번 깨어 100초 돌아다님, 2.5초 간격 장면). 잠든 동안엔 분이 바뀔 때마다 시계 글자만 갱신.
+  - 종류: `gdm.clock.black`(검은 글씨 · 밝은 배경) · `gdm.clock.white`(흰 글씨 · 어두운 배경). 작은 위젯 = 세로형, 중간 = 가로형.
+  - ★ iOS 한계: 100ms 프레임 불가(타임라인 2~3초) · 투명 배경 불가(iOS 16) · 위젯 안 버튼은 iOS 17+ AppIntent 만 · 앱 설정(출퇴근 시각 등)을 위젯이 읽으려면 App Group 이 필요한데 무료 Apple ID 사이드로드에서는 불확실 → **출퇴근 응원 장면(말풍선 · [출근하기]/[퇴근하기])은 아직 없음.** 하려면 위젯 편집 화면(AppIntentConfiguration, iOS 17)으로 시각·요일을 받거나 App Group 이 되는지 먼저 확인해야 함. 엔진 `POST /commute-alarm {op:'wscene'}` 목록(WidgetSceneCore.java)·`/widget-say` 는 위젯이 직접 받아도 된다(서버는 건드리지 않는다).
+  - 시험: `Tests/GwSimTests.swift`(자바 난수 일치 · 위젯 안에 머묾 · 잠자리 · 에피소드 길이) + 앱을 `-gwPreview` 로 켜면 위젯 장면을 화면에 띄워 CI 가 `screenshot-gw-preview.png` 를 남긴다.
+- 위젯·라이브 액티비티 열기: `gildongmu://tab/<탭>` (project.yml URL 스킴 `gildongmu` 추가, RootView `.onOpenURL`).
