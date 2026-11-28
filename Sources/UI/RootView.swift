@@ -44,6 +44,9 @@ struct RootView: View {
         .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.4), value: loop.running && loop.last.rsShown ? loop.last.rsSt : "")
         .background(pal.color("bg") ?? Color(.systemBackground))
         .kidsHubLayer(pal: pal)            // 반드시 environmentObject(host) 보다 안쪽(먼저) — 층이 Host 를 환경에서 읽는다
+        .overlay {          // 설정 하위 화면: 창 전체를 덮고(안드로이드 NoActionBar 전체 화면 Dialog) 아래에서 56 떠오르며 나타난다(340ms)
+            if host.setSubOpen { SetSubPage(screen: host.setSub, pal: pal) }
+        }
         .overlay {          // 안내창은 안드로이드 Dialog 처럼 화면 전체(맨 위 문구 · 아래 탭 막대까지)를 어둡게 덮고 창 가운데에 뜬다
             ZStack {
                 if let r = host.reco { DlgCard(screen: r, pal: pal) { host.recoAct($0) } }
@@ -78,7 +81,7 @@ struct RootView: View {
                 if UIApplication.shared.applicationState == .active { hdrAt = Int(Date().timeIntervalSince1970 * 1000) }
             }
         }
-        .onChange(of: host.tab) { _ in if host.menuPop != nil { host.menuPop = nil } }          // 설정 팝업이 떠 있는 채 탭이 바뀌면 치운다
+        .onChange(of: host.tab) { _ in if host.menuPop != nil { host.menuPop = nil }; if host.setSubOpen { host.setSubOpen = false } }          // 설정 팝업 · 하위 화면이 떠 있는 채 탭이 바뀌면 치운다
         .onChange(of: phase) { p in          // 앱이 앞으로 올 때마다(안드로이드 onResume)
             guard p == .active else { return }
             CommuteAlarm.refresh()          // 출퇴근 알림 4주 창을 다시 민다(안드로이드 onCreate 의 rescheduleAsync)

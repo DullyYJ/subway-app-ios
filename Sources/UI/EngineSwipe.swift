@@ -98,7 +98,7 @@ struct SwipeCfg {
         self.handle = { [weak host] a in host?.handle(a) }
         self.ok = { [weak host] in
             guard let h = host else { return false }
-            return h.reco == nil && h.pop == nil && h.cmPop == nil && h.menuPop == nil && h.locd == nil && h.cmb == nil && ok()
+            return h.reco == nil && h.pop == nil && h.cmPop == nil && h.menuPop == nil && !h.setSubOpen && h.locd == nil && h.cmb == nil && ok()
         }
     }
 }

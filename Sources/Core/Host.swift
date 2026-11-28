@@ -42,6 +42,9 @@ final class Host: ObservableObject {
     @Published var cmPop: Screen? = nil
     /// 설정 '알림 · 편의 기능' 가운데 팝업(설정 화면이 열고 닫는다 — 안드로이드 openSetPage 의 notif · conv).
     @Published var menuPop: Screen? = nil
+    /// 설정 하위 화면(하차 추천 시험 · 위젯 안내 · 약관 …) — 안드로이드는 창 전체를 덮는 화면(뒤로 가기 단추 하나)이라 RootView 가 맨 위 층으로 그린다.
+    @Published var setSub: Screen? = nil
+    @Published var setSubOpen = false
     func cmbOpen(kind: String, title: String, body: String, fresh: Bool) {
         Task {
             var k = kind == "eve" ? "eve" : "morn", t = title, b = body

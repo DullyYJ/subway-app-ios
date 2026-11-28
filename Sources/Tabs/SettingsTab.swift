@@ -8,8 +8,10 @@ import ActivityKit
 final class SettingsModel: ObservableObject {
     @Published var screen: Screen? = nil
     @Published var error: String? = nil
-    @Published var sub: Screen? = nil
-    @Published var subOpen = false
+    /// 하위 화면은 Host 가 들고 RootView 가 창 전체로 그린다(SetSubPage). 모델은 host 를 통해 열고 닫는다.
+    weak var host: Host?
+    var sub: Screen? { get { host?.setSub } set { host?.setSub = newValue } }
+    var subOpen: Bool { get { host?.setSubOpen ?? false } set { host?.setSubOpen = newValue } }
     private let ud = UserDefaults.standard
     static let notif = ["arrive", "transfer", "arrive_reco"]
 
@@ -189,6 +191,7 @@ final class SettingsModel: ObservableObject {
         Task { if let d = try? await Net.request("GET", url(p), timeout: 9), let s = try? Screen.parse(d) { sub = s } }
     }
     func handle(_ x: Host.TabAction, host: Host) {
+        self.host = host
         switch x.a {
         case "input", "focus", "blur":
             if x.key.hasPrefix("cmp.") { cmText(String(x.key.dropFirst(4)), x.v, x.a, host: host) }
@@ -267,24 +270,6 @@ struct SettingsView: View {
             if let s = m.screen { ScreenBody(screen: withKids(s), pal: pal).transition(.arrival) }
             else { SkelScreen(kind: "list", pal: pal).transition(.identity) }
             if let e = m.error, m.screen == nil { RetryCard(msg: e, pal: pal) }
-            if m.subOpen {
-                ZStack(alignment: .bottom) {
-                    Color.black.opacity(0.5).ignoresSafeArea().onTapGesture { m.closeSub(host: host) }
-                    VStack(spacing: 0) {
-                        Group {
-                            if let s = m.sub { ScreenBody(screen: s, pal: pal) } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
-                        }
-                        Button { m.closeSub(host: host) } label: {
-                            Text("닫기").font(Typo.font(14, bold: true)).foregroundColor(pal.color("sub") ?? .gray).frame(maxWidth: .infinity).frame(height: 44)
-                        }.buttonStyle(.plain)
-                    }
-                    .frame(maxWidth: 520).frame(maxHeight: .infinity)
-                    .background(pal.color("card") ?? .black)
-                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
-                    .padding(.top, 44)
-                    .sheetIn()
-                }
-            }
         }
         .arrivalFade(m.screen != nil)
         .task {

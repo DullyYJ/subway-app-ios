@@ -68,3 +68,25 @@ enum SetPop {
         return Screen(name: "settings", head: [], body: body, foot: [], bg: "bg", raw: ["ok": true, "screen": "settings"])
     }
 }
+
+/// 설정 하위 화면(안드로이드 openSetPage 의 전체 화면 Dialog): 창 전체를 palette bg 로 덮고, 엔진 화면(맨 위 '‹ 설정' 단추 = pg.back)을 그린다.
+/// 열릴 때 아래에서 56 떠오르며 0→1 로 나타난다(안드로이드 slideIn: 340ms · 곡선 0.32,0.72,0,1). 닫을 땐 바로 사라진다. 아이폰답게 왼쪽 가장자리를 오른쪽으로 쓸어도 닫는다.
+struct SetSubPage: View {
+    let screen: Screen?
+    let pal: Palette
+    @EnvironmentObject var host: Host
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    var body: some View {
+        ZStack {
+            (pal.color("bg") ?? Color(.systemBackground)).ignoresSafeArea()
+            if let s = screen { ScreenBody(screen: s, pal: pal) } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
+            Color.clear.frame(width: 22).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).contentShape(Rectangle())          // 왼쪽 가장자리 쓸기
+                .gesture(DragGesture(minimumDistance: 12).onEnded { v in
+                    if v.translation.width > 70 && abs(v.translation.height) < v.translation.width * 0.6 { host.actPublisher.send(Host.TabAction(tab: "community", a: "call", v: "pg.back", id: "", key: "")) }
+                })
+        }
+        .opacity(shown || reduce ? 1 : 0).offset(y: shown || reduce ? 0 : 56)
+        .onAppear { withAnimation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.34)) { shown = true } }
+    }
+}
