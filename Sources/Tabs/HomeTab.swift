@@ -126,7 +126,10 @@ final class HomeModel: ObservableObject {
             loc[1] = HLoc(type: "subway", name: "명동", line: "4호선", qname: "", lat: 37.5609, lng: 126.9863); text[1] = "명동"
             demoRoute = true
         }
+        // 켠 직후 빈 홈(입력 없음 · 경로 없음)이면 마지막으로 받은 빈 홈을 먼저 보인다(안드로이드 showCached — 새로 받으면 바꾼다)
+        if idle, let c = ScreenCache.shared.get("home|idle") { screen = c }
     }
+    private var idle: Bool { text[0].isEmpty && text[1].isEmpty && !hasRoute && active < 0 && !routing }
     func startDemo(host: Host) async {
         if demoRoute { demoRoute = false; await goRoute(host: host); if UserDefaults.standard.string(forKey: "homeDetail") == "1" { openDetail() } }
     }
@@ -231,7 +234,7 @@ final class HomeModel: ObservableObject {
         var sec: [String] = []
         if let r = r, let ro = Json.obj(r) as? [String: Any], let l = (ro["info"] as? [String: Any])?["sec"] as? [Any] { sec = l.compactMap { $0 as? String } }
         if sec != routeSec { routeSec = sec }
-        if let s = merged(h, [r, hcData]) { screen = s; error = nil; readInfo(h) }
+        if let s = merged(h, [r, hcData]) { screen = s; error = nil; readInfo(h); if idle { ScreenCache.shared.put("home|idle", s) } }
         else { error = "홈 화면을 읽지 못했어요" }
     }
 

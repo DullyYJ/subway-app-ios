@@ -39,6 +39,7 @@ struct RootView: View {
         .environmentObject(host)
         .onAppear { RideLoop.shared.host = host; CommuteAlarm.attach(host); FirstRun.host = host; FirstRun.begin() }
         .task { await prefetchTabBars() }
+        .task { await prefetchScreens() }
         .task {          // 맨 위 문구는 10분마다(앞에 있을 때만) 새로 받는다
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 600_000_000_000)
@@ -47,6 +48,13 @@ struct RootView: View {
         }
         .onChange(of: phase) { p in if p == .active { CommuteAlarm.refresh() } }          // 앱이 앞으로 올 때마다 출퇴근 알림 4주 창을 다시 민다(안드로이드 onCreate 의 rescheduleAsync)
         .preferredColorScheme(theme == "dark" ? .dark : .light)
+    }
+
+    /// 켠 뒤 잠깐 있다가 아직 안 본 탭의 화면(쇼핑 · 소식 · 게시판)을 미리 받아 `ScreenCache` 에 둔다(안드로이드 prefetchTabs) — 처음 눌러도 빈 뼈대 없이 바로 뜬다.
+    @MainActor private func prefetchScreens() async {
+        try? await Task.sleep(nanoseconds: 4_000_000_000)
+        if host.tab != "shop" { await ShopModel().load() }
+        if host.tab != "community" { await NewsModel().load(); await BoardModel().load() }
     }
 
     /// 아래 탭 막대를 탭마다 미리 받아 둔다(안드로이드 prefetchTabs) — 처음 옮길 때도 켜진 칸 표시가 바로 바뀐다.
