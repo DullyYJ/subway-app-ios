@@ -21,21 +21,6 @@ struct RootView: View {
             // 본문: 켜진 탭
             ZStack(alignment: .bottom) {
                 TabContent(tab: host.tab, pal: pal)
-                if let r = host.reco { DlgCard(screen: r, pal: pal) { host.recoAct($0) } }
-                if let p = host.pop { DlgCard(screen: p, pal: pal) { _ in host.pop = nil } }
-                if let c = host.cmPop {          // 출·퇴근 시각 고르기 팝업(바깥을 누르면 취소)
-                    DlgCard(screen: c, pal: pal) { _ in host.actPublisher.send(Host.TabAction(tab: "community", a: "call", v: "tp.cancel", id: "", key: "")) }
-                }
-                if let m = host.menuPop {          // 설정 알림 · 편의 기능 팝업(바깥을 누르면 닫힘)
-                    DlgCard(screen: m, pal: pal) { _ in host.actPublisher.send(Host.TabAction(tab: "community", a: "call", v: "pg.back", id: "", key: "")) }
-                }
-                Group {
-                    if let l = host.locd {          // 위치 정보 이용 안내(바깥을 눌러도 닫히지 않는다 — 동의/거부로만). 위에서 미끄러져 내려앉고(440ms), 닫힐 땐 아래로 흐려지며 사라진다(240ms)
-                        DlgCard(screen: l, pal: pal, act: { _ in }, slide: true)
-                            .transition(.asymmetric(insertion: .identity, removal: .opacity.combined(with: .offset(y: 30))))
-                    }
-                }.animation(.timingCurve(0.4, 0, 0.8, 0.6, duration: 0.24), value: host.locd == nil)
-                if let b = host.cmb { DlgCard(screen: b, pal: pal) { _ in host.cmbAct("cmb.ok") } }          // 출퇴근 브리핑 창(알림을 누르면)
                 if loop.running && (loop.last.rsSt == "wait" || loop.last.rsSt == "undo") && loop.last.rsShown {
                     RsFloat(ov: loop.last, pal: pal) { loop.act($0) }          // 하단 탭 위 14: 대기 알약 · 기록 직후 되돌리기
                 }
@@ -59,6 +44,25 @@ struct RootView: View {
         .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.4), value: loop.running && loop.last.rsShown ? loop.last.rsSt : "")
         .background(pal.color("bg") ?? Color(.systemBackground))
         .kidsHubLayer(pal: pal)            // 반드시 environmentObject(host) 보다 안쪽(먼저) — 층이 Host 를 환경에서 읽는다
+        .overlay {          // 안내창은 안드로이드 Dialog 처럼 화면 전체(맨 위 문구 · 아래 탭 막대까지)를 어둡게 덮고 창 가운데에 뜬다
+            ZStack {
+                if let r = host.reco { DlgCard(screen: r, pal: pal) { host.recoAct($0) } }
+                if let p = host.pop { DlgCard(screen: p, pal: pal) { _ in host.pop = nil } }
+                if let c = host.cmPop {          // 출·퇴근 시각 고르기 팝업(바깥을 누르면 취소)
+                    DlgCard(screen: c, pal: pal) { _ in host.actPublisher.send(Host.TabAction(tab: "community", a: "call", v: "tp.cancel", id: "", key: "")) }
+                }
+                if let m = host.menuPop {          // 설정 알림 · 편의 기능 팝업(바깥을 누르면 닫힘)
+                    DlgCard(screen: m, pal: pal) { _ in host.actPublisher.send(Host.TabAction(tab: "community", a: "call", v: "pg.back", id: "", key: "")) }
+                }
+                Group {
+                    if let l = host.locd {          // 위치 정보 이용 안내(바깥을 눌러도 닫히지 않는다 — 동의/거부로만). 위에서 미끄러져 내려앉고(440ms), 닫힐 땐 아래로 흐려지며 사라진다(240ms)
+                        DlgCard(screen: l, pal: pal, act: { _ in }, slide: true)
+                            .transition(.asymmetric(insertion: .identity, removal: .opacity.combined(with: .offset(y: 30))))
+                    }
+                }.animation(.timingCurve(0.4, 0, 0.8, 0.6, duration: 0.24), value: host.locd == nil)
+                if let b = host.cmb { DlgCard(screen: b, pal: pal) { _ in host.cmbAct("cmb.ok") } }          // 출퇴근 브리핑 창(알림을 누르면)
+            }
+        }
         .environmentObject(host)
         .onAppear { RideLoop.shared.host = host; CommuteAlarm.attach(host); FirstRun.host = host; FirstRun.begin(); HomeModel.shared.restoreRideIfAny() }
         // 위젯 · 라이브 액티비티가 앱을 열 때: gildongmu://tab/<탭이름> 이면 그 탭으로(안드로이드 위젯: 커뮤니티 탭)

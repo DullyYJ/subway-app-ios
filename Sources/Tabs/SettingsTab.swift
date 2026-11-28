@@ -286,7 +286,14 @@ struct SettingsView: View {
             }
         }
         .arrivalFade(m.screen != nil)
-        .task { await m.load(); kids.refreshLink() }
+        .task {
+            await m.load(); kids.refreshLink()
+            let args = CommandLine.arguments          // 시험용: `-setPop notif|conv|gw|arr` 로 켜면 설정 화면이 뜬 뒤 그 팝업 · 하위 화면을 바로 연다(CI 화면 확인용)
+            if let i = args.firstIndex(of: "-setPop"), i + 1 < args.count {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                m.handle(Host.TabAction(tab: "community", a: "call", v: "pg." + args[i + 1], id: "", key: ""), host: host)
+            }
+        }
         .onReceive(host.actPublisher) { x in if x.tab == "community" { m.handle(x, host: host) } }
         .onChange(of: host.reloadTick) { _ in Task { await m.load() } }
     }

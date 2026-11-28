@@ -88,6 +88,12 @@ jobs:
             sleep 22
             xcrun simctl io "$UDID" screenshot screenshot-tab-community-$CM.png
           done
+          for SP in notif conv gw arr; do
+            xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
+            xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab community -ccMode set -setPop $SP
+            sleep 24
+            xcrun simctl io "$UDID" screenshot screenshot-set-$SP.png
+          done
           xcrun simctl terminate "$UDID" com.dullyyj.subway.ios || true
           xcrun simctl launch "$UDID" com.dullyyj.subway.ios -skipSetup -tab community -ccMode news -newsDetail 1
           sleep 26
