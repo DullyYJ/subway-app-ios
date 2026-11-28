@@ -281,7 +281,18 @@ struct MetroMapView: UIViewRepresentable {
             let z = max(sv.zoomScale, 0.001)
             let sx = pt.x / v.scaleBase, sy = pt.y / v.scaleBase
             let op = parent.data.hitLabel(x: sx, y: sy, tol: 14 / (v.scaleBase * z), filter: parent.filter)
-            if op >= 0 { parent.onStation(parent.data.labelName(op)) }
+            if op >= 0 { ensureVisible(op, sv, v); parent.onStation(parent.data.labelName(op)) }
+        }
+        /// 안드로이드 MetroMapView.ensureVisible: 역 팝업(높이 276)이 아래를 덮으니, 눌린 역이 보이는 영역(팝업 위) 밖이면 380ms 동안 가운데로 옮긴다. 배율은 그대로.
+        private func ensureVisible(_ op: Int, _ sv: UIScrollView, _ v: MetroTiledView) {
+            let d = parent.data, z = sv.zoomScale, cover: CGFloat = 276
+            let lx = CGFloat(d.lbTb[4 * op]) + CGFloat(d.lbTb[4 * op + 2]) / 2, ly = CGFloat(d.lbTb[4 * op + 1]) + CGFloat(d.lbTb[4 * op + 3]) / 2
+            let px = lx * v.scaleBase * z, py = ly * v.scaleBase * z                    // 확대된 내용 좌표
+            let m: CGFloat = 28, vx = px - sv.contentOffset.x, vy = py - sv.contentOffset.y
+            if vx >= m && vx <= sv.bounds.width - m && vy >= m && vy <= sv.bounds.height - cover - m { return }
+            let maxX = max(0, sv.contentSize.width - sv.bounds.width), maxY = max(0, sv.contentSize.height - sv.bounds.height)
+            let to = CGPoint(x: min(maxX, max(0, px - sv.bounds.width / 2)), y: min(maxY, max(0, py - (sv.bounds.height - cover) / 2)))
+            UIView.animate(withDuration: 0.38, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) { sv.contentOffset = to }
         }
     }
 }
